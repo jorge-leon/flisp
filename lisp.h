@@ -203,6 +203,11 @@ void fl_debug(Interpreter *, char *, ...);
         exceptionWithObject(interp, PARAM, wrong_type_argument, \
                             SIGNATURE " expected %s, got: %s", TYPE->string, PARAM->type->string)
 
+/* UTF-8 handling */
+extern size_t flisp_char_length(char);
+extern size_t flisp_char_index(Interpreter *, char *, size_t);
+extern size_t flisp_char_count(Interpreter *, char *, size_t);
+
 // PUBLIC INTERFACE ///////////////////////////////////////////////////////
 extern Interpreter *flisp_new(size_t size, char **, char*, FILE*, FILE*, FILE*);
 extern void flisp_destroy(Interpreter *);

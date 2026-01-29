@@ -204,10 +204,10 @@ flisp_expr; ok string-8 lambda prints reader macro and parameters
 
 IN="(string (macro (a b)))" OUT='"#<Macro (a b)>"'
 flisp_expr; ok string-9 macro prints reader macro and parameters
-
+###export FLISP_SIZE=151552
 IN='(setq f (open "" "<"))(close f)(string f)' OUT='"#<Stream 0 <STRING>"'
-flisp_expr 1; ok string-10 closed stream prints reader macro nil as fd and type
-return
+flisp_expr; ok string-10 closed stream prints reader macro nil as fd and type
+
 ###FLISP_SIZE=0
 # concat
 IN="(concat 1 'a \"?\")" OUT='"1a?"'

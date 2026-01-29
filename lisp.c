@@ -2242,7 +2242,7 @@ Object *byteLength(Interpreter *interp, Object **args, Object **env)
 /// UTF-8 handling ////////////
 
 /* encoded character size */
-size_t utf8_ec_size(char c)
+size_t flisp_char_length(char c)
 {
     if ((c & 0x80) == 0) return 1;
     if ((c & 0xC0) == 0xC0) return 2;
@@ -2252,7 +2252,7 @@ size_t utf8_ec_size(char c)
 
 }
 
-/** utf8_char_index() - char offset of string index
+/** flisp_char_index() - char offset of string index
  *
  * @param interp .. interpreter into which to throw exceptions.
  * @param string .. string to index.
@@ -2260,21 +2260,21 @@ size_t utf8_ec_size(char c)
  *
  * @returns: character offset into string corresponding to utf8
  * encoded character at position index */
-size_t utf8_char_index(Interpreter *interp, char *string, size_t index)
+size_t flisp_char_index(Interpreter *interp, char *string, size_t index)
 {
     size_t n = 0, i = 0, l = 0;
 
     while (string[i] != '\0' && n < index) {
-        l = utf8_ec_size(string[i]);
+        l = flisp_char_length(string[i]);
         if (l == 0)
-            exception(interp, invalid_value, "utf8_char_index(): string not utf-8 encoded");
+            exception(interp, invalid_value, "flisp_char_index(): string not utf-8 encoded");
         i += l;
         n++;
     }
     return i;
 }
 
-/** utf8_ec_count() - number of encoded characters in string
+/** flisp_char_count() - number of encoded characters in string
  *
  * @param interp .. interpreter into which to throw exceptions.
  * @param string .. string in which to count encoded characters.
@@ -2282,14 +2282,14 @@ size_t utf8_char_index(Interpreter *interp, char *string, size_t index)
  *
  * @returns: count of encoded characters, i.e. len of UTF-8 encoded unicode string.
  */
-size_t utf8_ec_count(Interpreter *interp, char *string, size_t len)
+size_t flisp_char_count(Interpreter *interp, char *string, size_t len)
 {
     size_t n = 0, i = 0, l = 0;
 
     while (string[i] != '\0' && i < len) {
-        l = utf8_ec_size(string[i]);
+        l = flisp_char_length(string[i]);
         if (l == 0)
-            exception(interp, invalid_value, "utf8_ec_count(): string not utf-8 encoded");
+            exception(interp, invalid_value, "flisp_char_count(): string not utf-8 encoded");
         i += l;
         n++;
     }
@@ -2298,7 +2298,7 @@ size_t utf8_ec_count(Interpreter *interp, char *string, size_t len)
 
 Object *stringLength(Interpreter *interp, Object **args, Object **env)
 {
-    return newInteger(interp, utf8_ec_count(interp, FLISP_ARG_ONE->string, SIZE_MAX));
+    return newInteger(interp, flisp_char_count(interp, FLISP_ARG_ONE->string, SIZE_MAX));
 }
 
 /** (string-search needle haystack)
@@ -2314,7 +2314,7 @@ Object *stringSearch(Interpreter *interp, Object **args, Object **env)
         
     return newInteger(
         interp,
-        utf8_ec_count(interp, FLISP_ARG_TWO->string, pos - FLISP_ARG_TWO->string)
+        flisp_char_count(interp, FLISP_ARG_TWO->string, pos - FLISP_ARG_TWO->string)
         );
 }
 
@@ -2337,7 +2337,7 @@ Object *stringSubstring(Interpreter *interp, Object **args, Object **env)
     if (*(FLISP_ARG_ONE->string) == '\0')
         return flisp_empty_string;
 
-    end = len = utf8_ec_count(interp, FLISP_ARG_ONE->string, SIZE_MAX);
+    end = len = flisp_char_count(interp, FLISP_ARG_ONE->string, SIZE_MAX);
     
     if (FLISP_HAS_ARG_TWO) {
         FLISP_CHECK_TYPE(FLISP_ARG_TWO, type_integer, "(substring string [start [end]]) - start");
@@ -2365,13 +2365,13 @@ Object *stringSubstring(Interpreter *interp, Object **args, Object **env)
         exceptionWithObject(interp, FLISP_ARG_TWO, range_error,
                             "(substring string [start [end]]) - end > start");
     len = end - start;
-    start = utf8_char_index(interp, FLISP_ARG_ONE->string, start);
+    start = flisp_char_index(interp, FLISP_ARG_ONE->string, start);
     char *buf = strdup(FLISP_ARG_ONE->string+start);
     if (buf == NULL)
         exception(interp, out_of_memory, "OOM allocating buffer for (substring)\n");
 
     /* Repurpose len for char length */
-    len = utf8_char_index(interp, buf, len);
+    len = flisp_char_index(interp, buf, len);
     Object *new = newStringWithLength(interp, buf, len+1);
     free(buf);
     new->string[len] = '\0';
