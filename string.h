@@ -5,6 +5,8 @@
 
 extern bool flisp_string_register(Interpreter *);
 
+extern int64_t flisp_char_code(char *);
+
 #endif
 /*
  * Local Variables:
