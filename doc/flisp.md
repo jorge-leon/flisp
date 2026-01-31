@@ -62,8 +62,9 @@ This manual refers to version 0.14 or later of fLisp.
     6.  [String Operations](#string_ops)
     7.  [*fLisp* Core Library](#core_lib)
 6.  [*fLisp* Extensions](#extend)
-    1.  [File Extension](#file)
-    2.  [Double Extension](#double)
+    1.  [String Extension](#string)
+    2.  [POSIX Extension](#posix)
+    3.  [Double Extension](#double)
 7.  [Lisp Libraries](#libraries)
     1.  [fLisp Library](#flisp_lib)
     2.  [String Library](#string_lib)
@@ -951,7 +952,18 @@ corresponds to the UTF-8 representation of Unicode code point *i*.
 Converts the first character of *string* into an integer which
 corresponds to its Unicode code point.
 
-#### File Extension
+`(strspn «string chars»)` ⇒ *i* <u>f</u>  
+Returns the index of the first character in *string* which is not
+contained in the string *chars*.
+
+`(strcspn «string» «chars»)` ⇒ *i* <u>f</u>  
+Returns the index of the first character in *string* which is
+containted in the string *chars*.
+
+#### POSIX Extension
+
+This extension contains a collection of wrappers to libc functions
+acording to the POSIX standards.
 
 All functions except `getenv` are specific to fLisp.
 
@@ -1008,6 +1020,11 @@ does not exist return `nil`.
 
 `(getcwd)` ⇒ *string*  
 Return the current working directory.
+
+`(fnmatch «pattern» «string»[ «flags»])`  
+glob(7) style pattern matching. The constants: FNM_PATHNAME,
+FNM_NOESCAPE and FNM_PERIOD can be binary or'd together to form the
+respective *flags* value, default is 0.
 
 [^](#toc)
 

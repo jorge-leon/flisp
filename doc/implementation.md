@@ -180,8 +180,11 @@ characters instead of bytes.
 The primitive `byte-length` returns the length of the character array
 used to store the string.
 
-*Caution*: *fLisp* has no measures against incorrectly encoded UTF-8
+*Caution*: *fLisp* takes no measures against incorrectly encoded UTF-8
 string.
+
+The string extension primitives `char-length`, `char-code` and
+`code-char` however perform some checks.
 
 [^](#toc)
 

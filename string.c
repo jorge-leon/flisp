@@ -121,14 +121,29 @@ Object *stringCharCode(Interpreter *interp, Object **args, Object **env)
     return newInteger(interp, code);
 }
 
+/** strspn */
+Object *stringStrspn(Interpreter *interp, Object** args, Object **env)
+{
+    int64_t i = strspn(FLISP_ARG_ONE->string, FLISP_ARG_TWO->string);
+    return newInteger(interp, flisp_char_count(interp, FLISP_ARG_ONE->string, i));
+}
 
+
+/** strcspn */
+Object *stringStrcspn(Interpreter *interp, Object** args, Object **env)
+{
+    int64_t i = strcspn(FLISP_ARG_ONE->string, FLISP_ARG_TWO->string);
+    return newInteger(interp, flisp_char_count(interp, FLISP_ARG_ONE->string, i));
+}
 
 bool flisp_string_register(Interpreter *interp)
 {
     return
         flisp_register_primitive(   interp, "char-length",  1, 1, type_string,  stringCharLength)
         && flisp_register_primitive(interp, "code-char",    1, 1, type_integer, stringCodeChar)
-        && flisp_register_primitive(interp, "char-code",    1, 1, type_string,  stringCharCode);
+        && flisp_register_primitive(interp, "char-code",    1, 1, type_string,  stringCharCode)
+        && flisp_register_primitive(interp, "strspn",       2, 2, type_string,  stringStrspn)
+        && flisp_register_primitive(interp, "strcspn",       2, 2, type_string,  stringStrcspn);
 }
 
 

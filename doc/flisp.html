@@ -113,7 +113,10 @@
       <a href="#extend"><i>fLisp</i> Extensions</a>
       <ol>
         <li>
-          <a href="#file">File Extension</a>
+          <a href="#string">String Extension</a>
+        </li>
+        <li>
+          <a href="#posix">POSIX Extension</a>
         </li>
         <li>
           <a href="#double">Double Extension</a>
@@ -809,7 +812,7 @@
   <p>Extensions are C libraries which implement additional primitives. They are loaded into an <i>fLisp</i> interpreter
   after creation. Two extensions are delivered with <i>fLisp</i>: the <i>file</i> extension for interaction with the
   operating system and the <i>double</i> floating point extension.</p>
-  <h4>String Extensions</h4>
+  <h4 id="string">String Extensions</h4>
   <dl>
     <dt><code>(char-length <var>string</var>)</code> ⇒ <i>i</i>&nbsp;<u>f</u></dt>
     <dd>Calculates&nbsp;the number of bytes occupied by the first character of <var>string</var>.</dd>
@@ -819,8 +822,15 @@
     <dt><code>(char-code&nbsp;<var>string</var>)</code> ⇒ <i>i</i>&nbsp;<u>f</u></dt>
     <dd>Converts the first character of <var>string</var> into an integer which corresponds to its Unicode code
     point.</dd>
+    <dt><code>(strspn&nbsp;<var>string chars</var>)</code> ⇒ <i>i</i>&nbsp;<u>f</u></dt>
+    <dd>Returns the index of the first character in <var>string</var> which is not contained in the string
+    <var>chars</var>.</dd>
+    <dt><code>(strcspn&nbsp;<var>string</var> <var>chars</var>)</code> ⇒ <i>i</i>&nbsp;<u>f</u></dt>
+    <dd>Returns the index of the first character in&nbsp;<var>string</var>&nbsp;which is containted&nbsp;in the string
+    <var>chars</var>.</dd>
   </dl>
-  <h4 id="file">File Extension</h4>
+  <h4 id="posix">POSIX Extension</h4>
+  <p>This extension contains a collection of wrappers to libc functions acording to the POSIX standards.</p>
   <p>All functions except <code>getenv</code> are specific to fLisp.</p>
   <p><mark>Tbd. carry over comprehensive documentation from <code>file.c</code></mark></p>
   <dl>
@@ -862,6 +872,9 @@
     return <code>nil</code>.</dd>
     <dt><code>(getcwd)</code> ⇒ <i>string</i></dt>
     <dd>Return the current working directory.</dd>
+    <dt><code>(fnmatch <var>pattern</var> <var>string</var>[ <var>flags</var>])</code></dt>
+    <dd>glob(7) style pattern matching. The constants: FNM_PATHNAME, FNM_NOESCAPE and FNM_PERIOD can be binary or'd
+    together to form the respective <var>flags</var> value, default is 0.</dd>
   </dl>
   <nav>
     <a href="#toc">^</a>

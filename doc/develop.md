@@ -223,6 +223,8 @@ Frees all resources used by the interpreter.
 
 ### Building Extensions
 
+<span class="mark">Tbd: how to load the existing extensions</span>
+
 #### Registering Primitives
 
 An extensions has to create C functions,
@@ -504,7 +506,7 @@ definition of the symbol requires the following notation:
 
 
     …
-    Object * very_long_symbol_name = (Object *) (&(Symbol) { NULL, .string = "very long symbol name" });​​​​​​​
+    Object * very_long_symbol_name = (Object *) (&(Symbol) { NULL, .string = "very long symbol name" });
     …
 
 [^](#toc)

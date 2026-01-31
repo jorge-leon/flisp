@@ -5,6 +5,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <fnmatch.h>
 
 #include "lisp.h"
 #include "posix.h"
@@ -484,8 +485,44 @@ Object *posixGetcwd(Interpreter *interp, Object **args, Object **env)
     return newString(interp, buf);
 }
 
+Object *fnm_pathname = &(Object) { .string = "FNM_PATHNAME" };
+Object *fnm_noescape = &(Object) { .string = "FNM_NOESCAPE" };
+Object *fnm_period = &(Object) { .string = "FNM_PERIOD" };
+
+/** (fnmatch pattern string[ flags])
+ * https://man7.org/linux/man-pages/man3/fnmatch.3p.html
+ * flags: default 0
+ * - FNM_PATHNAME
+ * - FNM_NOESCAPE
+ * - FNM_PERIOD
+ **/
+Object *posixFnmatch(Interpreter *interp, Object** args, Object **env)
+{
+    int result, flags = 0;
+
+    FLISP_CHECK_TYPE(FLISP_ARG_ONE, type_string, "(fnmatch pattern string[ flags]) - pattern");
+    FLISP_CHECK_TYPE(FLISP_ARG_TWO, type_string, "(fnmatch pattern string[ flags]) - string");
+    
+    if (FLISP_HAS_ARG_THREE)
+        flags = FLISP_ARG_THREE->integer;
+    result = fnmatch(FLISP_ARG_ONE->string, FLISP_ARG_TWO->string, flags);
+    if (result == 0)
+        return t;
+    if (result == FNM_NOMATCH)
+        return nil;
+    exception(interp, invalid_value, "(fnmatch pattern string[ flags]) - error");
+}
+
 bool flisp_posix_register(Interpreter *interp)
 {
+    Object *object = newInteger(interp, FNM_PATHNAME);
+    flisp_register_constant(interp, fnm_pathname, object);
+    object = newInteger(interp, FNM_NOESCAPE);
+    flisp_register_constant(interp, fnm_noescape, object);
+    object = newInteger(interp, FNM_PERIOD);
+    flisp_register_constant(interp, fnm_period, object);
+
+    
     return
         flisp_register_primitive(   interp, "fflush",  0, 1, nil,         posixFflush)
         && flisp_register_primitive(interp, "fseek",   2, 3, nil,         posixFseek)
@@ -501,7 +538,8 @@ bool flisp_posix_register(Interpreter *interp)
         && flisp_register_primitive(interp, "pclose",  1, 1, type_stream, posixPclose)
         && flisp_register_primitive(interp, "system",  1, 1, type_string, posixSystem)
         && flisp_register_primitive(interp, "getenv",  1, 1, type_string, posixGetenv)
-        && flisp_register_primitive(interp, "getcwd",  0, 0, nil,         posixGetcwd);
+        && flisp_register_primitive(interp, "getcwd",  0, 0, nil,         posixGetcwd)
+        && flisp_register_primitive(interp, "fnmatch", 2, 3, nil,         posixFnmatch);
 }
 
 /*

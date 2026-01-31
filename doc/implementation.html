@@ -10,7 +10,7 @@
   <meta content="2023" name="copyright" />
   <link href="https://svc.webspellchecker.net/spellcheck31/wscbundle/css/wsc.css" rel="stylesheet" type="text/css" />
 </head>
-<body data-wsc-instance="true">
+<body class="openlink" data-wsc-instance="true">
   <h1><i>fLisp</i> Implementation Details</h1>
   <h3 id="introduciton">Introduction</h3>
   <p>This document discusses some of the design decisions taken in <i>fLisp</i>. Other documentation topics are:</p>
@@ -148,7 +148,9 @@
   size of UTF-8 character encodings and count the string indices and lenghts in Unicode characters instead of
   bytes.</p>
   <p>The primitive <code>byte-length</code> returns the length of the character array used to store the string.</p>
-  <p><em>Caution</em>: <i>fLisp</i> has no measures against incorrectly encoded UTF-8 string.</p>
+  <p><em>Caution</em>: <i>fLisp</i> takes no measures against incorrectly encoded UTF-8 string.</p>
+  <p>The string extension primitives <code>char-length</code>, <code>char-code</code> and <code>code-char</code>
+  however perform some checks.</p>
   <nav>
     <p><a href="#toc">^</a></p>
     <h3>References</h3>

@@ -36,12 +36,10 @@ Size by version:
 	0.13	85584	3.6k/2.4k/6			373/272/3
 	0.14    82984   3.7k/2.4k/7			610/355/5
 	0.15    82984   3.8k/2.5k/7         358/166/5
-	0.16    ...
-
 
 ## Building
 
-fLisp only depends on the standard C libraries.
+fLisp only depends only on the standard C libraries.
 
 The default Makefile target:
 
