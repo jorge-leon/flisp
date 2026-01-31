@@ -44,7 +44,7 @@ contains the string and the posix library.
 
 ## Building
 
-fLisp only depends only on the standard C libraries.
+fLisp depends only on the standard C libraries.
 
 The default Makefile target:
 
