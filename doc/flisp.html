@@ -587,11 +587,7 @@
     <dt><code>(string-search <var>needle</var> <var>haystack</var>)</code> <u>C</u></dt>
     <dd>Returns the position of string&nbsp;<var>needle</var> if it is contained in string&nbsp;<var>haystack</var>,
     otherwise <code>nil</code>.</dd>
-    <dt><code>(ascii <var>integer</var>)</code> ⇒ <i>string</i>&nbsp;<u>f</u></dt>
-    <dd>Converts <var>integer</var> into a <i>string</i> with one character, which corresponds to the ASCII
-    representation of <var>integer</var>.</dd>
-    <dt><code>(ascii-&gt;number <var>string</var>)</code> ⇒ <i>i</i>&nbsp;<u>f</u></dt>
-    <dd>Converts the first character of <var>string</var> into an integer which corresponds to its ASCII value.</dd>
+    <dt>&nbsp;</dt>
   </dl>
   <nav>
     <a href="#toc">^</a>
@@ -813,6 +809,17 @@
   <p>Extensions are C libraries which implement additional primitives. They are loaded into an <i>fLisp</i> interpreter
   after creation. Two extensions are delivered with <i>fLisp</i>: the <i>file</i> extension for interaction with the
   operating system and the <i>double</i> floating point extension.</p>
+  <h4>String Extensions</h4>
+  <dl>
+    <dt><code>(char-length <var>string</var>)</code> ⇒ <i>i</i>&nbsp;<u>f</u></dt>
+    <dd>Calculates&nbsp;the number of bytes occupied by the first character of <var>string</var>.</dd>
+    <dt><code>(code-char <var>i</var>)</code> ⇒ <i>string</i>&nbsp;<u>f</u></dt>
+    <dd>Converts integer <var>i</var> into a <i>string</i> with one character, which corresponds to the
+    UTF-8&nbsp;representation of Unicode code point&nbsp;<var>i</var>.</dd>
+    <dt><code>(char-code&nbsp;<var>string</var>)</code> ⇒ <i>i</i>&nbsp;<u>f</u></dt>
+    <dd>Converts the first character of <var>string</var> into an integer which corresponds to its Unicode code
+    point.</dd>
+  </dl>
   <h4 id="file">File Extension</h4>
   <p>All functions except <code>getenv</code> are specific to fLisp.</p>
   <p><mark>Tbd. carry over comprehensive documentation from <code>file.c</code></mark></p>

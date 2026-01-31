@@ -18,10 +18,62 @@ Object *stringCharLength(Interpreter *interp, Object **args, Object **env)
     return newInteger(interp, len);
 }
 
+/** flisp_code_char() - convert Unicode code point to character.
+ *
+ * @param code  .. code point
+ * @param string .. pointer to character array where to store the character.
+ *
+ * @returns size of character string or -1 on error
+ *
+ * If string is NULL, only the size is returned.
+ *
+ */
+size_t flisp_code_char(int64_t code, char *string)
+{
+    int64_t mask = 0x3F, prefix = 0xFF80;
+    size_t len;
+
+    if (code < 0 || code > 0x10FFFF)
+        return -1;
+    if (code >= 0x010000)
+        len = 4;
+    else if (code >= 0x0800)
+        len = 3;
+    else if (code >= 0x80)
+        len = 2;
+    else {
+        if (string) {
+            string[0] = code;
+            return 1;
+        }
+    }
+    if (string == NULL)
+        return len;
+
+    while (--len) {
+        string[len] = 0x80 + (0x3F & code);
+        code >>=6;
+        mask >>=1;
+        prefix >>=1;
+    }
+    string[0] = prefix + (code & mask);
+    return len;
+}
+
 
 Object *stringCodeChar(Interpreter *interp, Object **args, Object **env)
 {
-    return nil;
+    size_t len = 0;
+    char string[5] = { 0 };
+
+    len = flisp_code_char(FLISP_ARG_ONE->integer, string);
+    if (len == -1)
+        exceptionWithObject(interp, FLISP_ARG_ONE, range_error,
+                            "(code-char n) - n out of Unicode range");
+    fl_debug(interp, "%d: %hhX %hhX %hhX %hhX %hhX\n",
+             len, string[0], string[1], string[2], string[3], string[4]
+        );
+    return newString(interp, string);
 }
 
 int64_t flisp_char_code(char *string)

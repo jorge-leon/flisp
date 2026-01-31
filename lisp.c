@@ -2385,36 +2385,6 @@ Object *stringCompare(Interpreter *interp, Object **args, Object **env)
     return newInteger(interp, strcmp(FLISP_ARG_ONE->string, FLISP_ARG_TWO->string));
 }
 
-/* Note: This should be
-   a) renamed to (code-char)
-   b) rewritten to convert a unicode code point into a unicode char string and
-   c) moved to an extension.
-*/
-Object *asciiToString(Interpreter *interp, Object **args, Object **env)
-{
-    char ch[2];
-    if (FLISP_ARG_ONE->integer < 0 || FLISP_ARG_ONE->integer > 255)
-        exceptionWithObject(interp, FLISP_ARG_ONE, range_error,
-                            "(ascii num) - num is not in range 0-255");
-
-    ch[0] = (unsigned char)FLISP_ARG_ONE->integer;
-    ch[1] = '\0';
-    return newStringWithLength(interp, ch, 1);
-}
-
-/* Note: This should be
-   a) renamed to (char-code)
-   b) rewriten to convert the first encoded character of string to the codepoint and
-   c) moved to an extension. */
-Object *asciiToInteger(Interpreter *interp, Object **args, Object **env)
-{
-    if (strlen(FLISP_ARG_ONE->string) < 1)
-        exceptionWithObject(interp, FLISP_ARG_ONE, invalid_value,
-                            "(ascii->number string) - string is empty");
-
-    return newInteger(interp, (int64_t)*FLISP_ARG_ONE->string);
-}
-
 // Interpreter introspection and configuration
 
 /** (interp cmd[ arg..]) - query or set interpreter internals */
@@ -2570,8 +2540,6 @@ bool flisp_primitives_register(Interpreter *interp)
         && flisp_register_primitive(interp, "string-search", 2,  2, type_string,    stringSearch)
         && flisp_register_primitive(interp, "substring",     1,  3, nil,            stringSubstring)
         && flisp_register_primitive(interp, "string-compare",2,  2, type_string,    stringCompare)
-        && flisp_register_primitive(interp, "ascii",         1,  1, type_integer,   asciiToString)
-        && flisp_register_primitive(interp, "ascii->number", 1,  1, type_string,    asciiToInteger)
         && flisp_register_primitive(interp, "interp",        1, -1, nil,            primitiveInterp);
 }
 

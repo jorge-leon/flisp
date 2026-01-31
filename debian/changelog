@@ -5,7 +5,7 @@ flisp (0.15-1) trixie; urgency=medium
   * Added core function: map.
   * Added cl.lsp - WIP
   * Basic Unicode / UTF-8 support.
- -- Georg Lehner <jorge@magma-soft.at>  Fri, 23 Jan 2026 21:39:42 +0200
+ -- Georg Lehner <jorge@magma-soft.at>  Sat, 31 Jan 2026 20:00:05 +0200
 
 flisp (0.14-1) trixie; urgency=medium
 

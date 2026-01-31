@@ -5,7 +5,7 @@
 
 export FLISPRC=
 
-tap 198
+tap 202
 
 [ -x ../flispd ]
 ok flisp-1 flisp exists and is executable;
@@ -520,11 +520,25 @@ IN='(string-compare "a" "b")' OUT="-1" flisp_expr; ok string-compare-2 a less th
 IN='(string-compare "b" "a")' OUT="1" flisp_expr; ok string-compare-3 b greater then a
 IN='(string-compare "a" "ä")' OUT="-98" flisp_expr; ok string-compare-4 a less then umlaut a
 
-IN='(ascii 64)' OUT='"@"'
-flisp_expr; ok ascii-1 ascii 64 is @
+# string extension
 
-IN='(ascii->number "@")' OUT='64'
-flisp_expr 5; ok ascii-to-number-1 of @ is 64
+IN='(char-length "a")' OUT=1
+flisp_expr; ok char-length-1 ascii is 1
+
+IN='(char-length "ä")' OUT=2
+flisp_expr; ok char-length-1 umlaut a is 2
+
+IN='(code-char 64)' OUT='"@"'
+flisp_expr; ok code-char-1 ascii 64 is @
+
+IN='(code-char 228)' OUT='"ä"'
+flisp_expr; ok code-char-2 codepoint 228 is umlaut a
+
+IN='(char-code "@")' OUT='64'
+flisp_expr 5; ok char-code-1 of @ is 64
+
+IN='(char-code "ä")' OUT='228'
+flisp_expr 5; ok char-code-2 of umlaut a is 228
 
 # File extension
 

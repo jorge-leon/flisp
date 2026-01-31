@@ -107,6 +107,7 @@ been tested.</span>
 
 The signature of `flisp_new()` is:
 
+> 
 >     Interpreter *flisp_new(site_t size, char **argv, char *library_path, FILE *input, FILE *output, FILE* debug)
 
 *size*  
@@ -155,6 +156,7 @@ can be set to any other array of strings if needed.
 
 The signature of `flisp_eval()` is:
 
+> 
 >     void flisp_eval(Interpreter *interp, char *string)
 
 If *string* is not `NULL` all Lisp expressions in *string* are evaluated
@@ -226,6 +228,7 @@ Frees all resources used by the interpreter.
 An extensions has to create C functions,
 called <span class="dfn">primitives</span> with the signature:
 
+> 
 >     Object *primitive(Interpreter *interp, Object **args, Object **env)
 
 *primitive* must be a distinct name in C space. This signatures is
@@ -234,6 +237,7 @@ typedef'd to `LispEval`.
 To make the primitive available to an fLisp interpreter the following
 function has to be executed:
 
+> 
 >     void flisp_register_primitive(Interpreter *interp, char *name, int min_args, int max_args, Object *args_type, LispEval func)
 
 *interp*  
@@ -290,6 +294,7 @@ of the argument to be type checked. This is used to form a standardized
 
 Example:
 
+
     /* (foo integer string) => 42 - just check if the first argument is an integer and the second a string, then return the integer 42 */
     Object *foo(Interpreter *interp, Object **args, Object **env)
     {
@@ -313,7 +318,7 @@ following object types are available:
 <col style="width: 20%" />
 </colgroup>
 <thead>
-<tr class="header">
+<tr>
 <th scope="col">C symbol</th>
 <th scope="col">Lisp type symbol</th>
 <th scope="col">Type </th>
@@ -322,56 +327,56 @@ following object types are available:
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>type_integer</code></td>
 <td><code>type-integer</code></td>
 <td><code>int64_t</code></td>
 <td><code>object-&gt;integer</code></td>
 <td><code>newInteger(«interp», «integer»)</code></td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>type_double</code></td>
 <td><code>type-double</code></td>
 <td><code>double</code></td>
 <td><code>object-&gt;number</code></td>
 <td><code>newDouble(«interp», «double»)</code></td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>type_string</code></td>
 <td><code>type-string</code></td>
 <td><code>char *</code></td>
 <td><code>object-&gt;string</code></td>
 <td><code>newString(«interp», «string»)</code></td>
 </tr>
-<tr class="even">
+<tr>
 <td> </td>
 <td> </td>
 <td> </td>
 <td> </td>
 <td><code>newStringWithLength(«interp», «string», «length»)</code></td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>type_symbol</code></td>
 <td><code>type-symbol</code></td>
 <td><code>char *</code></td>
 <td><code>object-&gt;string</code></td>
 <td><code>newSymbol(«interp», «string»)</code></td>
 </tr>
-<tr class="even">
+<tr>
 <td> </td>
 <td> </td>
 <td> </td>
 <td> </td>
 <td><code>newSymbolWithLength(«interp», «string», «length»)</code></td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>type_cons</code></td>
 <td><code>type-cons</code></td>
 <td><code>Object *</code></td>
 <td><code>object-&gt;car</code>, <code>object-&gt;cdr</code></td>
 <td><code>newCons(«interp», «car», «cdr»)</code></td>
 </tr>
-<tr class="even">
+<tr>
 <td> </td>
 <td> </td>
 <td> </td>
@@ -379,28 +384,28 @@ following object types are available:
 <td><em>car</em> and <em>cdr</em> are of type
 <code>Object **</code></td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>type_lambda</code></td>
 <td><code>type-lambda</code></td>
 <td><code>Object *</code></td>
 <td><code>object-&gt;params</code>, <code>object-&gt;body</code>, <code>object-&gt;env</code></td>
 <td>n.a.</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>type_macro</code></td>
 <td><code>type-macro</code></td>
 <td><code>Object *</code></td>
 <td><code>object-&gt;params</code>, <code>object-&gt;body</code>, <code>object-&gt;env</code></td>
 <td>n.a.</td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>type_primitive</code></td>
 <td><code>type-primitive</code></td>
 <td><code>Primitive *</code></td>
 <td><code>object-&gt;primitive</code></td>
 <td>n.a.</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>type_stream</code></td>
 <td><code>type-stream</code></td>
 <td><div>
@@ -409,14 +414,14 @@ following object types are available:
 <td><code>object-&gt;path</code> (of <code>type-string</code>)</td>
 <td><code>newStreamObject(«interp», «fd», «path»)</code></td>
 </tr>
-<tr class="odd">
+<tr>
 <td> </td>
 <td> </td>
 <td><code>FILE *</code></td>
 <td><code>object-&gt;fd</code></td>
 <td> </td>
 </tr>
-<tr class="even">
+<tr>
 <td> </td>
 <td> </td>
 <td><code>size_t</code></td>
@@ -441,6 +446,7 @@ registration. The convenience macro `GC_RETURN(«object»)` calls
 `GC_RELEASE` and returns *object*.
 
 Example:
+
 
     /* (bar) => (nil . 42) - return a cons with nil and the integer 42 */
     #if USING_GC_RELEASE
@@ -480,6 +486,7 @@ object. To create such a “constant” use
 example usage where the symbol `foobar` is registered to have the value
 42.:
 
+
     Object * foobar = &(Object) { NULL, .string = "foobar" };
     Object * answer = &(Object) { NULL, .integer = 42 };
     …
@@ -494,6 +501,7 @@ done by the application code.
 
 If the string length of the symbol name exceeds 11 characters the
 definition of the symbol requires the following notation:
+
 
     …
     Object * very_long_symbol_name = (Object *) (&(Symbol) { NULL, .string = "very long symbol name" });​​​​​​​

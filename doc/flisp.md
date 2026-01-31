@@ -174,9 +174,10 @@ functions.
 #### Syntax
 
 Program text is written as a sequence of symbolic expressions -
-<span class="dfn">sexp</span>'s - in parenthesized form. A
-[sexp](https://en.wikipedia.org/wiki/S-expression) is either a single
-symbol or a sequence of symbols or sexp's enclosed in parenthesis.
+<span class="abbr"><span class="dfn">sexp</span></span>'s - in
+parenthesized form. A [sexp](https://en.wikipedia.org/wiki/S-expression)
+is either a single symbol or a sequence of symbols or sexp's enclosed in
+parenthesis.
 
 The following characters are special to the reader:
 
@@ -188,7 +189,8 @@ Starts a function or macro invocation, a *list* or *cons* object (see
 Finishes a function or macro invocation, *list* or *cons* object.
 
 `'` and `:`  
-With a single quote or a colon prefix before a sexp, the sexp is
+With a single quote or a colon prefix before a
+<span class="abbr">sexp</span>, the <span class="abbr">sexp</span> is
 expanded to `(quote «sexp»)` before it is evaluated.
 
 `.`  
@@ -635,35 +637,34 @@ Returns the bitwise negation of *i*.
 
 #### String Operations
 
-`(string-compare «s1» «s2»)` ⇒ *i* <u>f</u>  
+`(string-compare «s1» «s2»)` ⇒ *i* <u>f</u>
+
 Returns `0` if strings *s1* and *s2* are the same, a negative intetger
 if s1 is less then s2, a positive integer otherwise. See strcmp(3).
 
-`(string-length «string»)` ⇒ *i* <u>f</u>  
+`(string-length «string»)` ⇒ *i* <u>f</u>
+
 Returns the length of *string* as a *number*.
 
-`(string-append «s1» «s2»)` ⇒ *string* <u>f</u>  
+`(string-append «s1» «s2»)` ⇒ *string* <u>f</u>
+
 Returns a new string consisting of the concatenation of *string1* with
 *string2*.
 
-`(substring «string»[ «start» [«end»]])` ⇒ *string* <u>f</u>  
+`(substring «string»[ «start» [«end»]])` ⇒ *string* <u>f</u>
+
 Returns the sub string from *string* which starts with the character at
 index *start* and before index *end*. String indexes are zero based,
 negative indexes count from the end of *string*. If *end* is not given
 it defaults to the end of *string*. If *start* is not given, it defaults
 to the start of *string*.
 
-`(string-search «needle» «haystack»)` <u>C</u>  
+`(string-search «needle» «haystack»)` <u>C</u>
+
 Returns the position of string *needle* if it is contained in
 string *haystack*, otherwise `nil`.
 
-`(ascii «integer»)` ⇒ *string* <u>f</u>  
-Converts *integer* into a *string* with one character, which corresponds
-to the ASCII representation of *integer*.
-
-`(ascii->number «string»)` ⇒ *i* <u>f</u>  
-Converts the first character of *string* into an integer which
-corresponds to its ASCII value.
+ 
 
 [^](#toc)
 
@@ -935,6 +936,20 @@ Extensions are C libraries which implement additional primitives. They
 are loaded into an *fLisp* interpreter after creation. Two extensions
 are delivered with *fLisp*: the *file* extension for interaction with
 the operating system and the *double* floating point extension.
+
+#### String Extensions
+
+`(char-length «string»)` ⇒ *i* <u>f</u>  
+Calculates the number of bytes occupied by the first character of
+*string*.
+
+`(code-char «i»)` ⇒ *string* <u>f</u>  
+Converts integer *i* into a *string* with one character, which
+corresponds to the UTF-8 representation of Unicode code point *i*.
+
+`(char-code «string»)` ⇒ *i* <u>f</u>  
+Converts the first character of *string* into an integer which
+corresponds to its Unicode code point.
 
 #### File Extension
 
