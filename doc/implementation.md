@@ -113,7 +113,6 @@ list and then only accessed through the pointers inside the list.
 Thus, whenever we would have used a raw pointer to an object, we use a
 pointer to the pointer inside the list instead:
 
-
           function:              pointer to pointer inside list (Object **)
           |
           v

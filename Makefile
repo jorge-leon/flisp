@@ -34,7 +34,7 @@ LIBRARIES = libflisp.a libflispd.a
 RC_FILES = init.lsp
 HEADER = lisp.h posix.h double.h
 
-LISPLIB = flisp.lsp string.lsp posix.lsp cl.lsp
+LISPLIB = flisp.lsp string.lsp file.lsp cl.lsp
 SOURCES = flisp.c lisp.c lisp.h double.c double.h posix.c posix.h
 
 DOCFILES = README.md doc/flisp.html doc/develop.html doc/history.html doc/implementation.html
@@ -136,6 +136,7 @@ measure: $(RC_FILES) $(BINARIES) strip FORCE
 	@echo
 	@echo fLisp Code Stats
 	@echo
+	@echo "libsize: " $$(set -- $$(ls -l libflisp.a); echo $$5)
 	@echo "binsize: " $$(set -- $$(ls -l flisp); echo $$5)
 	@echo "              C  Lisp  Total"
 	@echo "lines:     $$(cat $(SOURCES) | wc -l)   $$(cat $(LISPSRC) | wc -l)   $$(cat $(ALLSRC) | wc -l)"
@@ -166,8 +167,8 @@ check: flispd test/test.lsp FORCE
 test/test.lsp: test/test.sht core.lsp
 
 # Install/package
-strip: $(BINARIES) FORCE
-	strip $(BINARIES)
+strip: $(BINARIES) $(LIBRARIES) FORCE
+	strip $(BINARIES) $(LIBRARIES)
 
 clean: FORCE
 	-$(RM) -f $(OBJ) $(OBJD) $(BINARIES) $(LIBRARIES) $(RC_FILES) flisp.o flispd.o flisp.pc flispd.pc

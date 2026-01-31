@@ -32,16 +32,22 @@
     </li>
     <li>Table of Contents</li>
     <li>
-      <a href="#embed_overview">Embedding Overview</a>
+      <a href="#">Embedding Overview</a>
     </li>
     <li>
       <a href="#c_api">fLisp C Interface</a>
     </li>
     <li>
+      <a href="#utf8">UTF-8 Support</a>
+    </li>
+    <li>
+      <a href="#loading_flisp_extensions">Loading fLisp Extensions</a>
+    </li>
+    <li>
       <a href="#extensions">Building Extensions</a>
     </li>
   </ol>
-  <h3 id="embed_overview">Embedding Overview</h3>
+  <h3 id="embed_overview">Embedding</h3>
   <p><i>fLisp</i> can be embedded into a C application. Two examples of embedding are the <a href=
   "https://github.com/jorge-leon/femto">Femto text editor</a>&nbsp; and the&nbsp;<code>flisp</code> command line Lisp
   interpreter. This provides access from the application to the Lisp language features.</p>
@@ -179,11 +185,29 @@
   faults.</mark></p>
   <p><code>void flisp_destroy(Interpreter&nbsp;*<var>interp</var>)</code></p>
   <p>Frees all resources used by the interpreter.</p>
-  <nav>
-    <a href="#toc">^</a>
-  </nav>
+  <h3 id="utf8">UTF-8 Support</h3>
+  <p><i>fLisp</i> has basic UTF-8 support both on Lisp level and with a low level C-API.</p>
+  <p><code>lisp.h</code> exposes the
+  functions:&nbsp;<code>flisp_char_length()</code>,&nbsp;<code>flisp_char_index()</code>
+  and&nbsp;<code>flisp_char_count()</code>. <code>string.h</code> exposes&nbsp;<code>flisp_char_code()</code>
+  and&nbsp;<code>flisp_code_char()</code>. These function are clean room public domain implementations.</p>
+  <h3 id="loading_flisp_extensions">Loading <i>fLisp</i> Extensions</h3>
+  <p><i>fLisp</i> provides the following extensions:</p>
+  <dl>
+    <dt><i>string</i></dt>
+    <dd>UTF-8 aware string manipulation primitives.</dd>
+    <dt><i>posix</i></dt>
+    <dd>Primitives exposing POSIX libc functionality.</dd>
+    <dt><i>double</i></dt>
+    <dd>IEEE double floating point arithmetic.</dd>
+  </dl>
+  <p>Each extension implements a function: <code>flisp_<var>name</var>_register(<var>interp</var>)</code>, where
+  <var>name</var> is the name of the extension and <var>interp</var> the interpter into which to load it.</p>
+  <p>The <i>double</i> extension is special, it needs an extended Lisp reader which is enabled at compile time by
+  defining&nbsp; <code>FLISP_DOUBLE_EXTENSION</code>. See <code>flisp.c</code> and the <code>flispd</code> target in
+  <code>Makefile</code> for an example on how to load this extension.</p>
+  <p><a href="#toc">^</a></p>
   <h3 id="extensions">Building Extensions</h3>
-  <p><mark>Tbd: how to load the existing extensions</mark></p>
   <h4>Registering Primitives</h4>
   <p>An extensions has to create C functions, called&nbsp;<dfn>primitives</dfn> with the signature:</p>
   <blockquote>

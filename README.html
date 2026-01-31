@@ -24,10 +24,14 @@ to drive real world applications.</li>
 further experimentation].</li>
 </ul>
 <p>Size by version:</p>
-<pre><code>Version Binary  C-Lines/sloc/Files  Lisp-Lines/sloc/Files
-0.13    85584   3.6k/2.4k/6         373/272/3
-0.14    82984   3.7k/2.4k/7         610/355/5
-0.15    82984   3.8k/2.5k/7         358/166/5</code></pre>
+<pre><code>Version Library Binary  C-Lines/sloc/Files  Lisp-Lines/sloc/Files
+0.13    ?       85584   3.6k/2.4k/6         373/272/3
+0.14    ?       82984   3.7k/2.4k/7         610/355/5
+0.15    67096   87336   3.8k/2.5k/7         358/166/5</code></pre>
+<p>Binary sizes are measured on Debian GNU/Linux amd64. The Library
+column shows the size of the <code>lispflisp.a</code> embeddable
+library, the Binary column the size of the <code>flisp</code> command
+line interpreter which contains the string and the posix library.</p>
 <h2 id="building">Building</h2>
 <p>fLisp only depends only on the standard C libraries.</p>
 <p>The default Makefile target:</p>
