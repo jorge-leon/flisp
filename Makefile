@@ -32,7 +32,7 @@ OBJD = double.o posix.o string.o lispd.o
 BINARIES = flisp flispd
 LIBRARIES = libflisp.a libflispd.a
 RC_FILES = init.lsp
-HEADER = lisp.h posix.h double.h
+HEADER = lisp.h string.h posix.h double.h
 
 LISPLIB = flisp.lsp string.lsp file.lsp cl.lsp
 SOURCES = flisp.c lisp.c lisp.h double.c double.h posix.c posix.h
