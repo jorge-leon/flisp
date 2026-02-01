@@ -4,17 +4,22 @@
 
 ## Next
 
+- Implement reader macros, start with #! as comment to end of line.
+- Suppress startup messages:
+  - Implement (interp output[ fd])
+  - In flisp.c initialize output with the debug fd (or nil)
+  - In init.sht (interp output stdout) before entering the interactive repl.
+- Don't start the repl if Lisp files are specified on the command line.
 - Cleanup cerf: not so easy to do, but now easier with dynamic primitive loading.
   - create evalApply and readCons on startup after registering readPrimitve and evalPrimitive
     then use it in cerf().
 - Make logging mask, and suppress catch messages by default
 - Implement more `(interp subcommand[arg..])` introspection and configuration commands.
-  - (flisp output[ fd])
-  - (flisp error[ fd])
-  - (flisp debug[ fd])
-  - (flisp types[ type..]) => list of types
-  - (flisp body lambda|macro)
-  - (flisp gc) => memory info
+  - (interp error[ fd])
+  - (interp debug[ fd])
+  - (interp types[ type..]) => list of types
+  - (interp body lambda|macro)
+  - (interp gc) => memory info
 - Add read and eval tracing.
 
 ## Future
