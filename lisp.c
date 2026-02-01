@@ -1194,6 +1194,21 @@ Object *readUnary(Interpreter *interp, FILE *fd, char *symbol)
 
     return *gcObject;
 }
+
+void doReaderMacro(Interpreter *interp, FILE *fd)
+{
+    int ch = streamPeek(interp, fd);
+    if (ch == EOF)
+        return;
+    else if (ch == '!')
+        while ((ch = streamGetc(interp, fd)) != EOF && ch != '\n');
+    else
+        if (ch & 0x80)
+            exception(interp, invalid_read_syntax, "unknown read macro: #0x%02X", ch);
+        else
+            exception(interp, invalid_read_syntax, "unknown read macro: #%c", ch);
+}
+
 /** readExpr - return next lisp sexp object from stream or from interpreter input file
  *
  * @param interp  fLisp interpreter
@@ -1212,6 +1227,10 @@ Object *readExpr(Interpreter *interp, FILE *fd)
 
         if (ch == EOF)
             return NULL;
+        else if (ch == '#') {
+            doReaderMacro(interp, fd);
+            continue;
+        }
         else if (ch == '\'' || ch == ':')
             return readUnary(interp, fd, "quote");
         else if (ch == '`')

@@ -24,7 +24,7 @@
 
 ## Future
 
-- Implement fnmatch() primitive. https://pubs.opengroup.org/onlinepubs/9799919799/functions/fnmatch.html
+- Use size field of strings for (string-length) - speed up.
 - Implement "ext"ension Lisp objects - use them for femto buffers, etc.
 - Implement backquote and friends.
   - The reader already implements '`', ',' and ',@' as `quasiquote`, `unquote`
@@ -32,13 +32,6 @@
 - Size reduction:
   - Reduce binary operators to 'and' and 'xor' and write needed rest in Lisp.
 - Tap the potential of the in code documentation via Doxygen.
-- Hash
-  - Add new 'hash' field as uintptr_t to Lisp object struct type union.
-  - Initialize each string type object with a hash of 0.
-- Dynamic types
-  - Make 'type' postfix of name instead of prefix. type-string -> string-type (why?)
-  - Add Object * interp->types to interpreter struct and register types there.
-  - Use the hash of types for type checking.
 - String size restriction
   - Memory allocator restricts the size of string objects.
   - Option to dynamically adjust or not.
@@ -53,6 +46,7 @@
 
 ## flisp 0.15
 - basic utf-8 support.
+- Implement fnmatch() primitive. https://pubs.opengroup.org/onlinepubs/9799919799/functions/fnmatch.html
 
 ## flisp 0.14
 - GC starting with the first loaded symbol.
