@@ -1227,10 +1227,8 @@ Object *readExpr(Interpreter *interp, FILE *fd)
 
         if (ch == EOF)
             return NULL;
-        else if (ch == '#') {
+        else if (ch == '#')
             doReaderMacro(interp, fd);
-            continue;
-        }
         else if (ch == '\'' || ch == ':')
             return readUnary(interp, fd, "quote");
         else if (ch == '`')
