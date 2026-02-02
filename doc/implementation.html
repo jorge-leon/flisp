@@ -10,7 +10,7 @@
   <meta content="2023" name="copyright" />
   <link href="https://svc.webspellchecker.net/spellcheck31/wscbundle/css/wsc.css" rel="stylesheet" type="text/css" />
 </head>
-<body class="openlink" data-wsc-instance="true">
+<body data-wsc-instance="true">
   <h1><i>fLisp</i> Implementation Details</h1>
   <h3 id="introduciton">Introduction</h3>
   <p>This document discusses some of the design decisions taken in <i>fLisp</i>. Other documentation topics are:</p>
@@ -95,9 +95,16 @@
     <dd>The root environment.</dd>
     <dt><code>result</code></dt>
     <dd>The result object of the <code>flisp_eval()</code> call.</dd>
+    <dt><code>error</code></dt>
+    <dd>The error type symbol of the <code>flisp_eval()</code> call.</dd>
+    <dt><code>debug.path</code></dt>
+    <dd>&nbsp;</dd>
     <dt><code>input.path</code></dt>
-    <dd>The path string object of the input stream.</dd>
+    <dd>&nbsp;</dd>
+    <dt><code>output.path</code></dt>
+    <dd>The path string object of the debug, input and output stream.</dd>
   </dl>
+  <p>&nbsp;</p>
   <p>With respect to the active variables in the call stack the interpreter cannot use raw pointers to objects: any
   function that might trigger garbage collection would move the object pointed to, causing a SEGV when accessing the
   pointer. Instead, objects must be added to the <code>gcTop</code> list and then only accessed through the pointers

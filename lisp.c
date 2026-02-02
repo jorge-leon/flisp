@@ -343,7 +343,9 @@ void gc(Interpreter *interp)
     interp->global = gcMoveObject(interp, interp->global, &stats);
     interp->result = gcMoveObject(interp, interp->result, &stats);
     interp->error = gcMoveObject(interp, interp->error, &stats);
+    interp->debug.path = gcMoveObject(interp, interp->debug.path, &stats);
     interp->input.path = gcMoveObject(interp, interp->input.path, &stats);
+    interp->output.path = gcMoveObject(interp, interp->output.path, &stats);
 
     // iterate over objects in to-space and move all objects they reference
     for (object = interp->memory->toSpace;
@@ -2333,7 +2335,7 @@ Object *stringSearch(Interpreter *interp, Object **args, Object **env)
     pos = strstr(FLISP_ARG_TWO->string, FLISP_ARG_ONE->string);
     if (pos == NULL)
         return nil;
-        
+
     return newInteger(
         interp,
         flisp_char_count(interp, FLISP_ARG_TWO->string, pos - FLISP_ARG_TWO->string)
@@ -2360,7 +2362,7 @@ Object *stringSubstring(Interpreter *interp, Object **args, Object **env)
         return flisp_empty_string;
 
     end = len = flisp_char_count(interp, FLISP_ARG_ONE->string, SIZE_MAX);
-    
+
     if (FLISP_HAS_ARG_TWO) {
         FLISP_CHECK_TYPE(FLISP_ARG_TWO, type_integer, "(substring string [start [end]]) - start");
         start = (FLISP_ARG_TWO->integer);
@@ -2722,7 +2724,7 @@ Interpreter *flisp_new(
     interp->input.buf = NULL;
     interp->input.len = 0;
     flisp_register_constant(interp, standard_input, &interp->input);
-    
+
     /* output stream */
     interp->output.type = type_stream;
     interp->output.fd = output;
