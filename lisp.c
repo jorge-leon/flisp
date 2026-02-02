@@ -66,9 +66,13 @@ Object *file_exists = &(Object) { NULL, .string = "file-exists" };
 Object *read_only = &(Object) { NULL, .string = "read-only" };
 Object *is_directory = &(Object) { NULL, .string = "is-directory" };
 /* Internal */
+Object *debug_output =                          &(Object) { NULL, .string = "*debug-output*" };
+Object *standard_input =                        &(Object) { NULL, .string = "*standard-input*" };
+Object *standard_output =                       &(Object) { NULL, .string = "*standard-output*" };
+
 Object *type_env =                              &(Object) { NULL, .string = "type-env" };
 Object *type_moved =                            &(Object) { NULL, .string = "type-moved" };
-Object *flisp_empty_string =                     &(Object) { NULL, .string = "\0" };
+Object *flisp_empty_string =                    &(Object) { NULL, .string = "\0" };
 
 
 Constant lisp_constants[] = {
@@ -134,18 +138,18 @@ void fl_debug(Interpreter *, char *format, ...)
  */
 void fl_debug(Interpreter *interp, char *format, ...)
 {
-    if (interp->debug == NULL)
+    if (interp->debug.fd == NULL)
         return;
 
     va_list(args);
     va_start(args, format);
-    if (vfprintf(interp->debug, format, args) < 0) {
+    if (vfprintf(interp->debug.fd, format, args) < 0) {
         va_end(args);
-        (void)fprintf(interp->debug,
+        (void)fprintf(interp->debug.fd,
                       "fatal: failed to print debug message %s: %s", format, strerror(errno));
     }
     va_end(args);
-    (void)fflush(interp->debug);
+    (void)fflush(interp->debug.fd);
 }
 
 
@@ -324,7 +328,7 @@ void gc(Interpreter *interp)
                  (void *)object->car, object->car->type->string
             );
 #if FLISP_TRACK_GCTOP
-        flisp_write_object(interp, interp->debug, object->car, true);
+        flisp_write_object(interp, interp->debug.fd, object->car, true);
         fl_debug(interp, "\n");
 #endif
 #endif
@@ -1277,13 +1281,14 @@ Object *primitiveRead(Interpreter *interp, Object **args, Object **env)
 
     GC_CHECKPOINT;
     if (FLISP_HAS_ARGS) {
-        stream = (*args)->car;
-        if (stream->type != type_stream)
-            exceptionWithObject(interp, stream, invalid_value, "(read [fd ..]) - arg 1 expected %s, got: %s", type_stream->string, stream->type->string);
-        fd = stream->fd;
+        if (FLISP_ARG_ONE != nil) {
+            FLISP_CHECK_TYPE(FLISP_ARG_ONE, type_stream, "(read[ stream[ eofv]]) - stream)");
+            stream = FLISP_ARG_ONE;
+            fd = FLISP_ARG_ONE->fd;
 
-        if ((*args)->cdr != nil)
-            eofv = (*args)->cdr->car;
+            if (FLISP_HAS_ARG_TWO)
+                eofv = FLISP_ARG_TWO;
+        }
     }
     GC_TRACE(gcStream, stream);
     GC_TRACE(gcEofv, eofv);
@@ -1292,7 +1297,7 @@ Object *primitiveRead(Interpreter *interp, Object **args, Object **env)
 
     if (result == NULL) {
         if (*gcEofv == nil)
-            exceptionWithObject(interp, *gcStream, end_of_file , "(read [..]) input exhausted");
+            exceptionWithObject(interp, *gcStream, end_of_file , "(read[ stream[ eofv]) - input exhausted");
         else
             result = *gcEofv;
     }
@@ -1653,7 +1658,7 @@ Object *evalExpr(Interpreter *interp, Object ** object, Object **env)
                 fl_debug(interp, "(%s", primitive->name);
                 for (args = *gcArgs; args != nil; args = args->cdr, nArgs++) {
                     fl_debug(interp, " ");
-                    flisp_write_object(interp, interp->debug, args->car, true);
+                    flisp_write_object(interp, interp->debug.fd, args->car, true);
                 }
                 fl_debug(interp, ")\n");
 #endif
@@ -1678,7 +1683,7 @@ Object *primitiveEval(Interpreter *interp, Object **args, Object **env)
 /** writeChar - write character to file descriptor
  *
  * @param interp  fLisp interpreter
- * @param fd      open writeable file descriptor
+ * @param fd      open writeable file descriptor or NULL
  * @param ch      character to write
  *
  * throws: io-error
@@ -1694,7 +1699,7 @@ void writeChar(Interpreter *interp, FILE *fd, char ch)
 /** writeString - write string to file descriptor
  *
  * @param interp  fLisp interpreter
- * @param fd      open writeable file descriptor
+ * @param fd      open writeable file descriptor or NULL
  * @param str     string to write
  *
  * throws: io-error
@@ -1710,7 +1715,7 @@ void writeString(Interpreter *interp, FILE *fd, char *str)
 /** writeFmt - write printf formatted string to file descriptor
  *
  * @param interp  fLisp interpreter
- * @param fd      open writeable file descriptor
+ * @param fd      open writeable file descriptor or NULL
  * @param format ... printf like format string
  *
  * throws: io-error
@@ -1739,7 +1744,7 @@ void writeFmt(Interpreter *interp, FILE *fd, char *format, ...)
 /** flisp_write_object - format and write object to file descriptor
  *
  * @param interp  fLisp interpreter
- * @param fd      open writeable file descriptor
+ * @param fd      open writeable file descriptor or NULL
  * @param object  object to be serialized
  * @param readably  if true, write in a format which can be read back
  *
@@ -1848,7 +1853,7 @@ void flisp_write_object(Interpreter *interp, FILE *fd, Object *object, bool read
 Object *primitiveWrite(Interpreter *interp, Object **args, Object **env)
 {
     bool readably = false;
-    FILE *fd = interp->output;
+    FILE *fd = interp->output.fd;
 
     if (FLISP_HAS_ARG_TWO) {
         readably = (FLISP_ARG_TWO != nil);
@@ -2404,6 +2409,14 @@ Object *stringCompare(Interpreter *interp, Object **args, Object **env)
 
 // Interpreter introspection and configuration
 
+void setInterpStream(Object *stream, Object *new)
+{
+    stream->fd = new->fd;
+    stream->path = new->path;
+    stream->buf = new->buf;
+    stream->len = new->len;
+}
+
 /** (interp cmd[ arg..]) - query or set interpreter internals */
 Object *primitiveInterp(Interpreter *interp, Object **args, Object **env)
 {
@@ -2412,15 +2425,26 @@ Object *primitiveInterp(Interpreter *interp, Object **args, Object **env)
     if (!strcmp(FLISP_ARG_ONE->string, "version")) {
         return newString(interp, FL_NAME " " FL_VERSION);
     }
+    if (!strcmp(FLISP_ARG_ONE->string, "debug")) {
+        if (FLISP_HAS_ARG_TWO) {
+            FLISP_CHECK_TYPE(FLISP_ARG_TWO, type_stream, "(interp :debug[ fd] - fd");
+            setInterpStream(&interp->debug, FLISP_ARG_TWO);
+        }
+        return &(interp->debug);
+    }
     if (!strcmp(FLISP_ARG_ONE->string, "input")) {
         if (FLISP_HAS_ARG_TWO) {
-            FLISP_CHECK_TYPE(FLISP_ARG_TWO, type_stream, "(interp input[ fd] - fd");
-            interp->input.fd   = FLISP_ARG_TWO->fd;
-            interp->input.path = FLISP_ARG_TWO->path;
-            interp->input.buf  = FLISP_ARG_TWO->buf;
-            interp->input.len  = FLISP_ARG_TWO->size;
+            FLISP_CHECK_TYPE(FLISP_ARG_TWO, type_stream, "(interp :input[ fd] - fd");
+            setInterpStream(&interp->input, FLISP_ARG_TWO);
         }
         return &(interp->input);
+    }
+    if (!strcmp(FLISP_ARG_ONE->string, "output")) {
+        if (FLISP_HAS_ARG_TWO) {
+            FLISP_CHECK_TYPE(FLISP_ARG_TWO, type_stream, "(interp :output[ fd] - fd");
+            setInterpStream(&interp->output, FLISP_ARG_TWO);
+        }
+        return &(interp->output);
     }
     if (!strcmp(FLISP_ARG_ONE->string, "symbols")) {
         return (interp->symbols);
@@ -2598,12 +2622,12 @@ Memory *newMemory(size_t size)
  * @param size          Initial size of Lisp object space in bytes.
  * @param argv          null terminated array to arguments to be imported or NULL.
  * @param library_path  path to Lisp library, aka 'script_dir' or NULL for default.
- * @param input         open readable file descriptor for default input or NULL
+ * @param input         open readable file descriptor for default input or NULL.
  * @param output        open writable file descriptor for default output or NULL.
  * @param debug         open writable file descriptor for debug output or NULL.
  *
  * @returns On success: a pointer to an fLisp interpreter structure
- * @returns On failures: NULL
+ * @returns On failure: NULL
  *
  * Note: at the moment we only provide a single interpreter store a
  * pointer to int in the static variable *interp* and return that variable.
@@ -2621,7 +2645,7 @@ Interpreter *flisp_new(
     if (interp == NULL) return NULL;
 
     /* enable debug output */
-    interp->debug = debug;
+    interp->debug.fd = debug;
 
     Memory *memory = newMemory((size < FLISP_MEMORY_INC_SIZE) ? FLISP_MEMORY_INC_SIZE :size);
     if (memory == NULL) {
@@ -2684,24 +2708,29 @@ Interpreter *flisp_new(
     var = newSymbol(interp, "script_dir");
     envSet(interp, &var, gcVal, &interp->global, true);
 
-    /* Add *INPUT* symbol */
-    *gcVal = (input) ? newStreamObject(interp, input, "STDIN") : nil;
-    var = newSymbol(interp, "*INPUT*");
-    (void)envSet(interp, &var, gcVal, &interp->global, true);
+    /* debug stream */
+    interp->debug.type = type_stream;
+    interp->debug.path = debug_output;
+    interp->debug.buf = NULL;
+    interp->debug.len = 0;
+    flisp_register_constant(interp, debug_output, &interp->debug);
+
     /* input stream */
     interp->input.type = type_stream;
     interp->input.fd = input;
-    interp->input.path = var;
+    interp->input.path = standard_input;
     interp->input.buf = NULL;
     interp->input.len = 0;
-
+    flisp_register_constant(interp, standard_input, &interp->input);
+    
     /* output stream */
-    if (output) {
-        interp->output = output;
-        *gcVal = newStreamObject(interp, output, "STDOUT");
-        var = newSymbol(interp, "*OUTPUT*");
-        (void)envSet(interp, &var, gcVal, &interp->global, true);
-    }
+    interp->output.type = type_stream;
+    interp->output.fd = output;
+    interp->output.path = standard_output;
+    interp->output.buf = NULL;
+    interp->output.len = 0;
+    flisp_register_constant(interp, standard_output, &interp->output);
+
     GC_RELEASE;
 
     return interp;
@@ -2731,8 +2760,8 @@ void flisp_destroy(Interpreter *interp)
     if (interp->memory->toSpace)
         (void)munmap(interp->memory->toSpace, interp->memory->capacity);
 
-    if (interp->debug)
-        fclose(interp->debug);
+    if (interp->debug.fd)
+        fclose(interp->debug.fd);
     free(interp->memory);
     free(interp);
 }
@@ -2848,12 +2877,12 @@ void flisp_eval(Interpreter *interp, char *input)
         }
         if (object->car != nil)
             break;
-        flisp_write_object(interp, interp->output, object->cdr->cdr->car, true);
-        writeChar(interp, interp->output, '\n');
+        flisp_write_object(interp, interp->output.fd, object->cdr->cdr->car, true);
+        writeChar(interp, interp->output.fd, '\n');
         *gcResult = object->cdr->cdr->car;
     }
     GC_RELEASE;
-    if (interp->output) fflush(interp->output);
+    if (interp->output.fd) fflush(interp->output.fd);
     if (fd) fclose(fd);
 }
 

@@ -22,7 +22,7 @@
  */
 Object *posixFflush(Interpreter *interp, Object** args, Object **env)
 {
-    FILE *fd = interp->output;
+    FILE *fd = interp->output.fd;
 
     if (FLISP_HAS_ARGS)
         if (FLISP_ARG_ONE == t)

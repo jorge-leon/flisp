@@ -87,9 +87,9 @@ typedef struct Interpreter {
     struct { Object * type; size_t size; char string[WRITE_FMT_BUFSIZ]; } message;
     Object *result;                  /* result or error object */
 
-    Object input;                    /* input stream object */
-    FILE *output;                    /* default output file descriptor */
-    FILE *debug;                     /* debug file descriptor */
+    Object input;                    /* default input stream object */
+    Object output;                   /* default output stream object */
+    Object debug;                    /* default debug output stream object */
 
     /* globals */
     Object *symbols;                 /* symbols list */

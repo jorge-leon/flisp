@@ -44,7 +44,7 @@ int main(int argc, char **argv)
             fatal("invalid FLISP_SIZE");
     }
     
-    interp = flisp_new((size_t) size, argv, NULL, input_fd, stdout, debug_fd);
+    interp = flisp_new((size_t) size, argv, NULL, input_fd, debug_fd, debug_fd);
     if (interp == NULL)
         fatal("fLisp interpreter initialization failed");
 

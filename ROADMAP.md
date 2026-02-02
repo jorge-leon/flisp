@@ -4,19 +4,12 @@
 
 ## Next
 
-- Implement reader macros, start with #! as comment to end of line.
-- Suppress startup messages:
-  - Implement (interp output[ fd])
-  - In flisp.c initialize output with the debug fd (or nil)
-  - In init.sht (interp output stdout) before entering the interactive repl.
-- Don't start the repl if Lisp files are specified on the command line.
 - Cleanup cerf: not so easy to do, but now easier with dynamic primitive loading.
   - create evalApply and readCons on startup after registering readPrimitve and evalPrimitive
     then use it in cerf().
 - Make logging mask, and suppress catch messages by default
 - Implement more `(interp subcommand[arg..])` introspection and configuration commands.
   - (interp error[ fd])
-  - (interp debug[ fd])
   - (interp types[ type..]) => list of types
   - (interp body lambda|macro)
   - (interp gc) => memory info
@@ -47,6 +40,14 @@
 ## flisp 0.15
 - basic utf-8 support.
 - Implement fnmatch() primitive. https://pubs.opengroup.org/onlinepubs/9799919799/functions/fnmatch.html
+- Implement (interp debug[ fd])
+- Make shebangable:
+  - Implement reader macros, start with #! as comment to end of line.
+  - Suppress startup messages:
+	- Implement (interp output[ fd])
+	- In flisp.c initialize output with the debug fd (or nil)
+	- In init.sht (interp output stdout) before entering the interactive repl.
+   - Don't start the repl if Lisp files are specified on the command line.
 
 ## flisp 0.14
 - GC starting with the first loaded symbol.
