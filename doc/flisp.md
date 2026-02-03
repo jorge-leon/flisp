@@ -474,8 +474,10 @@ Interpreter introspection. The following commands are available
 
 `(interp version)` ⇒ *string* .. returns the version string of fLisp.
 
-`(interp input[ «fd»])` ⇒ *stream* .. returns and optionally sets the
-input stream of the interpreter.  
+ 
+
+`(interp debug|input|output[ «fd»])` ⇒ *stream* .. returns and
+optionally sets the debug, input or output stream of the interpreter.  
 `(interp global)`  ⇒ *env*.. returns the global environment.
 
 `(interp env[ field[ «env»]])`  ⇒ *o*.. returns the
@@ -1181,14 +1183,48 @@ Return the extension of path *s*, or nil if there is none.
 
 ### `flisp` Command Line Interpreter
 
-The command line interpreter `flisp` reads a single Lisp file on
-startup. The default path of this <span class="dfn">startup file</span>
-is hardcoded in the binary but can be overwritten at runtime with the
-environment variable `FLISPRC`. The default path
-is `/usr/local/share/flisp/init.lsp`. but can be modified at compile
-time.
+Two binaries are built: `flisp` and `flispd`. They behave identical with
+the exception, that `flispd` integrates the *double* extension while
+`flisp` does not. Both integrate the *string* and the *posix* extension.
 
-The installed startup file includes the `core.lsp` library. This allows
+#### Environment Variables
+
+The command line interpreter `flisp` reads a single Lisp file on
+startup. The default path is `/usr/local/share/flisp/init.lsp`. but can
+be modified at compile time. It can be overwritten at runtime with the
+variable `FLISPRC`.
+
+`FLISP_DEBUG` can be set to a file name. If `flisp` succeeds opening the
+file for writing this file is used as default for output and debug. If
+not given, output of the evaluation of the startup file is suppressed
+alltogether.
+
+The environment variable `FLISP_SIZE` can be set to the amount of
+initial memory for the Lisp object space. If not set or 0, fLisp
+dynamically allocates memory in chunks of eight kilobyte. This increment
+can be modified at compile time.
+
+#### `init.lsp`
+
+The provided startup file includes the `core.lsp` library. This allows
 to load Lisp files from the library with the  `require` function.
+
+After loading the core library, `init.lsp` tries to load the file
+`~/.config/flisp/init.lsp`. Errors are printed to the debug output. Then
+the interpreter output is set to `stdout`.
+
+If command line arguments are given, each of them is interpreted as a
+Lisp file to load.
+
+Otherwise a simple read-eval-print-loop is invoked, which reads Lisp
+code from `stdin`, prints results on `stdout` and exceptions on
+`stderr`. If `stdin` is a TTY a startup message is printed and than the
+string “`> `” is printed as prompt.
+
+#### fLisp as Script Language
+
+The *fLisp* binaries can be used for scripting. Put a shebang line with
+the path to the respective binary in the first line of the script, e.g:
+`#!/usr/local/bin/flisp`
 
 [^](#toc)

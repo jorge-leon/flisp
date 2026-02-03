@@ -101,8 +101,19 @@ The root environment.
 `result`  
 The result object of the `flisp_eval()` call.
 
+`error`  
+The error type symbol of the `flisp_eval()` call.
+
+`debug.path`  
+ 
+
 `input.path`  
-The path string object of the input stream.
+ 
+
+`output.path`  
+The path string object of the debug, input and output stream.
+
+ 
 
 With respect to the active variables in the call stack the interpreter
 cannot use raw pointers to objects: any function that might trigger
