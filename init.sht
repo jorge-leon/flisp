@@ -4,6 +4,8 @@
 
 $(cat core.lsp)
 
+;;; REPL
+
 (defun repl-princ s  (princ (concat s)))
 
 (defun repl-print-result (result)
@@ -28,20 +30,15 @@ $(cat core.lsp)
 	((car result)  (repl (repl-print-error result)))
 	(t  (repl (repl-print-result result))) ))
 
+;;; User init file
 (let* ((rcfile (concat (getenv "HOME") "/" ".config/flisp/init.lsp"))
-       (result (catch (load rcfile))) )
-  (if (car result)  (repl-print-error result)
-      (caddr result) ))
-
-(defun interactive ()
-  (interp :input (open "<0"))
-  (interp :output (open ">1" "w"))
-  (when (fttyp)
-    (repl-princ (interp :version)"\n"
-		"exit with C-d\n" ))
-  (let ((result (repl nil)))
-    (if (car result) (apply throw result)
-	(caddr result) ) ))
+       (result (catch (load rcfile)))
+       (err    (car result)) )
+  (cond ((same err :not-found) (concat "info: user init file not found: "rcfile))
+	(err
+	 (repl-eprinc "Failed to load user init file: "rcfile"\n")
+	 (repl-print-error result) )
+	(t (caddr result)) ))
 
 (defun getopts (opts result)
   (if-not (car opts) result
@@ -55,4 +52,10 @@ $(cat core.lsp)
 (progn
     (interp :output (open ">1" "w"))
     (if argv (process-command-line)
-	(interactive) ))
+	(interp :input (open "<0"))
+	(when (fttyp)
+	  (repl-princ (interp :version)"\n"
+		      "exit with C-d\n" ))
+	(let ((result (repl nil)))
+	  (if (car result) (apply throw result)
+	      (caddr result) ) )))

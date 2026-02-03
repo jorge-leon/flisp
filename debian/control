@@ -24,7 +24,7 @@ Description: fLisp - a tiny Lisp language interpreter
 Package: flisp-dev
 Section: libdevel
 Architecture: any
-Depends: flisp-common
+Depends: flisp-common (>= 0.15-2)
 Description: fLisp - a tiny Lisp language interpreter - development
  fLisp is a tiny yet practical interpreter for a dialect of the Lisp
  programming language.
