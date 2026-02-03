@@ -78,10 +78,10 @@ lisp.o: lisp.c lisp.h
 lispd.o: lisp.c lisp.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) -D FLISP_DOUBLE_EXTENSION -c $< -o $@ -lc
 
-libflisp.a: lisp.o posix.o
+libflisp.a: $(OBJ)
 	$(AR) rcs $@ $^
 
-libflispd.a: lisp.o posix.o double.o
+libflispd.a: $(OBJD)
 	$(AR) rcs $@ $^
 
 posix.o: posix.c posix.h lisp.h
