@@ -11,7 +11,7 @@
 #include <inttypes.h>
 
 #define FL_NAME     "fLisp"
-#define FL_VERSION  "0.15"
+#define FL_VERSION  "0.16"
 
 #ifndef FLISPLIB
 #define FLISPLIB /usr/local/share/flisp
@@ -52,21 +52,62 @@ typedef struct Primitive {
     LispEval eval;
 } Primitive;
 
-
+/** Object - Lisp object data structure
+ *
+ * Simple: object.size=0,
+ * Extended:
+ * - objects.size .. number of additional bytes to allocation
+ * - objects.count .. number of Object * pointers at start of extension
+ */
 struct Object {
     Object *type;
-    size_t size;
-    union {
-        struct { int64_t integer; };                               // integer
-        struct { double number; };                                 // double
-        struct { char string[sizeof (Object *[3])]; };             // string, symbol
-        struct { Object *car, *cdr; };                             // cons
-        struct { Object *params, *body, *env; };                   // lambda, macro
-        struct { Primitive *primitive; };                          // primitive
-        struct { Object *parent, *vars, *vals; };                  // env
-        struct { Object *path; FILE *fd; char *buf; size_t len; }; // file descriptor/stream
-        struct { Object *forward; };                               // forwarding pointer
+    size_t size; /*0*/
+    union {                   // Simple Objects, or helpers
+        int64_t integer;      // integer
+        double number;        // double
+        Primitive *primitive; // primitive
+        size_t count;
+        Object *forward;      // GC forwarding pointer to collected object in to-space
     };
+};
+struct ConsObject {
+    Object *type;
+    size_t size; /* sizeof(Object[2]) */
+    union { size_t count /*2*/; Object *forward; };
+    Object *car;
+    Object *cdr;
+};
+/* Lambda / Macro */
+struct ClosureObject {
+    Object *type;
+    size_t size; /* sizeof Object*[3] */
+    union { size_t count/*3*/; Object *forward; };
+    Object *params;
+    Object *body;
+    Object *env;
+};
+struct EnvObject {
+    Object *type;
+    size_t size; /* sizeof Object*[3] */
+    union { size_t count/*3*/; Object *forward; };
+    Object *parent;
+    Object *vars;
+    Object *vals;
+};
+struct StringObject {
+    Object *type;
+    size_t size; /* strlen(str)+1 */
+    union { size_t count/*0*/; Object *forward; };
+    char string[1];
+};
+struct StreamObject {
+    Object *type;
+    size_t size; /* sizeof(void *)[3]+sizeof(size_t) */
+    union { size_t count/*1*/; Object *forward; };
+    Object *path;
+    File *fd;
+    char *buf;
+    size_t len;
 };
 
 typedef struct Constant {
