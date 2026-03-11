@@ -70,7 +70,8 @@ on demand:
 - The fLisp core, string and flisp libraries as well as the file
   extension primitives are refined and complemented, a Lisp file library
   is added, the stdlib library is removed.
-- The read-eval-print loop is now completely written in Lisp.
+- The read-eval-print loop is now completely written in Lisp, `flisp`
+  and `flispd` can be used for scripting.
 - All symbols and primitives are loaded dynamically and argument
   checking now relies only on Lisp object types.
 - Public symbols are prefixed with `flisp_` to avoid name clashes when

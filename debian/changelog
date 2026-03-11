@@ -1,3 +1,9 @@
+flisp (0.15-2) trixie; urgency=medium
+
+  Make shebangable.
+
+ -- Georg Lehner <jorge@magma-soft.at>  Tue, 2 Feb 2026 08:46:51 +0200
+
 flisp (0.15-1) trixie; urgency=medium
 
   * Added flisp-common and flisp-doc package.
@@ -5,9 +11,11 @@ flisp (0.15-1) trixie; urgency=medium
   * Added core function: map.
   * Added cl.lsp - WIP
   * Basic Unicode / UTF-8 support.
- -- Georg Lehner <jorge@magma-soft.at>  Fri, 23 Jan 2026 21:39:42 +0200
+
+ -- Georg Lehner <jorge@magma-soft.at>  Sat, 31 Jan 2026 20:00:05 +0200
 
 flisp (0.14-1) trixie; urgency=medium
 
   * Initial Debian packaging of fLisp.
+
  -- Georg Lehner <jorge@magma-soft.at>  Sat, 27 Dec 2025 20:39:12 +0200

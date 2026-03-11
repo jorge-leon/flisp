@@ -128,9 +128,9 @@ typedef struct Interpreter {
     struct { Object * type; size_t size; char string[WRITE_FMT_BUFSIZ]; } message;
     Object *result;                  /* result or error object */
 
-    Object input;                    /* input stream object */
-    FILE *output;                    /* default output file descriptor */
-    FILE *debug;                     /* debug file descriptor */
+    Object input;                    /* default input stream object */
+    Object output;                   /* default output stream object */
+    Object debug;                    /* default debug output stream object */
 
     /* globals */
     Object *symbols;                 /* symbols list */
@@ -244,10 +244,17 @@ void fl_debug(Interpreter *, char *, ...);
         exceptionWithObject(interp, PARAM, wrong_type_argument, \
                             SIGNATURE " expected %s, got: %s", TYPE->string, PARAM->type->string)
 
+/* UTF-8 handling */
+extern size_t flisp_char_length(char);
+extern size_t flisp_char_index(Interpreter *, char *, size_t);
+extern size_t flisp_char_count(Interpreter *, char *, size_t);
+
 // PUBLIC INTERFACE ///////////////////////////////////////////////////////
 extern Interpreter *flisp_new(size_t size, char **, char*, FILE*, FILE*, FILE*);
 extern void flisp_destroy(Interpreter *);
 extern void flisp_eval(Interpreter *, char *);
+/* Note: experimental */
+extern void flisp_expr(Interpreter *, Object *);
 extern void flisp_write_object(Interpreter *, FILE *, Object *, bool);
 extern void flisp_write_error(Interpreter *, FILE *);
 

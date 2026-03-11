@@ -56,8 +56,8 @@ flisp_expr 1; ok setq-2 var evaluates to val
 IN='(setq)' OUT=nil
 flisp_expr 1; ok setq-3 no args evaluate to nil
 
-IN='(setq var1)' OBJ= ERR='(setq [s v ..]) expects a multiple of 2 arguments'
-flisp_err 1; ok setq-4 one arg fails
+IN='(setq var1)' OBJ=nil ERR='(setq [s v ..]) expects a multiple of 2 arguments'
+flisp_err; ok setq-4 one arg fails
 
 EXPR="(setq var1 'val1  var2 'val2)"
 IN="$EXPR" OUT=val2
@@ -204,10 +204,10 @@ flisp_expr; ok string-8 lambda prints reader macro and parameters
 
 IN="(string (macro (a b)))" OUT='"#<Macro (a b)>"'
 flisp_expr; ok string-9 macro prints reader macro and parameters
-
+###export FLISP_SIZE=151552
 IN='(setq f (open "" "<"))(close f)(string f)' OUT='"#<Stream 0 <STRING>"'
-flisp_expr 1; ok string-10 closed stream prints reader macro nil as fd and type
-return
+flisp_expr; ok string-10 closed stream prints reader macro nil as fd and type
+
 ###FLISP_SIZE=0
 # concat
 IN="(concat 1 'a \"?\")" OUT='"1a?"'

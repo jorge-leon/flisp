@@ -32,15 +32,19 @@ interpreter, the choice fell on "fLisp".
 
 Size by version:
 
-	Version	Binary	C-Lines/sloc/Files	Lisp-Lines/sloc/Files
-	0.13	85584	3.6k/2.4k/6			373/272/3
-	0.14    82984   3.7k/2.4k/7			610/355/5
-	0.15    82984   3.8k/2.5k/7         358/166/5
+	Version	Library	Binary	C-Lines/sloc/Files	Lisp-Lines/sloc/Files
+	0.13	?		85584	3.6k/2.4k/6			373/272/3
+	0.14    ?		82984   3.7k/2.4k/7			610/355/5
+	0.15    67096	87336   3.8k/2.5k/7         358/166/5
 
+Binary sizes are measured on Debian GNU/Linux amd64. The Library
+column shows the size of the `lispflisp.a` embeddable library, the
+Binary column the size of the `flisp` command line interpreter which
+contains the string and the posix library.
 
 ## Building
 
-fLisp only depends on the standard C libraries.
+fLisp depends only on the standard C libraries.
 
 The default Makefile target:
 

@@ -5,9 +5,12 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <fnmatch.h>
 
 #include "lisp.h"
-#include "file.h"
+#include "posix.h"
+
+/* Bag of POSIX libc wrappers */
 
 /** (fflush[ stream]) - flush stream, output or all streams
  *
@@ -17,9 +20,9 @@
  * @returns t
  * @throws io-error
  */
-Object *primitiveFflush(Interpreter *interp, Object** args, Object **env)
+Object *posixFflush(Interpreter *interp, Object** args, Object **env)
 {
-    FILE *fd = interp->output;
+    FILE *fd = interp->output.fd;
 
     if (FLISP_HAS_ARGS)
         if (FLISP_ARG_ONE == t)
@@ -47,7 +50,7 @@ Object *primitiveFflush(Interpreter *interp, Object** args, Object **env)
  *
  * @return new position in the stream.
  */
-Object *primitiveFseek(Interpreter *interp, Object** args, Object **env)
+Object *posixFseek(Interpreter *interp, Object** args, Object **env)
 {
     int result, whence = SEEK_SET;
     FILE *fd = interp->input.fd;
@@ -87,7 +90,7 @@ Object *primitiveFseek(Interpreter *interp, Object** args, Object **env)
  * - invalid-value  if stream is already closed.
  * - io-error       if ftello fails.
  */
-Object *primitiveFtell(Interpreter *interp, Object** args, Object **env)
+Object *posixFtell(Interpreter *interp, Object** args, Object **env)
 {
     FILE *fd = interp->input.fd;
     off_t pos;
@@ -109,7 +112,7 @@ Object *primitiveFtell(Interpreter *interp, Object** args, Object **env)
  *
  * @returns  nil or end-of-file
  */
-Object *primitiveFeof(Interpreter *interp, Object** args, Object **env)
+Object *posixFeof(Interpreter *interp, Object** args, Object **env)
 {
     FILE *fd = interp->input.fd;
 
@@ -127,7 +130,7 @@ Object *primitiveFeof(Interpreter *interp, Object** args, Object **env)
  * @param stream  stream to read input from, if not given read from
  *                interpreter input stream.
  */
-Object *primitiveFgetc(Interpreter *interp, Object** args, Object **env)
+Object *posixFgetc(Interpreter *interp, Object** args, Object **env)
 {
     char s[] = "\0\0";
     int c;
@@ -164,7 +167,7 @@ Object *primitiveFgetc(Interpreter *interp, Object** args, Object **env)
 /* Note: not yet sure if (fungetc i) is a) a good idea, b) any way
  *   secure.
  */
-Object *primitiveFungetc(Interpreter *interp, Object** args, Object **env)
+Object *posixFungetc(Interpreter *interp, Object** args, Object **env)
 {
     int c;
     FILE *fd = interp->input.fd;
@@ -196,7 +199,7 @@ Object *primitiveFungetc(Interpreter *interp, Object** args, Object **env)
  * - out-of-memory   If the input buffer cannot be allocated.
  * - io-error        If fgets() failed.
  */
-Object *primitiveFgets(Interpreter *interp, Object** args, Object **env)
+Object *posixFgets(Interpreter *interp, Object** args, Object **env)
 {
     Object *string = nil;
     char *input;
@@ -246,7 +249,7 @@ Object *primitiveFgets(Interpreter *interp, Object** args, Object **env)
  * - invalid-value      if path is to long.
  * - io-error
  */
-Object *primitiveFstat(Interpreter *interp, Object** args, Object **env)
+Object *posixFstat(Interpreter *interp, Object** args, Object **env)
 {
     struct stat info;
     int result;
@@ -334,7 +337,7 @@ Object *primitiveFstat(Interpreter *interp, Object** args, Object **env)
  * @returns t if fd is associated with a tty.
  *
  */
-Object *primitiveFttyP(Interpreter *interp, Object** args, Object **env)
+Object *posixFttyP(Interpreter *interp, Object** args, Object **env)
 {
     FILE* fd = interp->input.fd;
     if (FLISP_HAS_ARGS)
@@ -356,7 +359,7 @@ Object *primitiveFttyP(Interpreter *interp, Object** args, Object **env)
  * - io-error
  *
  */
-Object *primitiveMkdir(Interpreter *interp, Object** args, Object **env)
+Object *posixMkdir(Interpreter *interp, Object** args, Object **env)
 {
     mode_t mode = S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH;
     FLISP_CHECK_TYPE(FLISP_ARG_ONE, type_string,  "(fmkdir path[ mode) - path");
@@ -401,7 +404,7 @@ Object *primitiveMkdir(Interpreter *interp, Object** args, Object **env)
  * Note: the stream must be closed with (pclose), it is an error to
  * use (fclose) on (popen) streams.
  */
-Object *primitivePopen(Interpreter *interp, Object** args, Object **env)
+Object *posixPopen(Interpreter *interp, Object** args, Object **env)
 {
     FILE *fd;
     char *mode = "r";
@@ -429,7 +432,7 @@ Object *primitivePopen(Interpreter *interp, Object** args, Object **env)
  *
  * @throws io-error if pclose() failed.
  */
-Object *primitivePclose(Interpreter *interp, Object** args, Object **env)
+Object *posixPclose(Interpreter *interp, Object** args, Object **env)
 {
     int result = pclose(FLISP_ARG_ONE->fd);
 
@@ -447,7 +450,7 @@ Object *primitivePclose(Interpreter *interp, Object** args, Object **env)
  *
  * @returns The exit code of the shell.
  */
-Object *fl_system(Interpreter *interp, Object **args, Object **env)
+Object *posixSystem(Interpreter *interp, Object **args, Object **env)
 {
     return newInteger(interp, system(FLISP_ARG_ONE->string));
 }
@@ -459,7 +462,7 @@ Object *fl_system(Interpreter *interp, Object **args, Object **env)
  * @returns *value* of environment variable *name* as string or `nil`
  *          if *name* does not exit.
  */
-Object *fl_getenv(Interpreter *interp, Object **args, Object **env)
+Object *posixGetenv(Interpreter *interp, Object **args, Object **env)
 {
     char *e = getenv(FLISP_ARG_ONE->string);
     if (e == NULL) return nil;
@@ -473,7 +476,7 @@ Object *fl_getenv(Interpreter *interp, Object **args, Object **env)
  * @throws different io errors
  *
  */
-Object *fl_getcwd(Interpreter *interp, Object **args, Object **env)
+Object *posixGetcwd(Interpreter *interp, Object **args, Object **env)
 {
     char buf[PATH_MAX] = "";
 
@@ -482,24 +485,61 @@ Object *fl_getcwd(Interpreter *interp, Object **args, Object **env)
     return newString(interp, buf);
 }
 
-bool flisp_file_register(Interpreter *interp)
+Object *fnm_pathname = &(Object) { .string = "FNM_PATHNAME" };
+Object *fnm_noescape = &(Object) { .string = "FNM_NOESCAPE" };
+Object *fnm_period = &(Object) { .string = "FNM_PERIOD" };
+
+/** (fnmatch pattern string[ flags])
+ * https://man7.org/linux/man-pages/man3/fnmatch.3p.html
+ * flags: default 0
+ * - FNM_PATHNAME
+ * - FNM_NOESCAPE
+ * - FNM_PERIOD
+ **/
+Object *posixFnmatch(Interpreter *interp, Object** args, Object **env)
 {
+    int result, flags = 0;
+
+    FLISP_CHECK_TYPE(FLISP_ARG_ONE, type_string, "(fnmatch pattern string[ flags]) - pattern");
+    FLISP_CHECK_TYPE(FLISP_ARG_TWO, type_string, "(fnmatch pattern string[ flags]) - string");
+    
+    if (FLISP_HAS_ARG_THREE)
+        flags = FLISP_ARG_THREE->integer;
+    result = fnmatch(FLISP_ARG_ONE->string, FLISP_ARG_TWO->string, flags);
+    if (result == 0)
+        return t;
+    if (result == FNM_NOMATCH)
+        return nil;
+    exception(interp, invalid_value, "(fnmatch pattern string[ flags]) - error");
+}
+
+bool flisp_posix_register(Interpreter *interp)
+{
+    Object *object = newInteger(interp, FNM_PATHNAME);
+    flisp_register_constant(interp, fnm_pathname, object);
+    object = newInteger(interp, FNM_NOESCAPE);
+    flisp_register_constant(interp, fnm_noescape, object);
+    object = newInteger(interp, FNM_PERIOD);
+    flisp_register_constant(interp, fnm_period, object);
+
+    
     return
-        flisp_register_primitive(   interp, "fflush",  0, 1, nil,         primitiveFflush)
-        && flisp_register_primitive(interp, "fseek",   2, 3, nil,         primitiveFseek)
-        && flisp_register_primitive(interp, "ftell",   0, 1, type_stream, primitiveFtell)
-        && flisp_register_primitive(interp, "feof",    0, 1, type_stream, primitiveFeof)
-        && flisp_register_primitive(interp, "fgetc",   0, 1, nil,         primitiveFgetc)
-        && flisp_register_primitive(interp, "fungetc", 1, 2, nil,         primitiveFungetc)
-        && flisp_register_primitive(interp, "fgets",   0, 1, nil,         primitiveFgets)
-        && flisp_register_primitive(interp, "fstat",   1, 2, nil,         primitiveFstat)
-        && flisp_register_primitive(interp, "fttyp",   0, 1, type_stream, primitiveFttyP)
-        && flisp_register_primitive(interp, "fmkdir",  1, 2, nil,         primitiveMkdir)
-        && flisp_register_primitive(interp, "popen",   1, 2, type_string, primitivePopen)
-        && flisp_register_primitive(interp, "pclose",  1, 1, type_stream, primitivePclose)
-        && flisp_register_primitive(interp, "system",  1, 1, type_string, fl_system)
-        && flisp_register_primitive(interp, "getenv",  1, 1, type_string, fl_getenv)
-        && flisp_register_primitive(interp, "getcwd",  0, 0, nil,         fl_getcwd);
+        flisp_register_primitive(   interp, "fflush",  0, 1, nil,         posixFflush)
+        && flisp_register_primitive(interp, "fseek",   2, 3, nil,         posixFseek)
+        && flisp_register_primitive(interp, "ftell",   0, 1, type_stream, posixFtell)
+        && flisp_register_primitive(interp, "feof",    0, 1, type_stream, posixFeof)
+        && flisp_register_primitive(interp, "fgetc",   0, 1, nil,         posixFgetc)
+        && flisp_register_primitive(interp, "fungetc", 1, 2, nil,         posixFungetc)
+        && flisp_register_primitive(interp, "fgets",   0, 1, nil,         posixFgets)
+        && flisp_register_primitive(interp, "fstat",   1, 2, nil,         posixFstat)
+        && flisp_register_primitive(interp, "fttyp",   0, 1, type_stream, posixFttyP)
+        && flisp_register_primitive(interp, "fmkdir",  1, 2, nil,         posixMkdir)
+        && flisp_register_primitive(interp, "popen",   1, 2, type_string, posixPopen)
+        && flisp_register_primitive(interp, "pclose",  1, 1, type_stream, posixPclose)
+        && flisp_register_primitive(interp, "system",  1, 1, type_string, posixSystem)
+        && flisp_register_primitive(interp, "getenv",  1, 1, type_string, posixGetenv)
+        && flisp_register_primitive(interp, "getcwd",  0, 0, nil,         posixGetcwd)
+        && flisp_register_primitive(interp, "fnmatch", 2, 3, nil,         posixFnmatch);
 }
 
 /*

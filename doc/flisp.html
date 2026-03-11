@@ -113,7 +113,10 @@
       <a href="#extend"><i>fLisp</i> Extensions</a>
       <ol>
         <li>
-          <a href="#file">File Extension</a>
+          <a href="#string">String Extension</a>
+        </li>
+        <li>
+          <a href="#posix">POSIX Extension</a>
         </li>
         <li>
           <a href="#double">Double Extension</a>
@@ -443,8 +446,9 @@
     <dt><code>(interp <var>cmd</var>[ <var>arg</var>..])</code> <u>f</u></dt>
     <dd>Interpreter introspection. The following commands are available</dd>
     <dd><code>(interp version)</code> ⇒ <var>string</var> .. returns the version string of fLisp.</dd>
-    <dd><code>(interp input[ <var>fd</var>])</code> ⇒ <var>stream</var> .. returns and optionally sets&nbsp;the input
-    stream of the interpreter.<br />
+    <dt>&nbsp;</dt>
+    <dd><code>(interp debug|input|output[ <var>fd</var>])</code> ⇒ <var>stream</var> .. returns and optionally
+    sets&nbsp;the debug, input or output stream of the interpreter.<br />
     <code>(interp global)</code>&nbsp; ⇒ <i>env</i>.. returns the global environment.</dd>
     <dd><code>(interp env[ field[ <var>env</var>]])</code>&nbsp; ⇒ <i>o</i>.. returns the
     current&nbsp;environment,&nbsp;one of its fields given as symbols <code>parent</code>, <code>vars</code>,
@@ -587,11 +591,7 @@
     <dt><code>(string-search <var>needle</var> <var>haystack</var>)</code> <u>C</u></dt>
     <dd>Returns the position of string&nbsp;<var>needle</var> if it is contained in string&nbsp;<var>haystack</var>,
     otherwise <code>nil</code>.</dd>
-    <dt><code>(ascii <var>integer</var>)</code> ⇒ <i>string</i>&nbsp;<u>f</u></dt>
-    <dd>Converts <var>integer</var> into a <i>string</i> with one character, which corresponds to the ASCII
-    representation of <var>integer</var>.</dd>
-    <dt><code>(ascii-&gt;number <var>string</var>)</code> ⇒ <i>i</i>&nbsp;<u>f</u></dt>
-    <dd>Converts the first character of <var>string</var> into an integer which corresponds to its ASCII value.</dd>
+    <dt>&nbsp;</dt>
   </dl>
   <nav>
     <a href="#toc">^</a>
@@ -813,7 +813,25 @@
   <p>Extensions are C libraries which implement additional primitives. They are loaded into an <i>fLisp</i> interpreter
   after creation. Two extensions are delivered with <i>fLisp</i>: the <i>file</i> extension for interaction with the
   operating system and the <i>double</i> floating point extension.</p>
-  <h4 id="file">File Extension</h4>
+  <h4 id="string">String Extensions</h4>
+  <dl>
+    <dt><code>(char-length <var>string</var>)</code> ⇒ <i>i</i>&nbsp;<u>f</u></dt>
+    <dd>Calculates&nbsp;the number of bytes occupied by the first character of <var>string</var>.</dd>
+    <dt><code>(code-char <var>i</var>)</code> ⇒ <i>string</i>&nbsp;<u>f</u></dt>
+    <dd>Converts integer <var>i</var> into a <i>string</i> with one character, which corresponds to the
+    UTF-8&nbsp;representation of Unicode code point&nbsp;<var>i</var>.</dd>
+    <dt><code>(char-code&nbsp;<var>string</var>)</code> ⇒ <i>i</i>&nbsp;<u>f</u></dt>
+    <dd>Converts the first character of <var>string</var> into an integer which corresponds to its Unicode code
+    point.</dd>
+    <dt><code>(strspn&nbsp;<var>string chars</var>)</code> ⇒ <i>i</i>&nbsp;<u>f</u></dt>
+    <dd>Returns the index of the first character in <var>string</var> which is not contained in the string
+    <var>chars</var>.</dd>
+    <dt><code>(strcspn&nbsp;<var>string</var> <var>chars</var>)</code> ⇒ <i>i</i>&nbsp;<u>f</u></dt>
+    <dd>Returns the index of the first character in&nbsp;<var>string</var>&nbsp;which is containted&nbsp;in the string
+    <var>chars</var>.</dd>
+  </dl>
+  <h4 id="posix">POSIX Extension</h4>
+  <p>This extension contains a collection of wrappers to libc functions acording to the POSIX standards.</p>
   <p>All functions except <code>getenv</code> are specific to fLisp.</p>
   <p><mark>Tbd. carry over comprehensive documentation from <code>file.c</code></mark></p>
   <dl>
@@ -855,6 +873,9 @@
     return <code>nil</code>.</dd>
     <dt><code>(getcwd)</code> ⇒ <i>string</i></dt>
     <dd>Return the current working directory.</dd>
+    <dt><code>(fnmatch <var>pattern</var> <var>string</var>[ <var>flags</var>])</code></dt>
+    <dd>glob(7) style pattern matching. The constants: FNM_PATHNAME, FNM_NOESCAPE and FNM_PERIOD can be binary or'd
+    together to form the respective <var>flags</var> value, default is 0.</dd>
   </dl>
   <nav>
     <a href="#toc">^</a>
@@ -979,12 +1000,32 @@
   </dl>
   <p><a href="#toc">^</a></p>
   <h3 id="flisp"><code>flisp</code> Command Line Interpreter</h3>
-  <p>The command line interpreter <code>flisp</code> reads a single Lisp file on startup. The default path of this
-  <dfn>startup file</dfn> is hardcoded in the binary but can be overwritten at runtime with the environment variable
-  <code>FLISPRC</code>. The default path is&nbsp;<code>/usr/local/share/flisp/init.lsp</code>. but can be modified at
-  compile time.</p>
-  <p>The installed startup file includes the <code>core.lsp</code> library. This allows to load Lisp files from the
+  <p>Two binaries are built: <code>flisp</code> and <code>flispd</code>. They behave identical with the exception, that
+  <code>flispd</code> integrates the <i>double</i> extension while <code>flisp</code> does not. Both integrate the
+  <i>string</i> and the <i>posix</i> extension.</p>
+  <h4>Environment Variables</h4>
+  <p>The command line interpreter <code>flisp</code> reads a single Lisp file on startup. The default path
+  is&nbsp;<code>/usr/local/share/flisp/init.lsp</code>. but can be modified at compile time. It can be overwritten at
+  runtime with the variable <code>FLISPRC</code>.</p>
+  <p><code>FLISP_DEBUG</code> can be set to a file name. If <code>flisp</code> succeeds opening the file for writing
+  this file is used as default for output and debug. If not given, output of the evaluation of the startup file is
+  suppressed alltogether.</p>
+  <p>The environment variable <code>FLISP_SIZE</code> can be set to the amount of initial memory for the Lisp object
+  space. If not set or 0, fLisp dynamically allocates memory in chunks of eight kilobyte. This increment can be
+  modified at compile time.</p>
+  <h4><code>init.lsp</code></h4>
+  <p>The provided startup file includes the <code>core.lsp</code> library. This allows to load Lisp files from the
   library with the&nbsp;&nbsp;<code>require</code>&nbsp;function.</p>
+  <p>After loading the core library, <code>init.lsp</code> tries to load the file
+  <code>~/.config/flisp/init.lsp</code>. Errors are printed to the debug output. Then the interpreter output is set to
+  <code>stdout</code>.</p>
+  <p>If command line arguments are given, each of them is interpreted as a Lisp file to load.</p>
+  <p>Otherwise a simple read-eval-print-loop is invoked, which reads Lisp code from <code>stdin</code>, prints results
+  on <code>stdout</code> and exceptions on <code>stderr</code>. If <code>stdin</code> is a TTY a startup message is
+  printed and than the string <q><code>&gt;&nbsp;</code></q>&nbsp;is printed as prompt.</p>
+  <h4>fLisp as Script Language</h4>
+  <p>The <i>fLisp</i> binaries can be used for scripting. Put a shebang line with the path to the respective binary in
+  the first line of the script, e.g: <code>#!/usr/local/bin/flisp</code></p>
   <p><a href="#toc">^</a></p>
   <dl>
     <!--
