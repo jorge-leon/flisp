@@ -2888,6 +2888,12 @@ void flisp_eval(Interpreter *interp, char *input)
     if (fd) fclose(fd);
 }
 
+/* Note: experimental */
+void flisp_expr(Interpreter *interp, Object *object)
+{
+    Object *args = newCons(interp, &object, &nil);
+    (void) evalCatch(interp, &args, &interp->global);
+}
 
 /*
  * Local Variables:

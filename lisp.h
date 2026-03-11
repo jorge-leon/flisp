@@ -212,6 +212,8 @@ extern size_t flisp_char_count(Interpreter *, char *, size_t);
 extern Interpreter *flisp_new(size_t size, char **, char*, FILE*, FILE*, FILE*);
 extern void flisp_destroy(Interpreter *);
 extern void flisp_eval(Interpreter *, char *);
+/* Note: experimental */
+extern void flisp_expr(Interpreter *, Object *);
 extern void flisp_write_object(Interpreter *, FILE *, Object *, bool);
 extern void flisp_write_error(Interpreter *, FILE *);
 
