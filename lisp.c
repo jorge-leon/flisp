@@ -35,80 +35,45 @@
 
 /* Constants */
 /* Fundamentals */
-Object *nil =                                   &(Object) { NULL, .string = "nil" };
-Object *t =                                     &(Object) { NULL, .string = "t" };
+Object *nil =                       &(Object) { NULL, .string = "nil" };
+Object *t =                         &(Object) { NULL, .string = "t" };
 /* Types */
-Object *type_integer =                          &(Object) { NULL, .string = "type-integer" };
-Object *type_double =                           &(Object) { NULL, .string  = "type-double" };
-Object *type_string =                           &(Object) { NULL, .string = "type-string" };
-Object *type_symbol =                           &(Object) { NULL, .string = "type-symbol" };
-Object *type_cons =                             &(Object) { NULL, .string = "type-cons" };
-Object *type_lambda =                           &(Object) { NULL, .string = "type-lambda" };
-Object *type_macro =                            &(Object) { NULL, .string = "type-macro" };
-Object *type_primitive =            (Object *) (&(Symbol) { NULL, .string = "type-primitive" });
-Object *type_stream =                           &(Object) { NULL, .string = "type-stream" };
+Object *type_integer =              &(Object) { NULL, .string = "type-integer" };
+Object *type_double =               &(Object) { NULL, .string  = "type-double" };
+Object *type_string =               &(Object) { NULL, .string = "type-string" };
+Object *type_symbol =               &(Object) { NULL, .string = "type-symbol" };
+Object *type_cons =                 &(Object) { NULL, .string = "type-cons" };
+Object *type_lambda =               &(Object) { NULL, .string = "type-lambda" };
+Object *type_macro =                &(Object) { NULL, .string = "type-macro" };
+Object *type_primitive =            &(Object) { NULL, .string = "type-primitive" };
+Object *type_stream =               &(Object) { NULL, .string = "type-stream" };
 /* Exceptions */
-Object *end_of_file =                           &(Object) { NULL, .string = "end-of-file" };
-Object *read_incomplete =           (Object *) (&(Symbol) { NULL, .string = "read-incomplete" });
-Object *invalid_read_syntax =       (Object *) (&(Symbol) { NULL, .string = "invalid-read-syntax" });
-Object *range_error =                           &(Object) { NULL, .string = "range-error" };
-Object *wrong_type_argument =       (Object *) (&(Symbol) { NULL, .string = "wrong-type-argument" });
-Object *invalid_value =             (Object *) (&(Symbol) { NULL, .string = "invalid-value" });
-Object *wrong_number_of_arguments = (Object *) (&(Symbol) { NULL, .string = "wrong-number-of-arguments" });
-Object *arith_error =                           &(Object) { NULL, .string = "arith-error"};
-Object *io_error =                              &(Object) { NULL, .string = "io-error" };
-Object *out_of_memory =             (Object *) (&(Symbol) { NULL, .string = "out-of-memory" });
-Object *gc_error =                              &(Object) { NULL, .string = "gc-error" };
+Object *end_of_file =               &(Object) { NULL, .string = "end-of-file" };
+Object *read_incomplete =           &(Object) { NULL, .string = "read-incomplete" };
+Object *invalid_read_syntax =       &(Object) { NULL, .string = "invalid-read-syntax" };
+Object *range_error =               &(Object) { NULL, .string = "range-error" };
+Object *wrong_type_argument =       &(Object) { NULL, .string = "wrong-type-argument" };
+Object *invalid_value =             &(Object) { NULL, .string = "invalid-value" };
+Object *wrong_number_of_arguments = &(Object) { NULL, .string = "wrong-number-of-arguments" };
+Object *arithmetic_error =          &(Object) { NULL, .string = "arithmetic-error"};
+Object *out_of_memory =             &(Object) { NULL, .string = "out-of-memory" };
+Object *gc_error =                  &(Object) { NULL, .string = "gc-error" };
 /* I/O */
-Object *permission_denied =  (Object *) (&(Symbol) { NULL, .string = "permission-denied" });
-Object *not_found = &(Object) { NULL, .string = "not-found" };
-Object *file_exists = &(Object) { NULL, .string = "file-exists" };
-Object *read_only = &(Object) { NULL, .string = "read-only" };
-Object *is_directory = &(Object) { NULL, .string = "is-directory" };
+Object *io_error =                  &(Object) { NULL, .string = "io-error" };
+Object *permission_denied =         &(Object) { NULL, .string = "permission-denied" };
+Object *not_found =                 &(Object) { NULL, .string = "not-found" };
+Object *file_exists =               &(Object) { NULL, .string = "file-exists" };
+Object *read_only =                 &(Object) { NULL, .string = "read-only" };
+Object *is_directory =              &(Object) { NULL, .string = "is-directory" };
+/* Interpreter */
+Object *debug_output =              &(Object) { NULL, .string = "*debug-output*" };
+Object *standard_input =            &(Object) { NULL, .string = "*standard-input*" };
+Object *standard_output =           &(Object) { NULL, .string = "*standard-output*" };
 /* Internal */
-Object *debug_output =                          &(Object) { NULL, .string = "*debug-output*" };
-Object *standard_input =                        &(Object) { NULL, .string = "*standard-input*" };
-Object *standard_output =                       &(Object) { NULL, .string = "*standard-output*" };
-
-Object *type_env =                              &(Object) { NULL, .string = "type-env" };
-Object *type_moved =                            &(Object) { NULL, .string = "type-moved" };
-Object *flisp_empty_string =                    &(Object) { NULL, .string = "\0" };
-
-
-Constant lisp_constants[] = {
-    /* Fundamentals */
-    { &nil, &nil },
-    { &t, &t, },
-    /* Types */
-    { &type_integer,   &type_integer  },
-    { &type_double,    &type_double   },
-    { &type_string,    &type_string   },
-    { &type_symbol,    &type_symbol   },
-    { &type_cons,      &type_cons     },
-    { &type_lambda,    &type_lambda   },
-    { &type_macro,     &type_macro    },
-    { &type_primitive, &type_primitive},
-    { &type_stream,    &type_stream   },
-    /* Exceptions */
-    { &end_of_file, &end_of_file },
-    { &read_incomplete, &read_incomplete },
-    { &invalid_read_syntax, &invalid_read_syntax },
-    { &range_error, &range_error },
-    { &wrong_type_argument, &wrong_type_argument },
-    { &invalid_value, &invalid_value },
-    { &wrong_number_of_arguments, &wrong_number_of_arguments },
-    { &arith_error, &arith_error },
-    { &io_error, &io_error },
-    { &out_of_memory, &out_of_memory },
-    { &gc_error, &gc_error },
-    /* I/O */
-    { &permission_denied, &permission_denied },
-    { &not_found, &not_found },
-    { &file_exists, &file_exists },
-    { &read_only, &read_only },
-    { &is_directory, &is_directory }
-};
-
+Object *type_env =                  &(Object) { NULL, .size = 17, .count = 0, .string = "type-environment" };
+Object *type_moved =                &(Object) { NULL, .size = 11, .count = 0, .string = "type-moved" };
+/* Constant strings */
+Object *flisp_empty_string =        &(Object) { NULL, .size =  1, .count = 0, .string = "\0" };
 
 bool gc_always = false;
 
@@ -1925,14 +1890,14 @@ Object *integerDivide(Interpreter *interp, Object **args, Object **env)
 {
     if (FLISP_ARG_TWO->value)
         return newInteger(interp, FLISP_ARG_ONE->value / FLISP_ARG_TWO->value);
-    exceptionWithObject(interp, FLISP_ARG_TWO, arith_error, "(i/ q d) - d: division by zero");
+    exceptionWithObject(interp, FLISP_ARG_TWO, arithmetic_error, "(i/ q d) - d: division by zero");
 }
 
 Object *integerMod(Interpreter *interp, Object **args, Object **env)
 {
     if (FLISP_ARG_TWO->value)
         return newInteger(interp, FLISP_ARG_ONE->value % FLISP_ARG_TWO->value);
-    exceptionWithObject(interp, FLISP_ARG_TWO, arith_error, "(i%% q d) - d: division by zero");
+    exceptionWithObject(interp, FLISP_ARG_TWO, arithmetic_error, "(i%% q d) - d: division by zero");
 }
 
 Object *integerEqual(Interpreter *interp, Object **args, Object **env)
@@ -2416,6 +2381,10 @@ Object *primitiveInterp(Interpreter *interp, Object **args, Object **env)
 void flisp_register_constant(Interpreter *interp, Object *symbol, Object *value)
 {
     symbol->type = type_symbol;
+    symbol->size = strlen(symbol->string) +1;
+    symbol->count = 0;
+    if (value == NULL)
+        value = symbol;
     envSet(interp, &symbol, &value, &interp->global, true);
     interp->symbols = newCons(interp, &symbol, &interp->symbols);
 }
@@ -2519,17 +2488,45 @@ bool flisp_primitives_register(Interpreter *interp)
 
 void initRootEnv(Interpreter *interp)
 {
-    int i;
-
     interp->global = newEnv(interp, &nil, &nil);
 
-    /* Fixup internal objects */
+    /* Fix Internal symbols */
     type_env->type = type_symbol;
     type_moved->type = type_symbol;
     flisp_empty_string->type = type_string;
-    // Add constants
-    for (i = 0; i < sizeof(lisp_constants) / sizeof(lisp_constants[0]); i++)
-        flisp_register_constant(interp, *lisp_constants[i].symbol, *lisp_constants[i].value);
+
+    /* Fundamentals */
+    flisp_register_constant(interp, nil, NULL);
+    flisp_register_constant(interp, t, NULL);
+    /* Types */
+    flisp_register_constant(interp, type_integer, NULL);
+    flisp_register_constant(interp, type_double, NULL);
+    flisp_register_constant(interp, type_string, NULL);
+    flisp_register_constant(interp, type_symbol, NULL);
+    flisp_register_constant(interp, type_cons, NULL);
+    flisp_register_constant(interp, type_lambda, NULL);
+    flisp_register_constant(interp, type_macro, NULL);
+    flisp_register_constant(interp, type_primitive, NULL);
+    flisp_register_constant(interp, type_stream, NULL);
+    flisp_register_constant(interp, type_double, NULL);
+    /* Exceptions */
+    flisp_register_constant(interp, end_of_file, NULL);
+    flisp_register_constant(interp, read_incomplete, NULL);
+    flisp_register_constant(interp, invalid_read_syntax, NULL);
+    flisp_register_constant(interp, range_error, NULL);
+    flisp_register_constant(interp, wrong_type_argument, NULL);
+    flisp_register_constant(interp, invalid_value, NULL);
+    flisp_register_constant(interp, wrong_number_of_arguments, NULL);
+    flisp_register_constant(interp, arithmetic_error, NULL);
+    flisp_register_constant(interp, out_of_memory, NULL);
+    flisp_register_constant(interp, gc_error, NULL);
+    /* I/O */
+    flisp_register_constant(interp, io_error, NULL);
+    flisp_register_constant(interp, permission_denied, NULL);
+    flisp_register_constant(interp, not_found, NULL);
+    flisp_register_constant(interp, file_exists, NULL);
+    flisp_register_constant(interp, read_only, NULL);
+    flisp_register_constant(interp, is_directory, NULL);
 }
 
 Memory *newMemory(size_t size)

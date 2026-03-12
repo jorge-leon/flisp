@@ -92,12 +92,6 @@ struct Object {
     };
 };
 
-/* Note: deprecate this, create them dynamically */
-typedef struct Constant {
-    Object **symbol;
-    Object **value;
-} Constant;
-
 /* Internal */
 typedef struct Memory {
     size_t capacity, fromOffset, toOffset;
