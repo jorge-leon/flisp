@@ -35,8 +35,8 @@
 
 /* Constants */
 /* Fundamentals */
-Object *nil =                       &(Object) { NULL, .string = "nil" };
-Object *t =                         &(Object) { NULL, .string = "t" };
+Object *nil =                       &(Object) { NULL, .size = 4, .count = 0, .string = "nil" };
+Object *t =                         &(Object) { NULL, .size = 2, .count = 0, .string = "t" };
 /* Types */
 Object *type_integer =              &(Object) { NULL, .string = "type-integer" };
 Object *type_double =               &(Object) { NULL, .string  = "type-double" };
@@ -70,7 +70,7 @@ Object *is_directory =              &(Object) { NULL, .string = "is-directory" }
 Object *debug_output =              &(Object) { NULL, .string = "*debug-output*" };
 Object *standard_input =            &(Object) { NULL, .string = "*standard-input*" };
 Object *standard_output =           &(Object) { NULL, .string = "*standard-output*" };
-/* Internal */
+/* Internal symbols */
 Object *type_env =                  &(Object) { NULL, .size = 17, .count = 0, .string = "type-environment" };
 Object *type_moved =                &(Object) { NULL, .size = 11, .count = 0, .string = "type-moved" };
 /* Constant strings */
@@ -265,8 +265,10 @@ Object *gcMoveObject(Interpreter *interp, Object *object, gcStats *stats)
                  (void *)object, (void *)object->path, object->path->string,
                  object->path->type->string, (void *)forward
             );
-    if (object->type == type_symbol)
+    else if (object->type == type_symbol)
         fl_debug(interp, "moved symbol %s\n", object->string);
+    else
+        fl_debug(interp, "moved object %p of type %s\n", (void*)object, object->type->string);
 #endif
     // mark object as moved and set forwarding pointer
     object->type = type_moved;
@@ -284,42 +286,53 @@ void gc(Interpreter *interp)
     Object *object;
     gcStats stats = {0};
 
-    fl_debug(interp, "collecting garbage, memory: %lu/%lu, free %lu\n",
+    fl_debug(interp, "collecting garbage\n");
+    size_t free = (COUNTFMT) interp->memory->capacity - interp->memory->fromOffset;
+    fl_debug(interp, "memory: %lu/%lu, free %ld/(%lu)\n",
              (COUNTFMT) interp->memory->fromOffset, (COUNTFMT) interp->memory->capacity,
-             (COUNTFMT) interp->memory->capacity - interp->memory->fromOffset - EXCEPTION_MEM_RESERVE
+             free - EXCEPTION_MEM_RESERVE, free
         );
     interp->memory->toOffset = 0;
 
     // move trace, symbols, root and interp result objects
+#if DEBUG_GC
+    fl_debug(interp, "gc trace\n");
+#endif
     for (object = interp->gcTop; object != nil; object = object->cdr) {
-#if DEBUG_GC | FLISP_TRACK_GCTOP
-        fl_debug(interp, "moving gc traced object %p of type %s\n",
-                 (void *)object->car, object->car->type->string
-            );
-#if FLISP_TRACK_GCTOP
-        flisp_write_object(interp, interp->debug.fd, object->car, true);
-        fl_debug(interp, "\n");
-#endif
-#endif
         object->car = gcMoveObject(interp, object->car, &stats);
     }
 #if DEBUG_GC
-    fl_debug(interp, "gc traced objects: %lu, skipped %lu, constant %lu\n",
-             stats.moved, stats.skipped, stats.constant
-        );
+    fl_debug(interp, "symbols\n");
 #endif
     interp->symbols = gcMoveObject(interp, interp->symbols, &stats);
+#if DEBUG_GC
+    fl_debug(interp, "environment\n");
+#endif
     interp->global = gcMoveObject(interp, interp->global, &stats);
+#if DEBUG_GC
+    fl_debug(interp, "result object\n");
+#endif
     interp->result = gcMoveObject(interp, interp->result, &stats);
+#if DEBUG_GC
+    fl_debug(interp, "error object\n");
+#endif
     interp->error = gcMoveObject(interp, interp->error, &stats);
+#if DEBUG_GC
+    fl_debug(interp, "debug/input/output stream\n");
+#endif
     interp->debug.path = gcMoveObject(interp, interp->debug.path, &stats);
     interp->input.path = gcMoveObject(interp, interp->input.path, &stats);
     interp->output.path = gcMoveObject(interp, interp->output.path, &stats);
+#if DEBUG_GC
+    fl_debug(interp, "root objects: %lu, skipped %lu, constant %lu\n",
+             stats.moved, stats.skipped, stats.constant
+        );
+#endif
 
     // iterate over objects in to-space and move all objects they reference
     for (object = interp->memory->toSpace;
          object < (Object *) ((char *)interp->memory->toSpace + interp->memory->toOffset);
-         object = (Object *) ((char *)object + object->size)) {
+         object = (Object *) ((char *)object + sizeof(SimpleObject) + object->size)) {
 
         if (object->size != 0)
             for (size_t i = 0; i < object->count; i++)
@@ -331,13 +344,13 @@ void gc(Interpreter *interp)
     interp->memory->toSpace = swap;
 
     /* report before overwriting offset difference */
-    fl_debug(interp,  "collected %lu objects, skipped %lu, constants %lu, saved %lu bytes, "
-             "memory: %lu/%lu free: %lu(%lu) bytes\n",
+    fl_debug(interp,  "collected %lu objects, skipped %lu, constants %lu, saved %lu bytes\n",
              (COUNTFMT) stats.moved, (COUNTFMT) stats.skipped, (COUNTFMT) stats.constant,
-             (COUNTFMT) interp->memory->fromOffset - interp->memory->toOffset,
+             (COUNTFMT) interp->memory->fromOffset - interp->memory->toOffset);
+    free = (COUNTFMT) interp->memory->capacity - interp->memory->toOffset;
+    fl_debug(interp, "memory: %lu/%lu, free: %ld/(%lu)\n",
              (COUNTFMT) interp->memory->toOffset, (COUNTFMT) interp->memory->capacity,
-             (COUNTFMT) interp->memory->capacity - interp->memory->toOffset - EXCEPTION_MEM_RESERVE,
-             (COUNTFMT) interp->memory->capacity - interp->memory->toOffset
+             free - EXCEPTION_MEM_RESERVE, free
         );
 
     interp->memory->fromOffset = interp->memory->toOffset;
@@ -365,12 +378,18 @@ size_t memoryAlign(size_t size, size_t alignment)
 Object *memoryAllocObject(Interpreter *interp, Object *type, size_t size)
 {
     size = memoryAlign(size, sizeof(void *));
+    int blocks = ((size + EXCEPTION_MEM_RESERVE) / FLISP_MEMORY_INC_SIZE) + 1;
+    size_t memory = blocks * FLISP_MEMORY_INC_SIZE;
 
     /* If not done already allocate to space */
     if (!interp->memory->fromSpace) {
+        if (memory > interp->memory->capacity)
+            interp->memory->capacity = memory;
         fl_debug(interp, "memoryAllocObject: allocate fromSpace: %zu bytes\n", interp->memory->capacity);
         if (!(interp->memory->fromSpace = mmap(NULL, interp->memory->capacity, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)))
             fl_fatal("OOM, allocating from space, exiting\n", 64);
+        interp->memory->fromOffset = 0;
+        goto allocateObject;
     }
     /* Run garbage collection if capacity exceeded */
     if (
@@ -379,7 +398,7 @@ Object *memoryAllocObject(Interpreter *interp, Object *type, size_t size)
         || gc_always
 #endif
         ) {
-        fl_debug(interp, "memoryAllocObject: requesting %lu bytes\n", (COUNTFMT) size);
+        fl_debug(interp, "memoryAllocObject: need %lu bytes more then available, requesting garbage collection\n", (COUNTFMT) size);
         /* If not done already allocate to space */
         if (!interp->memory->toSpace) {
             if (!(interp->memory->toSpace = mmap(NULL, interp->memory->capacity,
@@ -390,32 +409,36 @@ Object *memoryAllocObject(Interpreter *interp, Object *type, size_t size)
         gc(interp);
     }
     /* Check if we now have enough space */
-    if (interp->memory->fromOffset + size + EXCEPTION_MEM_RESERVE >= interp->memory->capacity) {
-        int blocks = size / FLISP_MEMORY_INC_SIZE + 1;
-        size_t memory = blocks * FLISP_MEMORY_INC_SIZE;
-        fl_debug(interp, "memoryAllocObject: %lu bytes needed, increasing memory by %lu\n",
-                 (COUNTFMT) size, (COUNTFMT) memory
-            );
-        /* Increase to space */
-        void *new;
-        new = mmap(NULL, interp->memory->capacity + FLISP_MEMORY_INC_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-        if (new == (void *) -1) {
-            interp->memory->capacity+= EXCEPTION_MEM_RESERVE;
-            exception(interp, out_of_memory, "OOM reallocating toSpace: %s", strerror(errno));
-        }
-        if (munmap(interp->memory->toSpace, interp->memory->capacity) == -1) {
-            interp->memory->capacity+= EXCEPTION_MEM_RESERVE;
-            exception(interp, out_of_memory, "munmap(toSpace) failed: %s", strerror(errno));
-        }
-        interp->memory->toSpace = new;
-        interp->memory->capacity += memory;
-        gc(interp);
-        if (munmap(interp->memory->toSpace, interp->memory->capacity - memory) == -1) {
-            interp->memory->capacity+= EXCEPTION_MEM_RESERVE;
-            exception(interp, out_of_memory, "munmap(fromSpace) failed: %s", strerror(errno));
-        }
-        interp->memory->toSpace = NULL;
+    if (interp->memory->fromOffset + size + EXCEPTION_MEM_RESERVE < interp->memory->capacity)
+        goto allocateObject;
+
+    fl_debug(interp, "memoryAllocObject: still %lu bytes more needed, increasing memory by %lu\n",
+             (COUNTFMT) size, (COUNTFMT) memory
+        );
+    /* Increase to space */
+    void *new;
+    new = mmap(NULL, interp->memory->capacity + memory, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (new == (void *) -1) {
+        /* Note: fake that we have more memory and throw exception, then let's hope the best. */
+        interp->memory->capacity+= EXCEPTION_MEM_RESERVE;
+        exception(interp, out_of_memory, "OOM reallocating toSpace: %s", strerror(errno));
     }
+    if (munmap(interp->memory->toSpace, interp->memory->capacity) == -1) {
+        interp->memory->capacity+= EXCEPTION_MEM_RESERVE;
+        exception(interp, out_of_memory, "munmap(toSpace) failed: %s", strerror(errno));
+    }
+    interp->memory->toSpace = new;
+    interp->memory->capacity += memory;
+    interp->memory->toOffset = 0;
+    gc(interp);
+    if (munmap(interp->memory->toSpace, interp->memory->capacity - memory) == -1) {
+        interp->memory->capacity+= EXCEPTION_MEM_RESERVE;
+        exception(interp, out_of_memory, "munmap(fromSpace) failed: %s", strerror(errno));
+    }
+    interp->memory->toSpace = NULL;
+
+allocateObject:
+    ;
     /* Allocate object in from-space */
     Object *object = (Object *) ((char *)interp->memory->fromSpace + interp->memory->fromOffset);
     object->type = type;
@@ -551,11 +574,11 @@ Object *newSymbolWithLength(Interpreter *interp, char *string, size_t length)
 
     GC_CHECKPOINT;
     GC_TRACE(gcSymbol, newObject(interp, type_symbol, length + 1));
-    interp->symbols = newCons(interp, gcSymbol, &interp->symbols);
-    GC_RELEASE;
     (*gcSymbol)->count = 0;
     memcpy((*gcSymbol)->string, string, length);
     (*gcSymbol)->string[length] = '\0';
+    interp->symbols = newCons(interp, gcSymbol, &interp->symbols);
+    GC_RELEASE;
     return *gcSymbol;
 }
 
@@ -1858,10 +1881,8 @@ Object *primitiveError(Interpreter *interp, Object **args, Object **env)
     error->error_type = FLISP_ARG_ONE;
     error->message = FLISP_ARG_TWO;
     error->culprit = (FLISP_HAS_ARG_THREE) ? FLISP_ARG_THREE : nil;
-    
+
     return error;
-
-
 }
 Object *primitiveThrow(Interpreter *interp, Object **args, Object **env)
 {
@@ -2309,7 +2330,7 @@ Object *stringCompare(Interpreter *interp, Object **args, Object **env)
 // Interpreter introspection and configuration
 /* Note:
  * - Maybe move this to an extension, where each sub command cmd is
- *   named interp-cmd to smplify code and type checks. 
+ *   named interp-cmd to smplify code and type checks.
  * - flisp must load this to be able to redirect stdin etc.
  * - No tests yet.
  */
@@ -2503,16 +2524,13 @@ bool flisp_primitives_register(Interpreter *interp)
 
 void initRootEnv(Interpreter *interp)
 {
-    interp->global = newEnv(interp, &nil, &nil);
-
-    /* Fix Internal symbols */
+    /* Internal symbols */
     type_env->type = type_symbol;
     type_moved->type = type_symbol;
     flisp_empty_string->type = type_string;
 
-    /* Fundamentals */
-    flisp_register_constant(interp, nil, NULL);
     flisp_register_constant(interp, t, NULL);
+
     /* Types */
     flisp_register_constant(interp, type_integer, NULL);
     flisp_register_constant(interp, type_double, NULL);
@@ -2550,8 +2568,6 @@ Memory *newMemory(size_t size)
     if (!memory) return NULL;
 
     memory->capacity = size;
-    memory->fromOffset = 0;
-    memory->toOffset = 0;
     memory->fromSpace = NULL;
     memory->toSpace = NULL;
 
@@ -2615,19 +2631,22 @@ Interpreter *flisp_new(
     gc_always = true;
 #endif
 
-    interp->gcTop = nil;
-    /* symbols */
-    GC_CHECKPOINT;
-    GC_TRACE(gcVal, newCons(interp, &nil, &nil));
-    interp->symbols = newCons(interp, &t, gcVal);
+    /* Fundamentals */
+    nil->type = type_symbol;
 
-    /* global environment */
+    interp->gcTop = nil;
+    interp->symbols = newCons(interp, &nil, &nil);
+    interp->global = newEnv(interp, &nil, &nil);
     initRootEnv(interp);
 
     if (!flisp_primitives_register(interp)) {
         flisp_destroy(interp);
         return NULL;
     }
+
+    GC_CHECKPOINT;
+    GC_TRACE(gcVal, nil);
+
     if (argv != NULL) {
         /* Add argv0 to the environment */
         *gcVal = newString(interp, *argv);
