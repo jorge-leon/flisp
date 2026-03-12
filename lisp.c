@@ -2153,12 +2153,6 @@ Object *stringAppend(Interpreter *interp, Object **args, Object **env)
     return str;
 }
 
-/* Note: this is not needed in the core. It should go to an extension. */
-Object *byteLength(Interpreter *interp, Object **args, Object **env)
-{
-    return newInteger(interp, strlen(FLISP_ARG_ONE->string));
-}
-
 /// UTF-8 handling ////////////
 
 /* encoded character size */
@@ -2306,12 +2300,17 @@ Object *stringCompare(Interpreter *interp, Object **args, Object **env)
 }
 
 // Interpreter introspection and configuration
-
+/* Note:
+ * - Maybe move this to an extension, where each sub command cmd is
+ *   named interp-cmd to smplify code and type checks. 
+ * - flisp must load this to be able to redirect stdin etc.
+ * - No tests yet.
+ */
 void setInterpStream(Object *stream, Object *new)
 {
     stream->fd = new->fd;
     stream->path = new->path;
-    stream->buf = new->buf;
+     stream->buf = new->buf;
     stream->len = new->len;
 }
 
@@ -2349,6 +2348,11 @@ Object *primitiveInterp(Interpreter *interp, Object **args, Object **env)
     }
     if (!strcmp(FLISP_ARG_ONE->string, "global")) {
         return interp->global;
+    }
+    if (!strcmp(FLISP_ARG_ONE->string, "size")) {
+        if (!FLISP_HAS_ARG_TWO)
+            exception(interp, wrong_number_of_arguments, "(interp :size object) - object not provided");
+        return newInteger(interp, FLISP_ARG_TWO->size);
     }
     if (!strcmp(FLISP_ARG_ONE->string, "env")) {
         if (FLISP_HAS_ARG_TWO) {
@@ -2478,7 +2482,6 @@ bool flisp_primitives_register(Interpreter *interp)
         && flisp_register_primitive(interp, ">>",            2,  2, type_integer,   integerShiftRight)
         && flisp_register_primitive(interp, "~",             1,  1, type_integer,   integerNot)
         && flisp_register_primitive(interp, "string-append", 2,  2, type_string,    stringAppend)
-        && flisp_register_primitive(interp, "byte-length",   1,  1, type_string,    byteLength)
         && flisp_register_primitive(interp, "string-length", 1,  1, type_string,    stringLength)
         && flisp_register_primitive(interp, "string-search", 2,  2, type_string,    stringSearch)
         && flisp_register_primitive(interp, "substring",     1,  3, nil,            stringSubstring)

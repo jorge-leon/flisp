@@ -8,7 +8,7 @@ export PREPARE='(interp :output (open ">1" "w"))'
 export FLISP_DEBUG=f.log
 export FLISP_SIZE=$((20*1024*1024))
 
-tap 202
+tap 199
 
 [ -x ../flispd ]
 ok flisp-1 flisp exists and is executable;
@@ -452,10 +452,6 @@ flisp_expr; ok string-append-3 string append of unicode is string
 
 IN='(string-append "" "answer")' OUT='"answer"'
 flisp_expr; ok string-append-3  append emtpy answer is anser
-
-IN='(byte-length "")' OUT="0" flisp_expr; ok byte-length-1 length of emtpy string is 0
-IN='(byte-length "answer")' OUT="6" flisp_expr; ok byte-length-2  length of answer string is 6
-IN='(byte-length "änßwér")' OUT="9" flisp_expr; ok byte-length-3  length of 3 unicode 3 ascii string is 9
 
 IN='(string-length "")' OUT="0" flisp_expr; ok string-length-1 length of emtpy string is 0
 IN='(string-length "answer")' OUT="6" flisp_expr; ok string-length-2  length of answer string is 6
