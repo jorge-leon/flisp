@@ -4,6 +4,7 @@
 
 ## Next
 
+- Implement error type
 - Cleanup cerf: not so easy to do, but now easier with dynamic primitive loading.
   - create evalApply and readCons on startup after registering readPrimitve and evalPrimitive
     then use it in cerf().
@@ -36,6 +37,10 @@
     (r).
 - Test more then one interpreter.
 - ? CSP between interpreters?
+
+## flisp 0.16
+- Extensible Lisp Object structure.
+- flisp_expr()
 
 ## flisp 0.15
 - basic utf-8 support.

@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <inttypes.h>
+#include <limits.h>
 
 #define FL_NAME     "fLisp"
 #define FL_VERSION  "0.16"
@@ -54,12 +55,13 @@ typedef struct Primitive {
 
 /** Object - Lisp object data structure
  *
- * Simple: object.size=0,
+ * Simple: object.size=0, value in union
  * Extended:
  * - objects.size .. number of additional bytes to allocation
  * - objects.count .. number of Object * pointers at start of extension
+ * - value(s) in extension union
  */
-struct Object {
+typedef struct SimpleObject {
     Object *type;
     size_t size; /*0*/
     union {                   // Simple Objects, or helpers
@@ -69,47 +71,28 @@ struct Object {
         size_t count;
         Object *forward;      // GC forwarding pointer to collected object in to-space
     };
-};
-struct ConsObject {
+} SimpleObject;
+struct Object {
     Object *type;
-    size_t size; /* sizeof(Object[2]) */
-    union { size_t count /*2*/; Object *forward; };
-    Object *car;
-    Object *cdr;
-};
-/* Lambda / Macro */
-struct ClosureObject {
-    Object *type;
-    size_t size; /* sizeof Object*[3] */
-    union { size_t count/*3*/; Object *forward; };
-    Object *params;
-    Object *body;
-    Object *env;
-};
-struct EnvObject {
-    Object *type;
-    size_t size; /* sizeof Object*[3] */
-    union { size_t count/*3*/; Object *forward; };
-    Object *parent;
-    Object *vars;
-    Object *vals;
-};
-struct StringObject {
-    Object *type;
-    size_t size; /* strlen(str)+1 */
-    union { size_t count/*0*/; Object *forward; };
-    char string[1];
-};
-struct StreamObject {
-    Object *type;
-    size_t size; /* sizeof(void *)[3]+sizeof(size_t) */
-    union { size_t count/*1*/; Object *forward; };
-    Object *path;
-    File *fd;
-    char *buf;
-    size_t len;
+    size_t size;
+    union {                   // Simple Objects, or helpers
+        int64_t value;      // integer
+        double number;        // double
+        Primitive *primitive; // primitive
+        size_t count;
+        Object *forward;      // GC forwarding pointer to collected object in to-space
+    };
+    union {
+        struct { Object *car;    Object *cdr; };
+        struct { Object *params; Object *body; Object *env; };
+        struct { Object *parent; Object *vars; Object *vals; };
+        struct { char string[PATH_MAX]; };
+        struct { Object *path; FILE *fd; char *buf; size_t len; };
+        Object *objects[1];
+    };
 };
 
+/* Note: deprecate this, create them dynamically */
 typedef struct Constant {
     Object **symbol;
     Object **value;
@@ -124,8 +107,13 @@ typedef struct Memory {
 typedef struct Interpreter {
 
     /* private */
-    Object *error;                   /* error code cons */
-    struct { Object * type; size_t size; char string[WRITE_FMT_BUFSIZ]; } message;
+    Object *error;                   /* error code */
+    struct {
+        Object * type;
+        size_t size;
+        union { int64_t i; double n; size_t s; void *p;};
+        char string[WRITE_FMT_BUFSIZ]; /* Error message string object */
+    } message;
     Object *result;                  /* result or error object */
 
     Object input;                    /* default input stream object */
@@ -186,14 +174,7 @@ extern Object *is_directory;
 /* utility */
 extern Object *flisp_empty_string;
 
-/* "Object" type for initializing constants with long names.
- * Note: currently wrong-number-of-arguments is the longest, if you
- *       need a longer put it here.
- */
-typedef struct { Object *type; size_t size; char string[sizeof("wrong-number-of-arguments")]; } Symbol;
-
-extern Object *newObject(Interpreter *, Object *);
-extern Object *newObjectFrom(Interpreter *, Object **);
+extern Object *newObject(Interpreter *, Object *, size_t);
 extern Object *newInteger(Interpreter *, int64_t);
 extern Object *newStringWithLength(Interpreter *, char *, size_t);
 extern Object *newString(Interpreter *, char *);

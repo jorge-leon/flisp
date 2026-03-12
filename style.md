@@ -84,7 +84,7 @@ For flags use `stbool.h`, the `bool` data type and the `true` and
 Use early exits instead of nested if - then - else clauses.
 
 Always use comparision with `NULL` instead of considering the pointer as flag;
-onstead of `(!ptr)` use `(ptr == NULL)`.
+instead of `(!ptr)` use `(ptr == NULL)`.
 
 
 ## Lisp Code

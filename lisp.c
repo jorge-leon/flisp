@@ -274,6 +274,7 @@ bool gcCollectableObject(Interpreter *interp, Object *object) {
 typedef struct gcStats { size_t moved, constant, skipped; } gcStats;
 Object *gcMoveObject(Interpreter *interp, Object *object, gcStats *stats)
 {
+
     /* Skip object if it is not within from-space, i.e. on the stack or a constant */
     if (!gcCollectableObject(interp, object)) {
         stats->constant++;
@@ -285,10 +286,12 @@ Object *gcMoveObject(Interpreter *interp, Object *object, gcStats *stats)
         return object->forward;
     }
     stats->moved++;
+
     // copy object to to-space
     Object *forward = (Object *) ((char *)interp->memory->toSpace + interp->memory->toOffset);
-    memcpy(forward, object, object->size);
-    interp->memory->toOffset += object->size;
+    size_t size = sizeof(SimpleObject) + object->size;
+    memcpy(forward, object, size);
+    interp->memory->toOffset += size;
 
 #if DEBUG_GC
     if (object->type == type_stream)
@@ -352,34 +355,9 @@ void gc(Interpreter *interp)
          object < (Object *) ((char *)interp->memory->toSpace + interp->memory->toOffset);
          object = (Object *) ((char *)object + object->size)) {
 
-        if (object->type == type_stream) {
-#if DEBUG_GC
-            fl_debug(interp, "moving path %p/%s of stream %p\n",
-                     (void *)object->path, object->path->string, (void *)object
-                );
-#endif
-            object->path = gcMoveObject(interp, object->path, &stats);
-        } else if (object->type == type_cons) {
-            object->car = gcMoveObject(interp, object->car, &stats);
-            object->cdr = gcMoveObject(interp, object->cdr, &stats);
-        } else if (object->type == type_lambda || object->type == type_macro) {
-            object->params = gcMoveObject(interp, object->params, &stats);
-            object->body = gcMoveObject(interp, object->body, &stats);
-            object->env = gcMoveObject(interp, object->env, &stats);
-        } else if (object->type == type_env) {
-            object->parent = gcMoveObject(interp, object->parent, &stats);
-            object->vars = gcMoveObject(interp, object->vars, &stats);
-            object->vals = gcMoveObject(interp, object->vals, &stats);
-        } else if (object->type == type_moved) {
-            exceptionWithObject(interp, object, gc_error, "object already moved");
-        } else if (object->type == type_integer
-#ifdef FLISP_DOUBLE_EXTENSION
-                   || object->type == type_double
-#endif
-                   || object->type == type_string || object->type == type_symbol
-                   || object->type == type_primitive) {
-        } else
-            exception(interp, gc_error, "unidentified object: %s", object->type->string);
+        if (object->size != 0)
+            for (size_t i = 0; i < object->count; i++)
+                object->objects[i] = gcMoveObject(interp, object->objects[i], &stats);
     }
     // swap from- and to-space
     void *swap = interp->memory->fromSpace;
@@ -492,28 +470,14 @@ Object *memoryAllocObject(Interpreter *interp, Object *type, size_t size)
  *
  * @returns New Object
  */
-Object *newObject(Interpreter *interp, Object *type)
+Object *newObject(Interpreter *interp, Object *type, size_t size)
 {
-    return memoryAllocObject(interp, type, sizeof(Object));
-}
-
-/** newObjectFrom - allocate a new object in the Lisp object store by cloning an existing one.
- *
- * @param interp  fLisp Interpreter
- * @param from    Object to clone.
- *
- * @returns New Object
- */
-Object *newObjectFrom(Interpreter *interp, Object ** from)
-{
-    GC_CHECKPOINT;
-    GC_TRACE(gcFrom, *from);
-    Object *object = memoryAllocObject(interp, (*from)->type, (*from)->size);
-    GC_RELEASE;
-    memcpy(object, *gcFrom, (*gcFrom)->size);
+    Object *object = memoryAllocObject(interp, type, sizeof(SimpleObject)+size);
+    object->size = size;
     return object;
 }
 
+/// Simple objects
 /** newInteger - allocate a new Integer object in the Lisp object store and set it's value
  *
  * @param interp  fLisp Interpreter
@@ -523,37 +487,29 @@ Object *newObjectFrom(Interpreter *interp, Object ** from)
  */
 Object *newInteger(Interpreter *interp, int64_t number)
 {
-    Object *object = newObject(interp, type_integer);
-    object->integer = number;
+    Object *object = newObject(interp, type_integer, 0);
+    object->value = number;
+    return object;
+}
+Object *newPrimitive(Interpreter *interp, Primitive* primitive)
+{
+    Object *object = newObject(interp, type_primitive, 0);
+    object->primitive = primitive;
     return object;
 }
 
-/** objectSize() - Calculate expected space to allocate for object with string
- *
- * @param size  length of string to store
- *
- * @returns Size of an object if string fits into it completely, the needed size otherwise.
- */
-size_t objectSize(size_t size)
+/// Extended objects
+Object *newCons(Interpreter *interp, Object ** car, Object ** cdr)
 {
-    return sizeof(Object) +
-        ((size > sizeof(((Object *) NULL)->string)) ? size - sizeof(((Object *) NULL)->string) : 0);
-}
-
-/** newObjectWithString() - allocate a new variable size Object in the Lisp object store
- *
- * @param interp  fLisp Interpreter
- * @param type    Object type of the new Object
- * @param size    Number of bytes to allocate
- *
- * If the size fit's directly into the "standard object" (about 24
- * bytes) only allocate the object, otherwise allocate the missing bytes.
- *
- * @returns New Object
- */
-Object *newObjectWithString(Interpreter *interp, Object *type, size_t size)
-{
-    return memoryAllocObject(interp, type, objectSize(size));
+    GC_CHECKPOINT;
+    GC_TRACE(gcCar, *car);
+    GC_TRACE(gcCdr, *cdr);
+    Object *object = newObject(interp, type_cons, sizeof(Object *[2]));
+    GC_RELEASE;
+    object->count = 2;
+    object->car = *gcCar;
+    object->cdr = *gcCdr;
+    return object;
 }
 
 /** unescapeString() - copy a string, converting escaped symbols
@@ -609,8 +565,8 @@ Object *newStringWithLength(Interpreter *interp, char *string, size_t length)
         if (string[i - 1] == '\\' && strchr("\\\"trn", string[i]))
             ++i, ++nEscapes;
 
-    Object *object = newObjectWithString(interp, type_string,
-                                         length - nEscapes + 1);
+    Object *object = newObject(interp, type_string, length - nEscapes + 1);
+    object->count = 0;
     unescapeString(object->string, string, length);
     return object;
 }
@@ -618,18 +574,6 @@ Object *newStringWithLength(Interpreter *interp, char *string, size_t length)
 Object *newString(Interpreter *interp, char *string)
 {
     return newStringWithLength(interp, string, strlen(string));
-}
-
-Object *newCons(Interpreter *interp, Object ** car, Object ** cdr)
-{
-    GC_CHECKPOINT;
-    GC_TRACE(gcCar, *car);
-    GC_TRACE(gcCdr, *cdr);
-    Object *object = newObject(interp, type_cons);
-    GC_RELEASE;
-    object->car = *gcCar;
-    object->cdr = *gcCdr;
-    return object;
 }
 
 Object *newSymbolWithLength(Interpreter *interp, char *string, size_t length)
@@ -640,13 +584,13 @@ Object *newSymbolWithLength(Interpreter *interp, char *string, size_t length)
             return object->car;
 
     GC_CHECKPOINT;
-    GC_TRACE(gcObject, newObjectWithString(interp, type_symbol, length + 1));
-    memcpy((*gcObject)->string, string, length);
-    (*gcObject)->string[length] = '\0';
-    // Note: symbols are traced by gc() itself
-    interp->symbols = newCons(interp, gcObject, &interp->symbols);
+    GC_TRACE(gcSymbol, newObject(interp, type_symbol, length + 1));
+    interp->symbols = newCons(interp, gcSymbol, &interp->symbols);
     GC_RELEASE;
-    return *gcObject;
+    (*gcSymbol)->count = 0;
+    memcpy((*gcSymbol)->string, string, length);
+    (*gcSymbol)->string[length] = '\0';
+    return *gcSymbol;
 }
 
 Object *newSymbol(Interpreter *interp, char *string)
@@ -672,12 +616,13 @@ Object *newObjectWithClosure(Interpreter *interp, Object *type, Object ** params
     GC_TRACE(gcParams, *params);
     GC_TRACE(gcBody, *body);
     GC_TRACE(gcEnv, *env);
-    Object *object = newObject(interp, type);
+    Object *closure = newObject(interp, type, sizeof(Object*[3]));
     GC_RELEASE;
-    object->params = *gcParams;
-    object->body = *gcBody;
-    object->env = *gcEnv;
-    return object;
+    closure->count = 3;
+    closure->params = *gcParams;
+    closure->body = *gcBody;
+    closure->env = *gcEnv;
+    return closure;
 }
 
 Object *newLambda(Interpreter *interp, Object ** params, Object ** body, Object **env)
@@ -690,20 +635,14 @@ Object *newMacro(Interpreter *interp, Object ** params, Object ** body, Object *
     return newObjectWithClosure(interp, type_macro, params, body, env);
 }
 
-Object *newPrimitive(Interpreter *interp, Primitive* primitive)
-{
-    Object *object = newObject(interp, type_primitive);
-    object->primitive = primitive;
-    return object;
-}
-
 Object *newEnv(Interpreter *interp, Object ** func, Object ** vals)
 {
     int nArgs;
-    Object *object = newObject(interp, type_env);
+    Object *environment = newObject(interp, type_env, sizeof(Object*[3]));
+    environment->count = 3;
     if ((*func) == nil) {
-        object->parent = object->vars = object->vals = nil;
-        return object;
+        environment->parent = environment->vars = environment->vals = nil;
+        return environment;
     }
     Object *param = (*func)->params, *val = *vals;
 
@@ -721,12 +660,11 @@ Object *newEnv(Interpreter *interp, Object ** func, Object ** vals)
             exceptionWithObject(interp, *func, wrong_number_of_arguments, "(env) expects at least %d arguments", nArgs);
         }
     }
+    environment->parent = (*func)->env;
+    environment->vars = (*func)->params;
+    environment->vals = *vals;
 
-    object->parent = (*func)->env;
-    object->vars = (*func)->params;
-    object->vals = *vals;
-
-    return object;
+    return environment;
 }
 
 /** newStreamObject - create stream object from file descriptor and path
@@ -737,18 +675,15 @@ Object *newEnv(Interpreter *interp, Object ** func, Object ** vals)
  */
 Object *newStreamObject(Interpreter *interp, FILE *fd, char *path)
 {
-    char *buf;
-    size_t len = strlen(path);
-
-    if (!(buf = malloc(len+1)))
-        exception(interp, out_of_memory, "failed to allocate %lu bytes for stream path", (COUNTFMT) len);
-    memcpy(buf, path, len+1);
-
     GC_CHECKPOINT;
-    GC_TRACE(gcPath, newString(interp, buf));
-    free(buf);
-    Object *stream = newObject(interp, type_stream);
+    GC_TRACE(gcPath, newString(interp, path));
+    Object *stream = newObject(interp, type_stream,
+                               sizeof(Object*) +
+                               sizeof(FILE*) +
+                               sizeof(char*) +
+                               sizeof(size_t));
     GC_RELEASE;
+    stream->count = 1;
     stream->fd = fd;
     stream->buf = NULL;
     stream->len = 0;
@@ -1078,7 +1013,7 @@ Object *readNumberOrSymbol(Interpreter *interp, FILE *fd)
 
     resetBuf(interp);
 
-    // skip optional leading sign
+    /* skip optional leading sign */
     if (ch == '+' || ch == '-') {
         (void)addCharToBuf(interp, streamGetc(interp, fd));
         ch = streamPeek(interp, fd);
@@ -1115,7 +1050,7 @@ Object *readNumberOrSymbol(Interpreter *interp, FILE *fd)
         }
 #endif
     }
-    // non-numeric character encountered, read a symbol
+    /* non-numeric character encountered, read a symbol */
     readWhile(interp, fd, isSymbolChar);
     Object * obj = newSymbolWithLength(interp, interp->buf, interp->len);
     resetBuf(interp);
@@ -1758,7 +1693,7 @@ void flisp_write_object(Interpreter *interp, FILE *fd, Object *object, bool read
     if (fd == NULL) return;
 
     if (object->type == type_integer)
-        writeFmt(interp, fd, "%"PRId64, object->integer);
+        writeFmt(interp, fd, "%"PRId64, object->value);
 #ifdef FLISP_DOUBLE_EXTENSION
     else if (object->type == type_double)
         writeFmt(interp, fd, "%g", object->number);
@@ -1896,13 +1831,9 @@ Object *primitiveIntern(Interpreter *interp, Object **args, Object **env)
 
 Object *primitiveSymbolName(Interpreter *interp, Object **args, Object **env)
 {
-    size_t len = strlen(FLISP_ARG_ONE->string);
     GC_CHECKPOINT;
     GC_TRACE(gcFirst, FLISP_ARG_ONE);
-    Object *string = newObjectWithString(interp, type_string, len+1);
-    GC_RELEASE;
-    memcpy(string->string, (*gcFirst)->string, len+1);
-    return string;
+    GC_RETURN(newString(interp, (*gcFirst)->string));
 }
 
 /** (same o1 o2) - object comparison
@@ -1978,81 +1909,81 @@ Object *primitiveThrow(Interpreter *interp, Object **args, Object **env)
 
 Object *integerAdd(Interpreter *interp, Object **args, Object **env)
 {
-    return newInteger(interp, FLISP_ARG_ONE->integer + FLISP_ARG_TWO->integer);
+    return newInteger(interp, FLISP_ARG_ONE->value + FLISP_ARG_TWO->value);
 }
 Object *integerSubtract(Interpreter *interp, Object **args, Object **env)
 {
-    return newInteger(interp, FLISP_ARG_ONE->integer - FLISP_ARG_TWO->integer);
+    return newInteger(interp, FLISP_ARG_ONE->value - FLISP_ARG_TWO->value);
 }
 
 Object *integerMultiply(Interpreter *interp, Object **args, Object **env)
 {
-    return newInteger(interp, FLISP_ARG_ONE->integer * FLISP_ARG_TWO->integer);
+    return newInteger(interp, FLISP_ARG_ONE->value * FLISP_ARG_TWO->value);
 }
 
 Object *integerDivide(Interpreter *interp, Object **args, Object **env)
 {
-    if (FLISP_ARG_TWO->integer)
-        return newInteger(interp, FLISP_ARG_ONE->integer / FLISP_ARG_TWO->integer);
+    if (FLISP_ARG_TWO->value)
+        return newInteger(interp, FLISP_ARG_ONE->value / FLISP_ARG_TWO->value);
     exceptionWithObject(interp, FLISP_ARG_TWO, arith_error, "(i/ q d) - d: division by zero");
 }
 
 Object *integerMod(Interpreter *interp, Object **args, Object **env)
 {
-    if (FLISP_ARG_TWO->integer)
-        return newInteger(interp, FLISP_ARG_ONE->integer % FLISP_ARG_TWO->integer);
+    if (FLISP_ARG_TWO->value)
+        return newInteger(interp, FLISP_ARG_ONE->value % FLISP_ARG_TWO->value);
     exceptionWithObject(interp, FLISP_ARG_TWO, arith_error, "(i%% q d) - d: division by zero");
 }
 
 Object *integerEqual(Interpreter *interp, Object **args, Object **env)
 {
-    return (FLISP_ARG_ONE->integer == FLISP_ARG_TWO->integer) ? t : nil;
+    return (FLISP_ARG_ONE->value == FLISP_ARG_TWO->value) ? t : nil;
 }
 
 Object *integerLess(Interpreter *interp, Object **args, Object **env)
 {
-    return (FLISP_ARG_ONE->integer < FLISP_ARG_TWO->integer) ? t : nil;
+    return (FLISP_ARG_ONE->value < FLISP_ARG_TWO->value) ? t : nil;
 }
 
 Object *integerLessEqual(Interpreter *interp, Object **args, Object **env)
 {
-    return (FLISP_ARG_ONE->integer <= FLISP_ARG_TWO->integer) ? t : nil;
+    return (FLISP_ARG_ONE->value <= FLISP_ARG_TWO->value) ? t : nil;
 }
 
 Object *integerGreater(Interpreter *interp, Object **args, Object **env)
 {
-    return (FLISP_ARG_ONE->integer > FLISP_ARG_TWO->integer) ? t : nil;
+    return (FLISP_ARG_ONE->value > FLISP_ARG_TWO->value) ? t : nil;
 }
 
 Object *integerGreaterEqual(Interpreter *interp, Object **args, Object **env)
 {
-    return (FLISP_ARG_ONE->integer >= FLISP_ARG_TWO->integer) ? t : nil;
+    return (FLISP_ARG_ONE->value >= FLISP_ARG_TWO->value) ? t : nil;
 }
 
 // Integer bit operations //////
 Object *integerAnd(Interpreter *interp, Object **args, Object **env)
 {
-    return newInteger(interp, FLISP_ARG_ONE->integer & FLISP_ARG_TWO->integer);
+    return newInteger(interp, FLISP_ARG_ONE->value & FLISP_ARG_TWO->value);
 }
 Object *integerOr(Interpreter *interp, Object **args, Object **env)
 {
-    return newInteger(interp, FLISP_ARG_ONE->integer | FLISP_ARG_TWO->integer);
+    return newInteger(interp, FLISP_ARG_ONE->value | FLISP_ARG_TWO->value);
 }
 Object *integerXor(Interpreter *interp, Object **args, Object **env)
 {
-    return newInteger(interp, FLISP_ARG_ONE->integer ^ FLISP_ARG_TWO->integer);
+    return newInteger(interp, FLISP_ARG_ONE->value ^ FLISP_ARG_TWO->value);
 }
 Object *integerShiftLeft(Interpreter *interp, Object **args, Object **env)
 {
-    return newInteger(interp, FLISP_ARG_ONE->integer << FLISP_ARG_TWO->integer);
+    return newInteger(interp, FLISP_ARG_ONE->value << FLISP_ARG_TWO->value);
 }
 Object *integerShiftRight(Interpreter *interp, Object **args, Object **env)
 {
-    return newInteger(interp, FLISP_ARG_ONE->integer >> FLISP_ARG_TWO->integer);
+    return newInteger(interp, FLISP_ARG_ONE->value >> FLISP_ARG_TWO->value);
 }
 Object *integerNot(Interpreter *interp, Object **args, Object **env)
 {
-    return newInteger(interp, ~FLISP_ARG_ONE->integer);
+    return newInteger(interp, ~FLISP_ARG_ONE->value);
 }
 
 
@@ -2365,15 +2296,15 @@ Object *stringSubstring(Interpreter *interp, Object **args, Object **env)
 
     if (FLISP_HAS_ARG_TWO) {
         FLISP_CHECK_TYPE(FLISP_ARG_TWO, type_integer, "(substring string [start [end]]) - start");
-        start = (FLISP_ARG_TWO->integer);
+        start = (FLISP_ARG_TWO->value);
         if (start < 0)
             start = end + start;
         if ((*args)->cdr->cdr != nil) {
             FLISP_CHECK_TYPE(FLISP_ARG_THREE, type_integer, "(substring string [start [end]]) - end");
-            if (FLISP_ARG_THREE->integer < 0)
-                end = end + FLISP_ARG_THREE->integer;
+            if (FLISP_ARG_THREE->value < 0)
+                end = end + FLISP_ARG_THREE->value;
             else
-                end = FLISP_ARG_THREE->integer;
+                end = FLISP_ARG_THREE->value;
         }
     }
     if (start < 0 || start > len)

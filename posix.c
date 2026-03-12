@@ -69,9 +69,9 @@ Object *posixFseek(Interpreter *interp, Object** args, Object **env)
 
     if (FLISP_HAS_ARG_THREE && FLISP_ARG_THREE != nil)
         whence = SEEK_CUR;
-    else if (FLISP_ARG_TWO->integer < 0)
+    else if (FLISP_ARG_TWO->value < 0)
         whence = SEEK_END;
-    result = fseeko(fd, FLISP_ARG_TWO->integer, whence);
+    result = fseeko(fd, FLISP_ARG_TWO->value, whence);
     if (result == -1)
         exception(interp, io_error, "(fseek stream offset) - fseeko() failed: %s", strerror(errno));
 
@@ -181,11 +181,11 @@ Object *posixFungetc(Interpreter *interp, Object** args, Object **env)
     } else if (fd == NULL)
         exception(interp, invalid_value, "(fungetc char [ stream]) - input stream not set");
 
-    c = ungetc((int)(FLISP_ARG_ONE->integer), fd);
+    c = ungetc((int)(FLISP_ARG_ONE->value), fd);
     if (c == EOF)
         exception(interp, io_error, "(fungetc char [ stream]) - ungetc() failed");
 
-    return newInteger(interp, FLISP_ARG_ONE->integer);
+    return newInteger(interp, FLISP_ARG_ONE->value);
 }
 /** (fgets[ stream]) - read a line or up to INPUT_FMT_BUFSIZ from stream or input
  *
@@ -365,7 +365,7 @@ Object *posixMkdir(Interpreter *interp, Object** args, Object **env)
     FLISP_CHECK_TYPE(FLISP_ARG_ONE, type_string,  "(fmkdir path[ mode) - path");
     if (FLISP_HAS_ARG_TWO) {
         FLISP_CHECK_TYPE(FLISP_ARG_TWO, type_integer,  "(fmkdir path[ mode) - mode");
-        mode = FLISP_ARG_TWO->integer;
+        mode = FLISP_ARG_TWO->value;
     }
     if (mkdir(FLISP_ARG_ONE->string, mode) == -1) {
         switch(errno) {
@@ -504,7 +504,7 @@ Object *posixFnmatch(Interpreter *interp, Object** args, Object **env)
     FLISP_CHECK_TYPE(FLISP_ARG_TWO, type_string, "(fnmatch pattern string[ flags]) - string");
     
     if (FLISP_HAS_ARG_THREE)
-        flags = FLISP_ARG_THREE->integer;
+        flags = FLISP_ARG_THREE->value;
     result = fnmatch(FLISP_ARG_ONE->string, FLISP_ARG_TWO->string, flags);
     if (result == 0)
         return t;

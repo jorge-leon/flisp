@@ -60,13 +60,12 @@ size_t flisp_code_char(int64_t code, char *string)
     return len;
 }
 
-
 Object *stringCodeChar(Interpreter *interp, Object **args, Object **env)
 {
     size_t len = 0;
     char string[5] = { 0 };
 
-    len = flisp_code_char(FLISP_ARG_ONE->integer, string);
+    len = flisp_code_char(FLISP_ARG_ONE->value, string);
     if (len == -1)
         exceptionWithObject(interp, FLISP_ARG_ONE, range_error,
                             "(code-char n) - n out of Unicode range");
