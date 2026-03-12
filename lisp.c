@@ -45,6 +45,7 @@ Object *type_symbol =               &(Object) { NULL, .string = "type-symbol" };
 Object *type_cons =                 &(Object) { NULL, .string = "type-cons" };
 Object *type_lambda =               &(Object) { NULL, .string = "type-lambda" };
 Object *type_macro =                &(Object) { NULL, .string = "type-macro" };
+Object *type_error =                &(Object) { NULL, .string = "type-error" };
 Object *type_primitive =            &(Object) { NULL, .string = "type-primitive" };
 Object *type_stream =               &(Object) { NULL, .string = "type-stream" };
 /* Exceptions */
@@ -656,7 +657,6 @@ Object *newStreamObject(Interpreter *interp, FILE *fd, char *path)
 
     return stream;
 }
-
 
 // ENVIRONMENT ////////////////////////////////////////////////////////////////
 
@@ -1723,6 +1723,14 @@ void flisp_write_object(Interpreter *interp, FILE *fd, Object *object, bool read
         writeFmt(interp, fd, "#<Macro ");
         flisp_write_object(interp, fd, object->params, readably);
         writeChar(interp, fd, '>');
+    } else if (object->type == type_error) {
+        writeFmt(interp, fd, "#<Error ");
+        flisp_write_object(interp, fd, object->error_type, readably);
+        writeString(interp, fd, ": ");
+        flisp_write_object(interp, fd, object->message, readably);
+        writeString(interp, fd, ", ");
+        flisp_write_object(interp, fd, object->culprit, readably);
+        writeChar(interp, fd, '>');
     } else if (object->type == type_env) {
         /* Note: rather print as name = value pairs */
         writeFmt(interp, fd, "<#Env ");
@@ -1853,21 +1861,34 @@ Object *primitiveGcTrace(Interpreter *interp, Object **args, Object **env)
     return interp->gcTop;
 }
 #endif
+
+Object *primitiveError(Interpreter *interp, Object **args, Object **env)
+{
+    FLISP_CHECK_TYPE(FLISP_ARG_ONE, type_symbol, "(error type message[ object]) - result");
+    FLISP_CHECK_TYPE(FLISP_ARG_TWO, type_string, "(error type message[ object]) - message");
+
+    Object *error = newObject(interp, type_error, sizeof(Object*[3]));
+    error->count = 3;
+    error->error_type = FLISP_ARG_ONE;
+    error->message = FLISP_ARG_TWO;
+    error->culprit = (FLISP_HAS_ARG_THREE) ? FLISP_ARG_THREE : nil;
+    
+    return error;
+
+
+}
 Object *primitiveThrow(Interpreter *interp, Object **args, Object **env)
 {
-    Object *result = (*args)->car;
-    Object *message = (*args)->cdr->car;
-    Object *object = (*args)->cdr->cdr;
+    Object *object = (FLISP_HAS_ARG_THREE) ? FLISP_ARG_THREE : nil;
 
-    if (result->type != type_symbol)
-        exceptionWithObject(interp, result , wrong_type_argument, "(throw result message object) - result is not a symbol");
-    if (message->type != type_string)
-        exceptionWithObject(interp, message , wrong_type_argument, "(throw result message object) - message is not a string");
+    FLISP_CHECK_TYPE(FLISP_ARG_ONE, type_symbol, "(throw result message object) - result");
+    FLISP_CHECK_TYPE(FLISP_ARG_TWO, type_string, "(throw result message object) - message");
 
+    /* Note: why? */
     if (object->type == type_cons)
         object = object->car;
 
-    exceptionWithObject(interp, object, result, "%s", message->string);
+    exceptionWithObject(interp, object, FLISP_ARG_ONE, "%s", FLISP_ARG_TWO->string);
 }
 
 // Integer Math //////
@@ -2137,8 +2158,8 @@ Object *primitiveFclose(Interpreter *interp, Object**args, Object **env)
 // (string-append s a)
 Object *stringAppend(Interpreter *interp, Object **args, Object **env)
 {
-    int len1 = strlen(FLISP_ARG_ONE->string);
-    int len2 = strlen(FLISP_ARG_TWO->string);
+    int len1 = FLISP_ARG_ONE->size - 1;
+    int len2 = FLISP_ARG_TWO->size - 1;
     char *new = strdup(FLISP_ARG_ONE->string);
     new = realloc(new, len1 + len2 + 1);
     if (new == NULL)
@@ -2464,6 +2485,7 @@ bool flisp_primitives_register(Interpreter *interp)
         && flisp_register_primitive(interp, "gc",            0,  0, nil,            primitiveGc)
         && flisp_register_primitive(interp, "gctrace",       0,  0, nil,            primitiveGcTrace)
 #endif
+        && flisp_register_primitive(interp, "error",         2,  3, nil,            primitiveError)
         && flisp_register_primitive(interp, "throw",         2,  3, nil,            primitiveThrow)
         && flisp_register_primitive(interp, "i+",            2,  2, type_integer,   integerAdd)
         && flisp_register_primitive(interp, "i-",            2,  2, type_integer,   integerSubtract)

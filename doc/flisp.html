@@ -354,6 +354,8 @@
 	</dd>
 	<dt><code>(eval <var>expr</var>)</code> &rArr; <i>o</i></dt>
 	<dd>Evaluates <var>expr</var> and returns the result.</dd>
+	<dt><code>(error <var>type</var> <var>message</var>[ <var>culprit</var>])</code> &rArr; <i>o</i></dt>
+	<dd>Creates an error object. <var>culprit</var> is the object suspected to have caused the error.</dd>
 	<dt><code>(catch <var>expr</var>)</code> &rArr;&nbsp;<var>errinfo</var> <u>D</u></dt>
 	<dd>
 	<p>Evaluates <var>expr</var> and returns a list with three elements:</p>

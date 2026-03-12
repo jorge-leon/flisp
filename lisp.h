@@ -86,8 +86,9 @@ struct Object {
         struct { Object *car;    Object *cdr; };
         struct { Object *params; Object *body; Object *env; };
         struct { Object *parent; Object *vars; Object *vals; };
-        struct { char string[PATH_MAX]; };
+        char string[PATH_MAX];
         struct { Object *path; FILE *fd; char *buf; size_t len; };
+        struct { Object *error_type; Object *message; Object *culprit; };
         Object *objects[1];
     };
 };
@@ -146,6 +147,7 @@ extern Object *type_symbol;
 extern Object *type_cons;
 extern Object *type_lambda;
 extern Object *type_macro;
+extern Object *type_error;
 extern Object *type_primitive;
 extern Object *type_stream;
 /* internal */

@@ -408,10 +408,10 @@ flisp_expr; ok eval-1 eval number is number
 
 
 IN='(write "ans\\wer")' OUT='ans\wer"ans\\wer"'
-flisp_expr; ok write-1 write string
+flisp_expr; ok write-1 write string normally
 
 IN='(write "ans\\wer" t)' OUT='"ans\\wer""ans\\wer"'
-flisp_expr; ok write-1 write string
+flisp_expr; ok write-2 write string readably
 
 # throw
 IN="(throw 'fourty-two \"answer\")" ERR='answer' OBJ=
