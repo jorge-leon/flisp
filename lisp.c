@@ -1848,20 +1848,6 @@ Object *primitiveNreverse(Interpreter *interp, Object **args, Object **env)
     return reverseList(interp, (*args)->car);
 }
 
-#if DEBUG_GC
-// Introspection ///////
-Object *primitiveGc(Interpreter *interp, Object **args, Object **env)
-{
-    // Note: we really want to return respective data
-    gc(interp);
-    return t;
-}
-Object *primitiveGcTrace(Interpreter *interp, Object **args, Object **env)
-{
-    return interp->gcTop;
-}
-#endif
-
 Object *primitiveError(Interpreter *interp, Object **args, Object **env)
 {
     FLISP_CHECK_TYPE(FLISP_ARG_ONE, type_symbol, "(error type message[ object]) - result");
@@ -2395,6 +2381,10 @@ Object *primitiveInterp(Interpreter *interp, Object **args, Object **env)
         /* Note: This one fails in the global environment with an
          * infinite nested list of (nil "" nil) or so */
         return *env;
+    }
+    if (!strcmp(FLISP_ARG_ONE->string, "gc")) {
+        gc(interp);
+        return nil;
     }
 
     exceptionWithObject(interp, FLISP_ARG_ONE, invalid_value,
