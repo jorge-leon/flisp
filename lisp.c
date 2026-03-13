@@ -2033,16 +2033,15 @@ Object *integerNot(Interpreter *interp, Object **args, Object **env)
  *
  * @param interp  fLisp Interpreter
  *
- * returns: lisp stream object
- *
- * throws: out-of-memory
+ * @returns: lisp stream object or
+ * @error: out-of-memory
  *
  */
 Object *file_outputMemStream(Interpreter *interp)
 {
     Object *stream = newStreamObject(interp, NULL, ">STRING");
     if (NULL == (stream->fd = open_memstream(&stream->buf, &stream->len)))
-        exception(interp, out_of_memory, "failed to open_memstream() for memory output stream: %s", strerror(errno));
+        return newErrorObject(interp, out_of_memory, nil, "failed to open_memstream() for memory output stream: %s", strerror(errno));
     fflush(stream->fd); // Note: sets stream->buf and stream->len to initial values.
     return stream;
 }
@@ -2051,16 +2050,16 @@ Object *file_outputMemStream(Interpreter *interp)
  * @param interp  fLisp interpreter
  * @param string  string to read
  *
- * returns: Lisp stream object or nil on failure
- *
- * throws: out-of-memory
+ * @returns: Lisp stream object or nil on failure
+ * @errors:
+ * - out-of-memory
  */
 Object *file_inputMemStream(Interpreter *interp, char *string)
 {
     size_t len = strlen(string);
     char *buf = malloc(len+1);
     if (NULL == buf)
-        exception(interp, out_of_memory, "failed to allocate string buffer for memory input stream: %s", strerror(errno));
+        return newErrorObject(interp, out_of_memory, nil, "failed to allocate string buffer for memory input stream: %s", strerror(errno));
     strncpy(buf, string, len);
     buf[len] = '\0';
     Object *stream = newStreamObject(interp, NULL, "<STRING");
@@ -2068,7 +2067,7 @@ Object *file_inputMemStream(Interpreter *interp, char *string)
     stream->len = len;
     if (NULL == (stream->fd = fmemopen(stream->buf, stream->len, "r"))) {
         free(stream->buf);
-        exception(interp, out_of_memory, "failed to fmemopen string for memory input stream: %s", strerror(errno));
+        return newErrorObject(interp, out_of_memory, nil, "failed to fmemopen string for memory input stream: %s", strerror(errno));
     }
     return stream;
 }
@@ -2081,9 +2080,8 @@ Object *file_inputMemStream(Interpreter *interp, char *string)
  *   "a+" plus optional "b" modifier, or "<" / ">" for memory input /
  *   output buffer.
  *
- * returns: lisp stream object
- *
- * throws: io-error, invalid-value, out-of-memory
+ * @returns: lisp stream object
+ * @errors: different io errors, invalid-value, out-of-memory
  *
  * Additionally a file associated with a string buffer can be created:
  *
@@ -2104,12 +2102,12 @@ Object *file_fopen(Interpreter *interp, char *path, char* mode) {
 
     if (strcmp("<", mode) == 0) {
         if (nil == (stream = file_inputMemStream(interp, path)))
-            exception(interp, io_error, "failed to open string as memory input stream: %s", strerror(errno));
+            return newErrorObject(interp, io_error, nil, "failed to open string as memory input stream: %s", strerror(errno));
         return stream;
     }
     if (strcmp(">", mode) == 0) {
         if (nil == (stream = file_outputMemStream(interp)))
-            exception(interp, io_error, "failed to open memory output stream: %s", strerror(errno));
+            return newErrorObject(interp, io_error, nil, "failed to open memory output stream: %s", strerror(errno));
         return stream;
     }
     char c = path[0];
@@ -2118,9 +2116,9 @@ Object *file_fopen(Interpreter *interp, char *path, char* mode) {
         errno = 0;
         long d = strtol(&path[1], &end, 0);
         if (errno || *end != '\0' || d < 0 || d > _POSIX_OPEN_MAX)
-            exception(interp, invalid_value, "invalid I/O stream number: %s", &path[1]);
+            return newErrorObject(interp, invalid_value, nil, "invalid I/O stream number: %s", &path[1]);
         if (NULL == (fd = fdopen((int)d, c == '<' ? "r" : "a")))
-            exception(interp, io_error, "failed to open I/O stream %ld for %s", d, c == '<' ? "reading" : "writing");
+            return newErrorObject(interp, io_error, nil, "failed to open I/O stream %ld for %s", d, c == '<' ? "reading" : "writing");
     } else {
         if (NULL == (fd = fopen(path, mode))) {
             fl_debug(interp, "fopen() failed:%d: %s\n", errno, strerror(errno));
@@ -2131,7 +2129,7 @@ Object *file_fopen(Interpreter *interp, char *path, char* mode) {
             case EISDIR:  err = is_directory; break;
             default:      err = io_error; break;
             }
-            exception(interp, err, "failed to open file '%s' with mode '%s': %s", path, mode, strerror(errno));
+            return newErrorObject(interp, err, nil, "failed to open file '%s' with mode '%s': %s", path, mode, strerror(errno));
         }
     }
     return newStreamObject(interp, fd, path);
@@ -2143,15 +2141,14 @@ Object *file_fopen(Interpreter *interp, char *path, char* mode) {
  * @param mode    see fopen(3p). Additionally "<" / ">" for memory
  *     input / output.
  *
- * returns: stream object
- *
- * throws: io-error, invalid-value, out-of-memory
+ * @returns: stream object
+ * @errors: different io errors, invalid-value, out-of-memory
  */
  Object *primitiveFopen(Interpreter *interp, Object **args, Object **env)
 {
     char *mode = "r";
 
-    if ((*args)->cdr != nil)
+    if (FLISP_HAS_ARG_TWO)
         mode = FLISP_ARG_TWO->string;
     return file_fopen(interp, FLISP_ARG_ONE->string, mode);
 }
@@ -2180,17 +2177,18 @@ int file_fclose(Interpreter *interp, Object *stream)
  * @param interp  fLisp interpreter
  * @param stream  stream to close
  *
- * throws: FILSP_INVALID_VALUE, io-error
+ * @returns nil on success
+ * @errors: invalid-value, io-error
  */
 Object *primitiveFclose(Interpreter *interp, Object**args, Object **env)
 {
     int result;
 
     if (FLISP_ARG_ONE->fd == NULL)
-        exceptionWithObject(interp, FLISP_ARG_ONE, invalid_value, "(fclose stream) - stream already closed");
+        return newErrorObject(interp, FLISP_ARG_ONE, invalid_value, "(fclose stream) - stream already closed");
     if ((result = file_fclose(interp, FLISP_ARG_ONE)))
-        exceptionWithObject(interp, FLISP_ARG_ONE, io_error, "(fclose stream) - failed to close: %s", strerror(result));
-    return newInteger(interp, result);
+        return newErrorObject(interp, FLISP_ARG_ONE, io_error, "(fclose stream) - failed to close: %s", strerror(result));
+    return nil;
 }
 
  Object *primitiveFinfo(Interpreter *interp, Object **args, Object **env)

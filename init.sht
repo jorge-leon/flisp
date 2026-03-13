@@ -31,14 +31,12 @@ $(cat core.lsp)
 	(t  (repl (repl-print-result result))) ))
 
 ;;; User init file
-(let* ((rcfile (concat (getenv "HOME") "/" ".config/flisp/init.lsp"))
-       (result (catch (load rcfile)))
-       (err    (car result)) )
-  (cond ((same err :not-found) (concat "info: user init file not found: "rcfile))
-	(err
-	 (repl-eprinc "Failed to load user init file: "rcfile"\n")
-	 (repl-print-error result) )
-	(t (caddr result)) ))
+;;; Note: this is a quick workaround only.
+;;;   it covers file errors, but not exceptions within the rcfile
+(let ((rcfile (concat (getenv "HOME") "/" ".config/flisp/init.lsp")))
+  (on-error (load rcfile)
+	    (lambda (e)
+	      (repl-eprinc "Failed to load user init file: "rcfile":" (error-type e)"\n") )))
 
 (defun getopts (opts result)
   (if-not (car opts) result

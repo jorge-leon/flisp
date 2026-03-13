@@ -317,8 +317,9 @@
 
 (defun load args
   (let ((f (open (car args))))
-    (prog1 (fload f)
-      (close f))))
+    (if (eq type-error (type-of f)) f
+	(prog1 (fload f)
+	  (close f) ))))
 
 ;; Features
 (setq features nil)
