@@ -26,6 +26,18 @@
 (defmacro unless (pred . body)
   (cond (body (list 'cond (list pred nil) (cons 't body)))) )
 
+;; `(progn
+;;   (bind value ,form)
+;;   (if (eq type-error (type-of value)) (,handler value)
+;;     value ))
+(defmacro on-error (form handler)
+  (list
+   'progn
+   (list 'bind 'value form)
+   (list 'cond
+	 (list (list 'eq 'type-error (list 'type-of 'value)) (list handler 'value))
+	 (list 'value) )))
+
 (bind defun
       (macro (name params . body)
 	     (list 'bind name (list (quote lambda) params . body) t))
@@ -101,7 +113,6 @@
       (unless (and (consp bindings)  (consp (car bindings)))
 	(throw wrong-type-argument "(let* bindings[ body]) - bindings: does not start with a binding" bindings))
       (cons (cons 'lambda (cons (list (caar bindings)) (list (cons let* (cons (cdr bindings) body)))))  (cdar bindings)) ))
-
 
 (defun prog1 (arg . args) arg)
 

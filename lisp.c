@@ -2588,6 +2588,7 @@ void initRootEnv(Interpreter *interp)
     flisp_register_constant(interp, type_macro, NULL);
     flisp_register_constant(interp, type_primitive, NULL);
     flisp_register_constant(interp, type_stream, NULL);
+    flisp_register_constant(interp, type_error, NULL);
     flisp_register_constant(interp, type_double, NULL);
     /* Exceptions */
     flisp_register_constant(interp, end_of_file, NULL);
