@@ -80,5 +80,8 @@ on demand:
 - *fLisp* can be embedded now in other applications without the need for
   the *Femto* or *fLisp* sources.
 - Basic Unicode / UTF-8 support is added.
+- Extensible Objects are introduced, this allows to add new object types
+  in extensions.
+- Error type and (error) object constructor is added.
 
 [^](#top)

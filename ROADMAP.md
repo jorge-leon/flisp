@@ -4,7 +4,6 @@
 
 ## Next
 
-- Implement error type
 - Cleanup cerf: not so easy to do, but now easier with dynamic primitive loading.
   - create evalApply and readCons on startup after registering readPrimitve and evalPrimitive
     then use it in cerf().
@@ -13,13 +12,10 @@
   - (interp error[ fd])
   - (interp types[ type..]) => list of types
   - (interp body lambda|macro)
-  - (interp gc) => memory info
 - Add read and eval tracing.
 
 ## Future
 
-- Use size field of strings for (string-length) - speed up.
-- Implement "ext"ension Lisp objects - use them for femto buffers, etc.
 - Implement backquote and friends.
   - The reader already implements '`', ',' and ',@' as `quasiquote`, `unquote`
     and `splice-unquote`.
@@ -40,7 +36,11 @@
 
 ## flisp 0.16
 - Extensible Lisp Object structure.
+- Use size field of strings for (string-length) - speed up.
 - flisp_expr()
+- Implement error type
+- (interp gc) => memory info
+- Better gc(), improved gc logging
 
 ## flisp 0.15
 - basic utf-8 support.

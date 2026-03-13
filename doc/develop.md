@@ -80,6 +80,9 @@ Destroy an interpreter, releasing resources.
 `flisp_eval()`  
 Evaluate a string or the input stream until exhausted or error.
 
+`flisp_expr()`  
+Evaluate a Lisp object. <span class="mark">Experimental</span>
+
 `flisp_write_object()`  
 Format and write object to file descriptor.
 
@@ -361,7 +364,7 @@ following object types are available:
 <td><code>type_integer</code></td>
 <td><code>type-integer</code></td>
 <td><code>int64_t</code></td>
-<td><code>object-&gt;integer</code></td>
+<td><code>object-&gt;value</code></td>
 <td><code>newInteger(«interp», «integer»)</code></td>
 </tr>
 <tr class="even">
@@ -518,7 +521,7 @@ example usage where the symbol `foobar` is registered to have the value
     Object * foobar = &(Object) { NULL, .string = "foobar" };
     Object * answer = &(Object) { NULL, .integer = 42 };
     …
-        anser->type = type_integer;
+        answer->type = type_integer;
         flisp_register_constant(interp, foobar, answer);
     …
 
@@ -527,11 +530,46 @@ The type of a statically allocated object can only be set at runtime.
 `type_symbol`, but does not touch the type of the value. This has to be
 done by the application code.
 
-If the string length of the symbol name exceeds 11 characters the
-definition of the symbol requires the following notation:
+The length of the symbol name must be shorter then PATH_MAX.
 
-    …
-    Object * very_long_symbol_name = (Object *) (&(Symbol) { NULL, .string = "very long symbol name" });
-    …
+#### Implementing New Object Types
+
+*fLisp* objects are either simple or extended. A simple object has the
+following structure:
+
+*type*  
+Object type symbol
+
+*size*  
+Must be set to 0.
+
+*value*  
+Any data which fits into a 64 bit wide field.
+
+Extended objects:
+
+*type*  
+Object type symbol
+
+*size*  
+Set to the total size to be allocated for all contained data elements.
+
+*count*  
+The number of Lisp objects contained.
+
+*objects*`*[«count»]`  
+An array of Lisp objects pointers of size *count*.
+
+...  
+Any other data structure required
+
+*type* must be set to a Lisp symbol indicated the object type. The name
+must start with `type-`.
+
+The objects array will be garbage collected.
+
+Allocate your object with `newObject(«interp», «type», «size»)`. Then
+set *value* for a simple object. For extended objects set the *count*.
+If Lisp objects are involved be sure to `GC_TRACE` the new object(s).
 
 [^](#toc)
