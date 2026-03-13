@@ -47,25 +47,28 @@
   </ol>
   <h3 id="objects"><i>fLisp</i> Objects</h3>
   <h4>Object Size</h4>
-  <p><i>fLisp</i> implements Lisp objects with a minimal memory footprint. The object struct contains the <i>type</i>,
-  the <i>size</i>&nbsp;in bytes of the object&nbsp;and a union which is a unique field for all object types. The
-  biggest object type holds three pointers and a <code>size_t</code> field - which typically is also <code>sizeof(void
-  *)</code>, so a normal object needs about 48 bytes.&nbsp;No space is reserved for a documentation string or
-  properties. Therefore the garbage collector only copies over a minimal, and normally fixed, amount of memory.</p>
-  <p>There are two&nbsp;<dfn>string type</dfn>&nbsp;objects: <i>symbols</i> and <i>strings</i>. Since they can have
-  arbitrary length, the <i>size</i> field is introduced. When allocating a string type object fLisp allocates the
-  required size to hold the entire string in the object space. In all cases the <i>size</i> field is set to the total
-  length of the object.</p>
-  <p>The downside of this design is, that it is not feasible to use <i>fLisp</i> for applications with very large
-  strings because of the high memory demand on the semi spaces and the effort to copy them around with each garbage
-  collection cycle. An application which wants to work with large strings would instead implement an external mechanism
-  for string handling, like it is done with the Femto editor.</p>
+  <p><i>fLisp</i> implements Lisp objects with a minimal memory footprint. No space is reserved for a documentation
+  string or properties. For simple objects the object struct contains the <var>type</var>, a <var>size</var>&nbsp;field
+  set to zero and a 64 bit <var>value</var> field used by the core for integers, double floats and pointers to Lisp
+  primitives. Extended objects contain the type, a size field set to the number of additional bytes allocated, a
+  <var>count</var> field which indicates the number of Lisp objects stored in the object, an (optionally empty)
+  <var>objects</var>[] array and (optionally) empty private data.</p>
+  <p>The simple objects amounts to three pointers, on a 64 bit architectures this requires 24 bytes. The biggest core
+  object is of <code>type-stream</code>. It holds three additional Lisp objects and a <code>size_t</code> field and
+  therefore requires 56 bytes.&nbsp;&nbsp;The most common extended object type is the cons, which holds two Lisp
+  objects and requires 40 bytes.</p>
+  <p>There are two&nbsp;<dfn>string type</dfn>&nbsp;objects: <i>symbols</i> and <i>strings</i>. They can have arbitrary
+  length. When allocating a string type object <var>fLisp</var> allocates the required size to hold the entire string
+  in the object space.&nbsp;The downside of this design is, that it is not feasible to use <i>fLisp</i> for
+  applications with very large strings because of the high memory demand on the semi spaces and the effort to copy them
+  around with each operation and during the garbage collection cycle. An application which wants to work with large
+  strings would instead implement an external mechanism for string handling, like it is done with the Femto editor.</p>
   <h4>Constant Objects</h4>
   <p>Several symbols are predefined in C code&nbsp;and bound to some value in the&nbsp;root environment, examples are
-  <code>t</code> and <code>nil</code> which are bound to themselves. <i>fLisp</i> does neither garbage collect such
-  symbols, nor does it allow to bind them to a different value, thus effectively creating immutable bindings&nbsp;–
-  constants. This technique is used to define type and error symbols which are then easy to compare by pointer
-  comparision.</p>
+  <code>t</code> and <code>nil</code> which are bound to themselves. <i>fLisp</i> does not garbage collect symbols
+  outside the semi spaces nor does it allow to bind them to a different value, thus effectively creating immutable
+  bindings&nbsp;– constants. This technique is used to define type and error symbols which are then easy to compare by
+  pointer comparision.</p>
   <p><a href="#toc">^</a></p>
   <h3 id="gc">Garbage Collection</h3>
   <p><i>fLisp</i> implements a variant of&nbsp;<a href="https://en.wikipedia.org/wiki/Cheney%27s_algorithm">Cheney's
@@ -104,7 +107,6 @@
     <dt><code>output.path</code></dt>
     <dd>The path string object of the debug, input and output stream.</dd>
   </dl>
-  <p>&nbsp;</p>
   <p>With respect to the active variables in the call stack the interpreter cannot use raw pointers to objects: any
   function that might trigger garbage collection would move the object pointed to, causing a SEGV when accessing the
   pointer. Instead, objects must be added to the <code>gcTop</code> list and then only accessed through the pointers
@@ -136,7 +138,7 @@
   semi-space size to a value above its typical object space demand to avoid repeated garbage collection cycles on
   startup.</p>
   <p>The <code>flisp</code> command line utility which loads just the file extension and the core Lisp library grows
-  its object space to about 120kB during startup.</p>
+  its object space to about 100kB during startup, femto requires about 345kB.</p>
   <p>Some other compile time adjustable limits in <code>lisp.h</code>:</p>
   <dl>
     <dt>Input buffer</dt>
@@ -147,14 +149,15 @@
   </dl>
   <h3>Unicode / UTF-8</h3>
   <p><i>fLisp</i> has basic support for Unicode via the UTF-8 encoding.</p>
-  <p>The Lisp reader is agnostic of Unicode. Syntactic elements and symbols are ASCII only. An invalid symbol is
-  printed when if it is ASCII, otherwise the hex code is printed. This leads to several error messages when a non-ASCII
-  character is entered.</p>
+  <p>The Lisp reader is agnostic of Unicode. Syntactic elements and symbols are ASCII only. When an invalid symbol
+  character is encountered it is printed ASCII characters when possible, otherwise its hex code is printed. Unicode
+  multi-byte characters produce as many error messages as there are bytes.</p>
   <p>Strings are read in as-is, non-ASCII characters between double quotes are stored as they appear. The string
   primitives: <code>string-length</code>, <code>string-search</code> and <code>substring</code> have a notion of the
   size of UTF-8 character encodings and count the string indices and lenghts in Unicode characters instead of
   bytes.</p>
-  <p>The primitive <code>byte-length</code> returns the length of the character array used to store the string.</p>
+  <p>The primitive <code>(interp :size <var>object</var>)</code>&nbsp;can be used to calculate the length of the
+  character array used to store the string, including the terminating <code>NUL</code> character.</p>
   <p><em>Caution</em>: <i>fLisp</i> takes no measures against incorrectly encoded UTF-8 string.</p>
   <p>The string extension primitives <code>char-length</code>, <code>char-code</code> and <code>code-char</code>
   however perform some checks.</p>

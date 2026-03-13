@@ -23,36 +23,42 @@ Other documentation topics are:
 
 #### Object Size
 
-*fLisp* implements Lisp objects with a minimal memory footprint. The
-object struct contains the *type*, the *size* in bytes of the object and
-a union which is a unique field for all object types. The biggest object
-type holds three pointers and a `size_t` field - which typically is also
-`sizeof(void *)`, so a normal object needs about 48 bytes. No space is
-reserved for a documentation string or properties. Therefore the garbage
-collector only copies over a minimal, and normally fixed, amount of
-memory.
+*fLisp* implements Lisp objects with a minimal memory footprint. No
+space is reserved for a documentation string or properties. For simple
+objects the object struct contains the *type*, a *size* field set to
+zero and a 64 bit *value* field used by the core for integers, double
+floats and pointers to Lisp primitives. Extended objects contain the
+type, a size field set to the number of additional bytes allocated, a
+*count* field which indicates the number of Lisp objects stored in the
+object, an (optionally empty) *objects*\[\] array and (optionally) empty
+private data.
+
+The simple objects amounts to three pointers, on a 64 bit architectures
+this requires 24 bytes. The biggest core object is of `type-stream`. It
+holds three additional Lisp objects and a `size_t` field and therefore
+requires 56 bytes.  The most common extended object type is the cons,
+which holds two Lisp objects and requires 40 bytes.
 
 There are two <span class="dfn">string type</span> objects: *symbols*
-and *strings*. Since they can have arbitrary length, the *size* field is
-introduced. When allocating a string type object fLisp allocates the
-required size to hold the entire string in the object space. In all
-cases the *size* field is set to the total length of the object.
-
-The downside of this design is, that it is not feasible to use *fLisp*
-for applications with very large strings because of the high memory
-demand on the semi spaces and the effort to copy them around with each
-garbage collection cycle. An application which wants to work with large
-strings would instead implement an external mechanism for string
-handling, like it is done with the Femto editor.
+and *strings*. They can have arbitrary length. When allocating a string
+type object *fLisp* allocates the required size to hold the entire
+string in the object space. The downside of this design is, that it is
+not feasible to use *fLisp* for applications with very large strings
+because of the high memory demand on the semi spaces and the effort to
+copy them around with each operation and during the garbage collection
+cycle. An application which wants to work with large strings would
+instead implement an external mechanism for string handling, like it is
+done with the Femto editor.
 
 #### Constant Objects
 
 Several symbols are predefined in C code and bound to some value in
 the root environment, examples are `t` and `nil` which are bound to
-themselves. *fLisp* does neither garbage collect such symbols, nor does
-it allow to bind them to a different value, thus effectively creating
-immutable bindings – constants. This technique is used to define type
-and error symbols which are then easy to compare by pointer comparision.
+themselves. *fLisp* does not garbage collect symbols outside the semi
+spaces nor does it allow to bind them to a different value, thus
+effectively creating immutable bindings – constants. This technique is
+used to define type and error symbols which are then easy to compare by
+pointer comparision.
 
 [^](#toc)
 
@@ -113,8 +119,6 @@ The error type symbol of the `flisp_eval()` call.
 `output.path`  
 The path string object of the debug, input and output stream.
 
- 
-
 With respect to the active variables in the call stack the interpreter
 cannot use raw pointers to objects: any function that might trigger
 garbage collection would move the object pointed to, causing a SEGV when
@@ -159,8 +163,8 @@ value above its typical object space demand to avoid repeated garbage
 collection cycles on startup.
 
 The `flisp` command line utility which loads just the file extension and
-the core Lisp library grows its object space to about 120kB during
-startup.
+the core Lisp library grows its object space to about 100kB during
+startup, femto requires about 345kB.
 
 Some other compile time adjustable limits in `lisp.h`:
 
@@ -177,9 +181,10 @@ buffer.
 *fLisp* has basic support for Unicode via the UTF-8 encoding.
 
 The Lisp reader is agnostic of Unicode. Syntactic elements and symbols
-are ASCII only. An invalid symbol is printed when if it is ASCII,
-otherwise the hex code is printed. This leads to several error messages
-when a non-ASCII character is entered.
+are ASCII only. When an invalid symbol character is encountered it is
+printed ASCII characters when possible, otherwise its hex code is
+printed. Unicode multi-byte characters produce as many error messages as
+there are bytes.
 
 Strings are read in as-is, non-ASCII characters between double quotes
 are stored as they appear. The string primitives: `string-length`,
@@ -187,8 +192,9 @@ are stored as they appear. The string primitives: `string-length`,
 character encodings and count the string indices and lenghts in Unicode
 characters instead of bytes.
 
-The primitive `byte-length` returns the length of the character array
-used to store the string.
+The primitive `(interp :size «object»)` can be used to calculate the
+length of the character array used to store the string, including the
+terminating `NUL` character.
 
 *Caution*: *fLisp* takes no measures against incorrectly encoded UTF-8
 string.

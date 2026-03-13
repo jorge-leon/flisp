@@ -33,9 +33,10 @@ interpreter, the choice fell on "fLisp".
 Size by version:
 
 	Version	Library	Binary	C-Lines/sloc/Files	Lisp-Lines/sloc/Files
-	0.13	?		85584	3.6k/2.4k/6			373/272/3
-	0.14    ?		82984   3.7k/2.4k/7			610/355/5
-	0.15    67096	87336   3.8k/2.5k/7         358/166/5
+	0.13	 ?		 85584	 3.6k/2.4k/6			373/272/3
+	0.14     ?		 82984   3.7k/2.4k/7			610/355/5
+	0.15     67096	 87336   3.8k/2.5k/7            358/166/5
+	0.16    223948  241696   3882/2547/7            371/166/5
 
 Binary sizes are measured on Debian GNU/Linux amd64. The Library
 column shows the size of the `lispflisp.a` embeddable library, the
@@ -48,18 +49,18 @@ fLisp depends only on the standard C libraries.
 
 The default Makefile target:
 
-    make all
+	make all
 
 creates:
 - flisp .. The flisp command line utility.
 - flispd .. The command line utility with floating point [double] support.
 - libflisp.a and libflispd.a .. The libraries for embedding fLisp in other applications.
 
-    make install
+	make install
 
 Installs the command line utilities, documentation and Lisp libraries.
 
-    make install-dev
+	make install-dev
 
 Installs the libraries, header files and pkg-config files.
 

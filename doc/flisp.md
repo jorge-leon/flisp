@@ -21,7 +21,7 @@ was integrated into [Femto](https://github.com/hughbarney/femto) by Hugh
 Barney (pre 2016) and extended by Georg Lehner since 2023. Read more
 about fLisp's history.
 
-This document is the reference manual for *fLisp* version 0.14 or later
+This document is the reference manual for *fLisp* version 0.16 or later
 ([Markdown](flisp.md)). If you want to learn about Lisp programming use
 other resources eg.
 
@@ -449,6 +449,11 @@ Returns *expr* without evaluating it.
 
 Evaluates *expr* and returns the result.
 
+`(error «type» «message»[ «culprit»])` ⇒ *o*
+
+Creates an error object. *culprit* is the object suspected to have
+caused the error.
+
 `(catch «expr»)` ⇒ *errinfo* <u>D</u>
 
 Evaluates *expr* and returns a list with three elements:
@@ -472,15 +477,23 @@ error type symbol, *message* is a human readable error string and
 
 Interpreter introspection. The following commands are available
 
-`(interp version)` ⇒ *string* .. returns the version string of fLisp.
+`(interp :version)` ⇒ *string* .. returns the version string of fLisp.
 
  
 
-`(interp debug|input|output[ «fd»])` ⇒ *stream* .. returns and
+`(interp :debug|input|output[ «fd»])` ⇒ *stream* .. returns and
 optionally sets the debug, input or output stream of the interpreter.  
-`(interp global)`  ⇒ *env*.. returns the global environment.
+`(interp :global)`  ⇒ *env*.. returns the global environment.
 
-`(interp env[ field[ «env»]])`  ⇒ *o*.. returns the
+`(interp :size «object»)`  ⇒ *size*.. returns the extension size
+allocated for *object*. For symbols and strings this is one more than
+strlen() of the string/name.
+
+ 
+
+ 
+
+`(interp :env[ «field»[ «env»]])`  ⇒ *o*.. returns the
 current environment, one of its fields given as symbols `parent`,
 `vars`, `vals`, or the given field of the given environemnt *env*.
 

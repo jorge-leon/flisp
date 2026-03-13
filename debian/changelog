@@ -1,3 +1,10 @@
+flisp (0.16-1) trixie; urgency=medium
+
+  Add extensible objects. Add experimental error type and flisp_expr()
+  for Lisp object evaluation.
+
+ -- Georg Lehner <jorge@magma-soft.at>  Tue, 2 Feb 2026 08:46:51 +0200
+
 flisp (0.15-2) trixie; urgency=medium
 
   Make shebangable.

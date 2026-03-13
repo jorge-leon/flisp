@@ -1,65 +1,84 @@
 <!DOCTYPE html>
 <html lang="en" xml:lang="en" xmlns="http://www.w3.org/1999/xhtml">
-<head><meta name="generator" content="HTML Tidy for HTML5 for Linux version 5.8.0" />
-	<title>fLisp Implementation Details</title>
-	<meta content="text/html; charset=utf-8" http-equiv="content-type" /><meta content="Emacs, editor, Lisp, tiny, reference, manual" name="keywords" /><meta content="Reference and user manual for the fLisp programming language and interpreter" name="description" /><meta content="Georg Lehner &lt;jorge@magma-soft.at&gt;" name="author" /><meta content="2023" name="copyright" />
+<head>
+  <meta name="generator" content="HTML Tidy for HTML5 for Linux version 5.8.0" />
+  <title>fLisp Implementation Details</title>
+  <meta content="text/html; charset=utf-8" http-equiv="content-type" />
+  <meta content="Emacs, editor, Lisp, tiny, reference, manual" name="keywords" />
+  <meta content="Reference and user manual for the fLisp programming language and interpreter" name="description" />
+  <meta content="Georg Lehner &lt;jorge@magma-soft.at&gt;" name="author" />
+  <meta content="2023" name="copyright" />
 </head>
 <body>
-<h1 id="top"><i>fLisp</i> History</h1>
-
-<p>This document contains some notes on the evolution of <i>fLisp</i>, if you need a reference manual read the&nbsp;<a href="flisp.html">fLisp Manual</a> <a href="flisp.md">(Markdown)</a>.</p>
-
-<p>The original&nbsp;<a href="https://github.com/hughbarney/femto">Femto</a>&nbsp;editor came initially with a modified version of&nbsp;<a href="https://github.com/matp/tiny-lisp">Tiny-Lisp</a>&nbsp;by Matthias Pirstitz.</p>
-
-<p>In 2023 some severe bugs surfaced in Tiny-Lisp. &nbsp;Georg Lehner decided,&nbsp;that simplifying the code would help finding them and started&nbsp;refactoring both C and Lisp code of the Femto project.</p>
-
-<ul>
-	<li>Lisp startup code is loaded from a file, instead of baking it&nbsp;into the C - source code.</li>
-	<li>Command line arguments are handed over to Lisp.</li>
-	<li>A Lisp library directory can be defined at compile time.</li>
-	<li>The core Lisp functions are reduced to the bare minimum, all&nbsp;functions which can be derived in Lisp are factored out into a core,&nbsp;flisp, stdlib and femto Lisp library.</li>
-	<li>Lisp functions are made consistent with&nbsp;<a href="https://www.gnu.org/software/emacs/manual/elisp.html">Elisp</a>&nbsp;or&nbsp;<a href="https://lisp-lang.org">Common Lisp</a>&nbsp;as far as it seems to make&nbsp;sense.</li>
-</ul>
-
-<p>The amount of deviation gave merit to renaming the Lisp interpreter&nbsp;from Tiny-Lisp to fLisp.</p>
-
-<p>In 2024 error and input stream handling was improved in order to diagnose further known bugs. This lead again to a rewrite of a great&nbsp;part of the code base:</p>
-
-<ul>
-	<li>A stream object type is added to the Lisp core, together with the&nbsp;minimum primitives needed for the Lisp reader and writer.</li>
-	<li>An extension mechanism is added to the build system, which allows to&nbsp;build the Lisp core alone, or together with a selection of C&nbsp;extensions.</li>
-	<li>The femto related C - extensions are separated out into such an&nbsp;extension.</li>
-	<li>A minimal file extensions exposes the core stream function plus some&nbsp;additional functions for testing.</li>
-	<li>The C interface of the fLisp interpreter is changed: an <i>fLisp</i>&nbsp;interpreter is instantiated via the <code>lisp_init()</code>&nbsp;function, which&nbsp;returns an interpreter &quot;object&quot;. &nbsp;This is configured with input,&nbsp;output and debug streams and then used for the invocation of&nbsp;<code>lisp_eval()</code>&nbsp;or <code>lisp_eval_string()</code>. This re-architecturing allows for centralized access to the interpreters state.</li>
-	<li>A command line wrapper <code>flisp</code>&nbsp;is added, which implements a simple repl using only the Lisp core plus the file extension.</li>
-</ul>
-
-<p>In 2025 garbage collection and Lisp facilities are improved:</p>
-
-<ul>
-	<li>Garbage collecting of stack items is changed, the garbage collector is tested extensively and surfaced bugs fixed.</li>
-	<li>Exceptions are&nbsp;catched in Lisp and exception codes are Lisp&nbsp;symbols instead of numbers.</li>
-	<li>Lisp Object types are stored as Lisp symbols instead of C&nbsp;constants. This allows for type testing in Lisp.</li>
-	<li>Numbers are represented by 64 bit integers instead of double floats.</li>
-	<li>The Lisp libraries are&nbsp;extended and functions are improved for compatibilty.</li>
-	<li>Lisp object space adjusts dynamically when needed.</li>
-	<li>The&nbsp;<code>setq</code>&nbsp;primitve is replaced by <code>bind</code> and then implemented as Lisp macro.</li>
-	<li>Enough framework is built to implement the repl completely in Lisp.</li>
-</ul>
-
-<p>In 2026 <i>fLisp</i> is factored out of <i>Femto</i>, C-extensions can be loaded on demand:</p>
-
-<ul>
-	<li>The fLisp core, string and flisp libraries as well as the&nbsp;file extension&nbsp;primitives are refined and complemented,&nbsp;a Lisp file library is added, the stdlib library is removed.</li>
-	<li>The read-eval-print loop is now completely written in Lisp, <code>flisp</code> and <code>flispd</code> can be used for scripting.</li>
-	<li>All symbols and primitives are loaded dynamically and argument checking now relies only on Lisp object types.</li>
-	<li>Public symbols are prefixed with <code>flisp_</code> to avoid name clashes when embedding.</li>
-	<li>Debian packages <code>flisp</code> and <code>flisp-dev</code>&nbsp;can be built.</li>
-	<li><i>fLisp</i> can be embedded now in other applications without the need for the <i>Femto</i> or <i>fLisp</i> sources.</li>
-	<li>Basic Unicode / UTF-8 support is added.</li>
-	<li>Extensible Objects are introduced, this allows to add new object types in extensions.</li>
-</ul>
-
-<nav><a href="#top">^</a></nav>
+  <h1 id="top"><i>fLisp</i> History</h1>
+  <p>This document contains some notes on the evolution of <i>fLisp</i>, if you need a reference manual read
+  the&nbsp;<a href="flisp.html">fLisp Manual</a> <a href="flisp.md">(Markdown)</a>.</p>
+  <p>The original&nbsp;<a href="https://github.com/hughbarney/femto">Femto</a>&nbsp;editor came initially with a
+  modified version of&nbsp;<a href="https://github.com/matp/tiny-lisp">Tiny-Lisp</a>&nbsp;by Matthias Pirstitz.</p>
+  <p>In 2023 some severe bugs surfaced in Tiny-Lisp. &nbsp;Georg Lehner decided,&nbsp;that simplifying the code would
+  help finding them and started&nbsp;refactoring both C and Lisp code of the Femto project.</p>
+  <ul>
+    <li>Lisp startup code is loaded from a file, instead of baking it&nbsp;into the C - source code.</li>
+    <li>Command line arguments are handed over to Lisp.</li>
+    <li>A Lisp library directory can be defined at compile time.</li>
+    <li>The core Lisp functions are reduced to the bare minimum, all&nbsp;functions which can be derived in Lisp are
+    factored out into a core,&nbsp;flisp, stdlib and femto Lisp library.</li>
+    <li>Lisp functions are made consistent with&nbsp;<a href=
+    "https://www.gnu.org/software/emacs/manual/elisp.html">Elisp</a>&nbsp;or&nbsp;<a href=
+    "https://lisp-lang.org">Common Lisp</a>&nbsp;as far as it seems to make&nbsp;sense.
+    </li>
+  </ul>
+  <p>The amount of deviation gave merit to renaming the Lisp interpreter&nbsp;from Tiny-Lisp to fLisp.</p>
+  <p>In 2024 error and input stream handling was improved in order to diagnose further known bugs. This lead again to a
+  rewrite of a great&nbsp;part of the code base:</p>
+  <ul>
+    <li>A stream object type is added to the Lisp core, together with the&nbsp;minimum primitives needed for the Lisp
+    reader and writer.</li>
+    <li>An extension mechanism is added to the build system, which allows to&nbsp;build the Lisp core alone, or
+    together with a selection of C&nbsp;extensions.</li>
+    <li>The femto related C - extensions are separated out into such an&nbsp;extension.</li>
+    <li>A minimal file extensions exposes the core stream function plus some&nbsp;additional functions for
+    testing.</li>
+    <li>The C interface of the fLisp interpreter is changed: an <i>fLisp</i>&nbsp;interpreter is instantiated via the
+    <code>lisp_init()</code>&nbsp;function, which&nbsp;returns an interpreter "object". &nbsp;This is configured with
+    input,&nbsp;output and debug streams and then used for the invocation of&nbsp;<code>lisp_eval()</code>&nbsp;or
+    <code>lisp_eval_string()</code>. This re-architecturing allows for centralized access to the interpreters
+    state.</li>
+    <li>A command line wrapper <code>flisp</code>&nbsp;is added, which implements a simple repl using only the Lisp
+    core plus the file extension.</li>
+  </ul>
+  <p>In 2025 garbage collection and Lisp facilities are improved:</p>
+  <ul>
+    <li>Garbage collecting of stack items is changed, the garbage collector is tested extensively and surfaced bugs
+    fixed.</li>
+    <li>Exceptions are&nbsp;catched in Lisp and exception codes are Lisp&nbsp;symbols instead of numbers.</li>
+    <li>Lisp Object types are stored as Lisp symbols instead of C&nbsp;constants. This allows for type testing in
+    Lisp.</li>
+    <li>Numbers are represented by 64 bit integers instead of double floats.</li>
+    <li>The Lisp libraries are&nbsp;extended and functions are improved for compatibilty.</li>
+    <li>Lisp object space adjusts dynamically when needed.</li>
+    <li>The&nbsp;<code>setq</code>&nbsp;primitve is replaced by <code>bind</code> and then implemented as Lisp
+    macro.</li>
+    <li>Enough framework is built to implement the repl completely in Lisp.</li>
+  </ul>
+  <p>In 2026 <i>fLisp</i> is factored out of <i>Femto</i>, C-extensions can be loaded on demand:</p>
+  <ul>
+    <li>The fLisp core, string and flisp libraries as well as the&nbsp;file extension&nbsp;primitives are refined and
+    complemented,&nbsp;a Lisp file library is added, the stdlib library is removed.</li>
+    <li>The read-eval-print loop is now completely written in Lisp, <code>flisp</code> and <code>flispd</code> can be
+    used for scripting.</li>
+    <li>All symbols and primitives are loaded dynamically and argument checking now relies only on Lisp object
+    types.</li>
+    <li>Public symbols are prefixed with <code>flisp_</code> to avoid name clashes when embedding.</li>
+    <li>Debian packages <code>flisp</code> and <code>flisp-dev</code>&nbsp;can be built.</li>
+    <li><i>fLisp</i> can be embedded now in other applications without the need for the <i>Femto</i> or <i>fLisp</i>
+    sources.</li>
+    <li>Basic Unicode / UTF-8 support is added.</li>
+    <li>Extensible Objects are introduced, this allows to add new object types in extensions.</li>
+    <li>Error type and (error) object constructor is added.</li>
+  </ul>
+  <nav>
+    <a href="#top">^</a>
+  </nav>
 </body>
 </html>
