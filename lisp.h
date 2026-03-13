@@ -219,6 +219,10 @@ void fl_debug(Interpreter *, char *, ...);
     if (PARAM->type != TYPE)               \
         exceptionWithObject(interp, PARAM, wrong_type_argument, \
                             SIGNATURE " expected %s, got: %s", TYPE->string, PARAM->type->string)
+#define FLISP_ARG_TYPECHECK(PARAM, TYPE, SIGNATURE)                     \
+    if (PARAM->type != TYPE)                                            \
+        return newErrorObject(interp, wrong_type_argument, PARAM,     \
+            SIGNATURE " expected %s, got: %s", TYPE->string, PARAM->type->string)
 
 /* UTF-8 handling */
 extern size_t flisp_char_length(char);

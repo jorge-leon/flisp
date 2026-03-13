@@ -680,6 +680,39 @@ Object *newStreamObject(Interpreter *interp, FILE *fd, char *path)
 
     return stream;
 }
+#define FLISP_FORMAT_ERROR_MESSAGE "failed to format error message"
+Object *newErrorObject(Interpreter *interp, Object *error_type, Object *culprit, char *format, ...)
+{
+    size_t written;
+    size_t len = sizeof(interp->message.string);
+    char *message;
+
+    GC_CHECKPOINT;
+    GC_TRACE(gcErrorType, error_type);
+    GC_TRACE(gcCulprit, culprit);
+    GC_TRACE(gcError, newObject(interp, type_error, sizeof(Object *[3])));
+    (*gcError)->count = 3;
+    if (format == NULL || format[0] == '\0') {
+        (*gcError)->message = flisp_empty_string;
+    } else {
+        message = interp->message.string;
+        va_list(args);
+        va_start(args, format);
+        written = vsnprintf(message, len, format, args);
+        va_end(args);
+        if (written > len) {
+            strcpy(message+len-4, "...");
+            written = len;
+        } else if (written < 0) {
+            message = FLISP_FORMAT_ERROR_MESSAGE;
+            len = sizeof(FLISP_FORMAT_ERROR_MESSAGE);
+        }
+        (*gcError)->message = newStringWithLength(interp, message, len);
+    }
+    (*gcError)->error_type = *gcErrorType;
+    (*gcError)->culprit = *gcCulprit;
+    GC_RETURN(*gcError);
+}
 
 // ENVIRONMENT ////////////////////////////////////////////////////////////////
 
@@ -1873,16 +1906,27 @@ Object *primitiveNreverse(Interpreter *interp, Object **args, Object **env)
 
 Object *primitiveError(Interpreter *interp, Object **args, Object **env)
 {
-    FLISP_CHECK_TYPE(FLISP_ARG_ONE, type_symbol, "(error type message[ object]) - result");
-    FLISP_CHECK_TYPE(FLISP_ARG_TWO, type_string, "(error type message[ object]) - message");
+    FLISP_ARG_TYPECHECK(FLISP_ARG_ONE, type_symbol, "(error type message[ object]) - result");
+    FLISP_ARG_TYPECHECK(FLISP_ARG_TWO, type_string, "(error type message[ object]) - message");
 
-    Object *error = newObject(interp, type_error, sizeof(Object*[3]));
-    error->count = 3;
-    error->error_type = FLISP_ARG_ONE;
+    Object *error = newErrorObject(interp,
+                                   FLISP_ARG_ONE,
+                                   (FLISP_HAS_ARG_THREE) ? FLISP_ARG_THREE : nil,
+                                   NULL);
     error->message = FLISP_ARG_TWO;
-    error->culprit = (FLISP_HAS_ARG_THREE) ? FLISP_ARG_THREE : nil;
-
     return error;
+}
+Object *primitiveErrorType(Interpreter *interp, Object **args, Object **env)
+{
+    return FLISP_ARG_ONE->error_type;
+}
+Object *primitiveErrorMessage(Interpreter *interp, Object **args, Object **env)
+{
+    return FLISP_ARG_ONE->message;
+}
+Object *primitiveErrorCulprit(Interpreter *interp, Object **args, Object **env)
+{
+    return FLISP_ARG_ONE->culprit;
 }
 Object *primitiveThrow(Interpreter *interp, Object **args, Object **env)
 {
@@ -2497,6 +2541,9 @@ bool flisp_primitives_register(Interpreter *interp)
         && flisp_register_primitive(interp, "gctrace",       0,  0, nil,            primitiveGcTrace)
 #endif
         && flisp_register_primitive(interp, "error",         2,  3, nil,            primitiveError)
+        && flisp_register_primitive(interp, "error-type",    1,  1, type_error,     primitiveErrorType)
+        && flisp_register_primitive(interp, "error-message", 1,  1, type_error,     primitiveErrorMessage)
+        && flisp_register_primitive(interp, "error-culprit", 1,  1, type_error,     primitiveErrorCulprit)
         && flisp_register_primitive(interp, "throw",         2,  3, nil,            primitiveThrow)
         && flisp_register_primitive(interp, "i+",            2,  2, type_integer,   integerAdd)
         && flisp_register_primitive(interp, "i-",            2,  2, type_integer,   integerSubtract)
