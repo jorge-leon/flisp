@@ -62,8 +62,9 @@ This manual refers to version 0.14 or later of fLisp.
     6.  [String Operations](#string_ops)
     7.  [*fLisp* Core Library](#core_lib)
 6.  [*fLisp* Extensions](#extend)
-    1.  [File Extension](#file)
-    2.  [Double Extension](#double)
+    1.  [String Extension](#string)
+    2.  [POSIX Extension](#posix)
+    3.  [Double Extension](#double)
 7.  [Lisp Libraries](#libraries)
     1.  [fLisp Library](#flisp_lib)
     2.  [String Library](#string_lib)
@@ -473,8 +474,10 @@ Interpreter introspection. The following commands are available
 
 `(interp version)` ⇒ *string* .. returns the version string of fLisp.
 
-`(interp input[ «fd»])` ⇒ *stream* .. returns and optionally sets the
-input stream of the interpreter.  
+ 
+
+`(interp debug|input|output[ «fd»])` ⇒ *stream* .. returns and
+optionally sets the debug, input or output stream of the interpreter.  
 `(interp global)`  ⇒ *env*.. returns the global environment.
 
 `(interp env[ field[ «env»]])`  ⇒ *o*.. returns the
@@ -635,35 +638,34 @@ Returns the bitwise negation of *i*.
 
 #### String Operations
 
-`(string-compare «s1» «s2»)` ⇒ *i* <u>f</u>  
+`(string-compare «s1» «s2»)` ⇒ *i* <u>f</u>
+
 Returns `0` if strings *s1* and *s2* are the same, a negative intetger
 if s1 is less then s2, a positive integer otherwise. See strcmp(3).
 
-`(string-length «string»)` ⇒ *i* <u>f</u>  
+`(string-length «string»)` ⇒ *i* <u>f</u>
+
 Returns the length of *string* as a *number*.
 
-`(string-append «s1» «s2»)` ⇒ *string* <u>f</u>  
+`(string-append «s1» «s2»)` ⇒ *string* <u>f</u>
+
 Returns a new string consisting of the concatenation of *string1* with
 *string2*.
 
-`(substring «string»[ «start» [«end»]])` ⇒ *string* <u>f</u>  
+`(substring «string»[ «start» [«end»]])` ⇒ *string* <u>f</u>
+
 Returns the sub string from *string* which starts with the character at
 index *start* and before index *end*. String indexes are zero based,
 negative indexes count from the end of *string*. If *end* is not given
 it defaults to the end of *string*. If *start* is not given, it defaults
 to the start of *string*.
 
-`(string-search «needle» «haystack»)` <u>C</u>  
+`(string-search «needle» «haystack»)` <u>C</u>
+
 Returns the position of string *needle* if it is contained in
 string *haystack*, otherwise `nil`.
 
-`(ascii «integer»)` ⇒ *string* <u>f</u>  
-Converts *integer* into a *string* with one character, which corresponds
-to the ASCII representation of *integer*.
-
-`(ascii->number «string»)` ⇒ *i* <u>f</u>  
-Converts the first character of *string* into an integer which
-corresponds to its ASCII value.
+ 
 
 [^](#toc)
 
@@ -936,7 +938,32 @@ are loaded into an *fLisp* interpreter after creation. Two extensions
 are delivered with *fLisp*: the *file* extension for interaction with
 the operating system and the *double* floating point extension.
 
-#### File Extension
+#### String Extensions
+
+`(char-length «string»)` ⇒ *i* <u>f</u>  
+Calculates the number of bytes occupied by the first character of
+*string*.
+
+`(code-char «i»)` ⇒ *string* <u>f</u>  
+Converts integer *i* into a *string* with one character, which
+corresponds to the UTF-8 representation of Unicode code point *i*.
+
+`(char-code «string»)` ⇒ *i* <u>f</u>  
+Converts the first character of *string* into an integer which
+corresponds to its Unicode code point.
+
+`(strspn «string chars»)` ⇒ *i* <u>f</u>  
+Returns the index of the first character in *string* which is not
+contained in the string *chars*.
+
+`(strcspn «string» «chars»)` ⇒ *i* <u>f</u>  
+Returns the index of the first character in *string* which is
+containted in the string *chars*.
+
+#### POSIX Extension
+
+This extension contains a collection of wrappers to libc functions
+acording to the POSIX standards.
 
 All functions except `getenv` are specific to fLisp.
 
@@ -993,6 +1020,11 @@ does not exist return `nil`.
 
 `(getcwd)` ⇒ *string*  
 Return the current working directory.
+
+`(fnmatch «pattern» «string»[ «flags»])`  
+glob(7) style pattern matching. The constants: FNM_PATHNAME,
+FNM_NOESCAPE and FNM_PERIOD can be binary or'd together to form the
+respective *flags* value, default is 0.
 
 [^](#toc)
 
@@ -1151,14 +1183,48 @@ Return the extension of path *s*, or nil if there is none.
 
 ### `flisp` Command Line Interpreter
 
-The command line interpreter `flisp` reads a single Lisp file on
-startup. The default path of this <span class="dfn">startup file</span>
-is hardcoded in the binary but can be overwritten at runtime with the
-environment variable `FLISPRC`. The default path
-is `/usr/local/share/flisp/init.lsp`. but can be modified at compile
-time.
+Two binaries are built: `flisp` and `flispd`. They behave identical with
+the exception, that `flispd` integrates the *double* extension while
+`flisp` does not. Both integrate the *string* and the *posix* extension.
 
-The installed startup file includes the `core.lsp` library. This allows
+#### Environment Variables
+
+The command line interpreter `flisp` reads a single Lisp file on
+startup. The default path is `/usr/local/share/flisp/init.lsp`. but can
+be modified at compile time. It can be overwritten at runtime with the
+variable `FLISPRC`.
+
+`FLISP_DEBUG` can be set to a file name. If `flisp` succeeds opening the
+file for writing this file is used as default for output and debug. If
+not given, output of the evaluation of the startup file is suppressed
+alltogether.
+
+The environment variable `FLISP_SIZE` can be set to the amount of
+initial memory for the Lisp object space. If not set or 0, fLisp
+dynamically allocates memory in chunks of eight kilobyte. This increment
+can be modified at compile time.
+
+#### `init.lsp`
+
+The provided startup file includes the `core.lsp` library. This allows
 to load Lisp files from the library with the  `require` function.
+
+After loading the core library, `init.lsp` tries to load the file
+`~/.config/flisp/init.lsp`. Errors are printed to the debug output. Then
+the interpreter output is set to `stdout`.
+
+If command line arguments are given, each of them is interpreted as a
+Lisp file to load.
+
+Otherwise a simple read-eval-print-loop is invoked, which reads Lisp
+code from `stdin`, prints results on `stdout` and exceptions on
+`stderr`. If `stdin` is a TTY a startup message is printed and than the
+string “`> `” is printed as prompt.
+
+#### fLisp as Script Language
+
+The *fLisp* binaries can be used for scripting. Put a shebang line with
+the path to the respective binary in the first line of the script, e.g:
+`#!/usr/local/bin/flisp`
 
 [^](#toc)

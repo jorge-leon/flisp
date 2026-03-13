@@ -95,9 +95,16 @@
     <dd>The root environment.</dd>
     <dt><code>result</code></dt>
     <dd>The result object of the <code>flisp_eval()</code> call.</dd>
+    <dt><code>error</code></dt>
+    <dd>The error type symbol of the <code>flisp_eval()</code> call.</dd>
+    <dt><code>debug.path</code></dt>
+    <dd>&nbsp;</dd>
     <dt><code>input.path</code></dt>
-    <dd>The path string object of the input stream.</dd>
+    <dd>&nbsp;</dd>
+    <dt><code>output.path</code></dt>
+    <dd>The path string object of the debug, input and output stream.</dd>
   </dl>
+  <p>&nbsp;</p>
   <p>With respect to the active variables in the call stack the interpreter cannot use raw pointers to objects: any
   function that might trigger garbage collection would move the object pointed to, causing a SEGV when accessing the
   pointer. Instead, objects must be added to the <code>gcTop</code> list and then only accessed through the pointers
@@ -148,7 +155,9 @@
   size of UTF-8 character encodings and count the string indices and lenghts in Unicode characters instead of
   bytes.</p>
   <p>The primitive <code>byte-length</code> returns the length of the character array used to store the string.</p>
-  <p><em>Caution</em>: <i>fLisp</i> has no measures against incorrectly encoded UTF-8 string.</p>
+  <p><em>Caution</em>: <i>fLisp</i> takes no measures against incorrectly encoded UTF-8 string.</p>
+  <p>The string extension primitives <code>char-length</code>, <code>char-code</code> and <code>code-char</code>
+  however perform some checks.</p>
   <nav>
     <p><a href="#toc">^</a></p>
     <h3>References</h3>

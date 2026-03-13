@@ -4,22 +4,21 @@
 
 ## Next
 
+- Implement error type
 - Cleanup cerf: not so easy to do, but now easier with dynamic primitive loading.
   - create evalApply and readCons on startup after registering readPrimitve and evalPrimitive
     then use it in cerf().
 - Make logging mask, and suppress catch messages by default
 - Implement more `(interp subcommand[arg..])` introspection and configuration commands.
-  - (flisp output[ fd])
-  - (flisp error[ fd])
-  - (flisp debug[ fd])
-  - (flisp types[ type..]) => list of types
-  - (flisp body lambda|macro)
-  - (flisp gc) => memory info
+  - (interp error[ fd])
+  - (interp types[ type..]) => list of types
+  - (interp body lambda|macro)
+  - (interp gc) => memory info
 - Add read and eval tracing.
 
 ## Future
 
-- Implement fnmatch() primitive. https://pubs.opengroup.org/onlinepubs/9799919799/functions/fnmatch.html
+- Use size field of strings for (string-length) - speed up.
 - Implement "ext"ension Lisp objects - use them for femto buffers, etc.
 - Implement backquote and friends.
   - The reader already implements '`', ',' and ',@' as `quasiquote`, `unquote`
@@ -27,13 +26,6 @@
 - Size reduction:
   - Reduce binary operators to 'and' and 'xor' and write needed rest in Lisp.
 - Tap the potential of the in code documentation via Doxygen.
-- Hash
-  - Add new 'hash' field as uintptr_t to Lisp object struct type union.
-  - Initialize each string type object with a hash of 0.
-- Dynamic types
-  - Make 'type' postfix of name instead of prefix. type-string -> string-type (why?)
-  - Add Object * interp->types to interpreter struct and register types there.
-  - Use the hash of types for type checking.
 - String size restriction
   - Memory allocator restricts the size of string objects.
   - Option to dynamically adjust or not.
@@ -46,8 +38,21 @@
 - Test more then one interpreter.
 - ? CSP between interpreters?
 
+## flisp 0.16
+- Extensible Lisp Object structure.
+- flisp_expr()
+
 ## flisp 0.15
 - basic utf-8 support.
+- Implement fnmatch() primitive. https://pubs.opengroup.org/onlinepubs/9799919799/functions/fnmatch.html
+- Implement (interp debug[ fd])
+- Make shebangable:
+  - Implement reader macros, start with #! as comment to end of line.
+  - Suppress startup messages:
+	- Implement (interp output[ fd])
+	- In flisp.c initialize output with the debug fd (or nil)
+	- In init.sht (interp output stdout) before entering the interactive repl.
+   - Don't start the repl if Lisp files are specified on the command line.
 
 ## flisp 0.14
 - GC starting with the first loaded symbol.

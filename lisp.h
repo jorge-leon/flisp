@@ -9,9 +9,10 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <inttypes.h>
+#include <limits.h>
 
 #define FL_NAME     "fLisp"
-#define FL_VERSION  "0.15"
+#define FL_VERSION  "0.16"
 
 #ifndef FLISPLIB
 #define FLISPLIB /usr/local/share/flisp
@@ -37,7 +38,6 @@
 #define DEBUG_GC 0
 #define DEBUG_GC_ALWAYS 0
 #define FLISP_TRACE 0
-#define FLISP_TRACK_GCTOP 0
 
 /* Lisp objects */
 
@@ -52,27 +52,45 @@ typedef struct Primitive {
     LispEval eval;
 } Primitive;
 
-
+/** Object - Lisp object data structure
+ *
+ * Simple: object.size=0, value in union
+ * Extended:
+ * - objects.size .. number of additional bytes to allocation
+ * - objects.count .. number of Object * pointers at start of extension
+ * - value(s) in extension union
+ */
+typedef struct SimpleObject {
+    Object *type;
+    size_t size; /*0*/
+    union {                   // Simple Objects, or helpers
+        int64_t integer;      // integer
+        double number;        // double
+        Primitive *primitive; // primitive
+        size_t count;
+        Object *forward;      // GC forwarding pointer to collected object in to-space
+    };
+} SimpleObject;
 struct Object {
     Object *type;
     size_t size;
+    union {                   // Simple Objects, or helpers
+        int64_t value;      // integer
+        double number;        // double
+        Primitive *primitive; // primitive
+        size_t count;
+        Object *forward;      // GC forwarding pointer to collected object in to-space
+    };
     union {
-        struct { int64_t integer; };                               // integer
-        struct { double number; };                                 // double
-        struct { char string[sizeof (Object *[3])]; };             // string, symbol
-        struct { Object *car, *cdr; };                             // cons
-        struct { Object *params, *body, *env; };                   // lambda, macro
-        struct { Primitive *primitive; };                          // primitive
-        struct { Object *parent, *vars, *vals; };                  // env
-        struct { Object *path; FILE *fd; char *buf; size_t len; }; // file descriptor/stream
-        struct { Object *forward; };                               // forwarding pointer
+        struct { Object *car;    Object *cdr; };
+        struct { Object *params; Object *body; Object *env; };
+        struct { Object *parent; Object *vars; Object *vals; };
+        char string[PATH_MAX];
+        struct { Object *path; FILE *fd; char *buf; size_t len; };
+        struct { Object *error_type; Object *message; Object *culprit; };
+        Object *objects[1];
     };
 };
-
-typedef struct Constant {
-    Object **symbol;
-    Object **value;
-} Constant;
 
 /* Internal */
 typedef struct Memory {
@@ -83,13 +101,18 @@ typedef struct Memory {
 typedef struct Interpreter {
 
     /* private */
-    Object *error;                   /* error code cons */
-    struct { Object * type; size_t size; char string[WRITE_FMT_BUFSIZ]; } message;
+    Object *error;                   /* error code */
+    struct {
+        Object * type;
+        size_t size;
+        union { int64_t i; double n; size_t s; void *p;};
+        char string[WRITE_FMT_BUFSIZ]; /* Error message string object */
+    } message;
     Object *result;                  /* result or error object */
 
-    Object input;                    /* input stream object */
-    FILE *output;                    /* default output file descriptor */
-    FILE *debug;                     /* debug file descriptor */
+    Object input;                    /* default input stream object */
+    Object output;                   /* default output stream object */
+    Object debug;                    /* default debug output stream object */
 
     /* globals */
     Object *symbols;                 /* symbols list */
@@ -123,6 +146,7 @@ extern Object *type_symbol;
 extern Object *type_cons;
 extern Object *type_lambda;
 extern Object *type_macro;
+extern Object *type_error;
 extern Object *type_primitive;
 extern Object *type_stream;
 /* internal */
@@ -145,14 +169,7 @@ extern Object *is_directory;
 /* utility */
 extern Object *flisp_empty_string;
 
-/* "Object" type for initializing constants with long names.
- * Note: currently wrong-number-of-arguments is the longest, if you
- *       need a longer put it here.
- */
-typedef struct { Object *type; size_t size; char string[sizeof("wrong-number-of-arguments")]; } Symbol;
-
-extern Object *newObject(Interpreter *, Object *);
-extern Object *newObjectFrom(Interpreter *, Object **);
+extern Object *newObject(Interpreter *, Object *, size_t);
 extern Object *newInteger(Interpreter *, int64_t);
 extern Object *newStringWithLength(Interpreter *, char *, size_t);
 extern Object *newString(Interpreter *, char *);
@@ -203,10 +220,17 @@ void fl_debug(Interpreter *, char *, ...);
         exceptionWithObject(interp, PARAM, wrong_type_argument, \
                             SIGNATURE " expected %s, got: %s", TYPE->string, PARAM->type->string)
 
+/* UTF-8 handling */
+extern size_t flisp_char_length(char);
+extern size_t flisp_char_index(Interpreter *, char *, size_t);
+extern size_t flisp_char_count(Interpreter *, char *, size_t);
+
 // PUBLIC INTERFACE ///////////////////////////////////////////////////////
 extern Interpreter *flisp_new(size_t size, char **, char*, FILE*, FILE*, FILE*);
 extern void flisp_destroy(Interpreter *);
 extern void flisp_eval(Interpreter *, char *);
+/* Note: experimental */
+extern void flisp_expr(Interpreter *, Object *);
 extern void flisp_write_object(Interpreter *, FILE *, Object *, bool);
 extern void flisp_write_error(Interpreter *, FILE *);
 

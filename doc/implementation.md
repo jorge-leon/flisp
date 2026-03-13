@@ -101,8 +101,19 @@ The root environment.
 `result`  
 The result object of the `flisp_eval()` call.
 
+`error`  
+The error type symbol of the `flisp_eval()` call.
+
+`debug.path`  
+ 
+
 `input.path`  
-The path string object of the input stream.
+ 
+
+`output.path`  
+The path string object of the debug, input and output stream.
+
+ 
 
 With respect to the active variables in the call stack the interpreter
 cannot use raw pointers to objects: any function that might trigger
@@ -179,8 +190,11 @@ characters instead of bytes.
 The primitive `byte-length` returns the length of the character array
 used to store the string.
 
-*Caution*: *fLisp* has no measures against incorrectly encoded UTF-8
+*Caution*: *fLisp* takes no measures against incorrectly encoded UTF-8
 string.
+
+The string extension primitives `char-length`, `char-code` and
+`code-char` however perform some checks.
 
 [^](#toc)
 

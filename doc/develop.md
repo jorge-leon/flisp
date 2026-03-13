@@ -16,11 +16,13 @@ Other documentation topics:
 
 1.  [Introduction](#introduction)
 2.  Table of Contents
-3.  [Embedding Overview](#embed_overview)
+3.  [Embedding Overview](#)
 4.  [fLisp C Interface](#c_api)
-5.  [Building Extensions](#extensions)
+5.  [UTF-8 Support](#utf8)
+6.  [Loading fLisp Extensions](#loading_flisp_extensions)
+7.  [Building Extensions](#extensions)
 
-### Embedding Overview
+### Embedding
 
 *fLisp* can be embedded into a C application. Two examples of embedding
 are the [Femto text editor](https://github.com/jorge-leon/femto)  and
@@ -216,6 +218,39 @@ segmentation faults.</span>
 `void flisp_destroy(Interpreter *«interp»)`
 
 Frees all resources used by the interpreter.
+
+### UTF-8 Support
+
+*fLisp* has basic UTF-8 support both on Lisp level and with a low level
+C-API.
+
+`lisp.h` exposes the
+functions: `flisp_char_length()`, `flisp_char_index()`
+and `flisp_char_count()`. `string.h` exposes `flisp_char_code()`
+and `flisp_code_char()`. These function are clean room public domain
+implementations.
+
+### Loading *fLisp* Extensions
+
+*fLisp* provides the following extensions:
+
+*string*  
+UTF-8 aware string manipulation primitives.
+
+*posix*  
+Primitives exposing POSIX libc functionality.
+
+*double*  
+IEEE double floating point arithmetic.
+
+Each extension implements a function: `flisp_«name»_register(«interp»)`,
+where *name* is the name of the extension and *interp* the interpter
+into which to load it.
+
+The *double* extension is special, it needs an extended Lisp reader
+which is enabled at compile time by defining  `FLISP_DOUBLE_EXTENSION`.
+See `flisp.c` and the `flispd` target in `Makefile` for an example on
+how to load this extension.
 
 [^](#toc)
 
@@ -496,7 +531,7 @@ If the string length of the symbol name exceeds 11 characters the
 definition of the symbol requires the following notation:
 
     …
-    Object * very_long_symbol_name = (Object *) (&(Symbol) { NULL, .string = "very long symbol name" });​​​​​​​
+    Object * very_long_symbol_name = (Object *) (&(Symbol) { NULL, .string = "very long symbol name" });
     …
 
 [^](#toc)

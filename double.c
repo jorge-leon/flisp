@@ -10,7 +10,7 @@
 
 Object *newDouble(Interpreter *interp, double number)
 {
-    Object *object = newObject(interp, type_double);
+    Object *object = newObject(interp, type_double, 0);
     object->number = number;
     return object;
 }
@@ -47,7 +47,7 @@ Object *integerFromDouble(Interpreter *interp, Object **args, Object **env)
 
 Object *doubleFromInteger(Interpreter *interp, Object **args, Object **env)
 {
-    return newDouble(interp, (double) FLISP_ARG_ONE->integer);
+    return newDouble(interp, (double) FLISP_ARG_ONE->value);
 }
 // Double Math ///////
 #define FLISP_DOUBLE_MATHOP(name, op)                                         \

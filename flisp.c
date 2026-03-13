@@ -9,8 +9,8 @@
 #ifdef FLISP_DOUBLE_EXTENSION
 #include "double.h"
 #endif
-#include "file.h"
-
+#include "posix.h"
+#include "string.h"
 
 void fatal(char *msg)
 {
@@ -44,14 +44,15 @@ int main(int argc, char **argv)
             fatal("invalid FLISP_SIZE");
     }
     
-    interp = flisp_new((size_t) size, argv, NULL, input_fd, stdout, debug_fd);
+    interp = flisp_new((size_t) size, argv, NULL, input_fd, debug_fd, debug_fd);
     if (interp == NULL)
         fatal("fLisp interpreter initialization failed");
 
 #ifdef FLISP_DOUBLE_EXTENSION
     flisp_double_register(interp);
 #endif
-    flisp_file_register(interp);
+    flisp_posix_register(interp);
+    flisp_string_register(interp);
 
     flisp_eval(interp, NULL);
     if (FLISP_RESULT_CODE(interp) != nil) {

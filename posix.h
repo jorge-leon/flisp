@@ -1,9 +1,9 @@
-#ifndef FILE_H
-#define FILE_H
+#ifndef POSIX_H
+#define POSIX_H
 
 #include "lisp.h"
 
-extern bool flisp_file_register(Interpreter *);
+extern bool flisp_posix_register(Interpreter *);
 
 #endif
 /*

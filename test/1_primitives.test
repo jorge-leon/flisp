@@ -4,8 +4,11 @@
 # leg20231128: Femto
 
 export FLISPRC=
+export PREPARE='(interp :output (open ">1" "w"))'
+export FLISP_DEBUG=f.log
+export FLISP_SIZE=$((20*1024*1024))
 
-tap 198
+tap 199
 
 [ -x ../flispd ]
 ok flisp-1 flisp exists and is executable;
@@ -94,16 +97,16 @@ IN="(bind var 'val)" OUT=val
 flisp_expr; ok bind-2 assignment returns value
 
 IN="(bind var 'val) var" OUT="val"
-flisp_expr 1; ok bind-3 var evaluates to val
+flisp_expr; ok bind-3 var evaluates to val
 
 IN='(bind var1)' OBJ='#<Primitive bind>' ERR='expects at least 2 arguments'
 flisp_err; ok bind-4 one arg fails
 
 IN="(bind var1 3) ((lambda () (bind var1 2))) var1" OUT=3
-flisp_expr 1; ok setq-5 local bind does not set outer variable.
+flisp_expr; ok setq-5 local bind does not set outer variable.
 
 IN="(bind var1 3) ((lambda () (bind var1 2 t))) var1" OUT=2
-flisp_expr 1; ok setq-4 global bind does not set outer variable.
+flisp_expr; ok setq-4 global bind does not set outer variable.
 
 IN='(progn)' OUT=nil
 flisp_expr; ok progn-1 no args evaluate to nil
@@ -112,7 +115,7 @@ IN="(progn 'one)" OUT=one
 flisp_expr; ok progn-2 one arg evaluates to arg
 
 IN="(progn (write 'first) 'second)" OUT=firstsecond
-flisp_expr 2; ok progn-3 two args evaluate in sequence
+flisp_expr; ok progn-3 two args evaluate in sequence
 
 # cond
 IN='(cond)'  OUT=nil
@@ -193,7 +196,7 @@ flisp_expr; ok lambda-7 apply return b string a
 
 # Time for memory allocator test
 #IN='(setq r (lambda args (r args))) (r)' OBJ='out of memory, 48 bytes' ERR='48 bytes'
-#flisp_err 1; ok memory-1 exhausting memory exits with error code
+#flisp_err; ok memory-1 exhausting memory exits with error code
 
 # macro
 IN='(macro nil)' OUT='#<Macro nil>'
@@ -275,7 +278,7 @@ flisp_expr; ok type-of-5 type-of type-of is primitive
 IN='(type-of (macro ()))' OUT='type-macro'
 flisp_expr; ok type-of-6 type-of macro is macro
 
-IN='(type-of *OUTPUT*)' OUT='type-stream'
+IN='(type-of *standard-output*)' OUT='type-stream'
 flisp_expr; ok type-of-7 type-of output stream is stream
 
 # consp
@@ -361,19 +364,19 @@ flisp_expr
 [ -e _file_ ]; ok open-1 create file
 rm -f _file_
 
-RESULT=$(echo '(open "empty.lsp")' | $FLISP | grep -E '#<Stream [0-9A-F]{8,} empty.lsp>')
+RESULT=$(echo $PREPARE '(open "empty.lsp")' | $FLISP | grep -E '#<Stream [0-9A-F]{8,} empty.lsp>')
 ok open-2 open file readonly
 
-RESULT=$(echo '(open "<0")' | $FLISP | grep -E "#<Stream [0-9A-F]{8,} <0>")
+RESULT=$(echo $PREPARE '(open "<0")' | $FLISP | grep -E "#<Stream [0-9A-F]{8,} <0>")
 ok open-3 open readable file descriptor
 
-RESULT=$(echo '(open ">1")' | $FLISP | grep -E "#<Stream [0-9A-F]{8,} >1>")
+RESULT=$(echo $PREPARE '(open ">1")' | $FLISP | grep -E "#<Stream [0-9A-F]{8,} >1>")
 ok open-4 open writeable file descriptor
 
-RESULT=$(echo '(open "any text" "<")' | $FLISP | grep -E "#<Stream [0-9A-F]{8,} <STRING>")
+RESULT=$(echo $PREPARE '(open "any text" "<")' | $FLISP | grep -E "#<Stream [0-9A-F]{8,} <STRING>")
 ok open-5 open memory input stream
 
-RESULT=$(echo '(open "" ">")' | $FLISP | grep -E "#<Stream [0-9A-F]{8,} >STRING>")
+RESULT=$(echo $PREPARE '(open "" ">")' | $FLISP | grep -E "#<Stream [0-9A-F]{8,} >STRING>")
 ok open-6 open memory output stream
 
 IN='(close (open "empty.lsp"))' OUT="0"
@@ -389,15 +392,15 @@ IN='(close (open "" ">"))' OUT="0"
 flisp_expr; ok close-4 close memory output stream
 
 IN='(bind f (open "abc" "<")) (cons (car (file-info f)) (car (cdr (file-info f))))' OUT='("<STRING" . "abc")'
-flisp_expr 1; ok file-info-1 file-info of memory stream contains string
+flisp_expr; ok file-info-1 file-info of memory stream contains string
 
 IN='(bind f (open "" ">")) (close f) (file-info f)' OUT='(">STRING" nil nil)'
-flisp_expr 1; ok file-info-2 file-info of closed memory stream contains nil
+flisp_expr; ok file-info-2 file-info of closed memory stream contains nil
 
 IN='(read (open "1" "<"))' OUT="1"
 flisp_expr; ok read-1 read memory input stream
 
-IN='(read *INPUT* end-of-file)' OUT="end-of-file"
+IN='(read *standard-input* end-of-file)' OUT="end-of-file"
 flisp_expr; ok read-2 read with eof marker
 
 IN='(eval 1)' OUT='1'
@@ -405,10 +408,10 @@ flisp_expr; ok eval-1 eval number is number
 
 
 IN='(write "ans\\wer")' OUT='ans\wer"ans\\wer"'
-flisp_expr; ok write-1 write string
+flisp_expr; ok write-1 write string normally
 
 IN='(write "ans\\wer" t)' OUT='"ans\\wer""ans\\wer"'
-flisp_expr; ok write-1 write string
+flisp_expr; ok write-2 write string readably
 
 # throw
 IN="(throw 'fourty-two \"answer\")" ERR='answer' OBJ=
@@ -449,10 +452,6 @@ flisp_expr; ok string-append-3 string append of unicode is string
 
 IN='(string-append "" "answer")' OUT='"answer"'
 flisp_expr; ok string-append-3  append emtpy answer is anser
-
-IN='(byte-length "")' OUT="0" flisp_expr; ok byte-length-1 length of emtpy string is 0
-IN='(byte-length "answer")' OUT="6" flisp_expr; ok byte-length-2  length of answer string is 6
-IN='(byte-length "änßwér")' OUT="9" flisp_expr; ok byte-length-3  length of 3 unicode 3 ascii string is 9
 
 IN='(string-length "")' OUT="0" flisp_expr; ok string-length-1 length of emtpy string is 0
 IN='(string-length "answer")' OUT="6" flisp_expr; ok string-length-2  length of answer string is 6
@@ -520,11 +519,25 @@ IN='(string-compare "a" "b")' OUT="-1" flisp_expr; ok string-compare-2 a less th
 IN='(string-compare "b" "a")' OUT="1" flisp_expr; ok string-compare-3 b greater then a
 IN='(string-compare "a" "ä")' OUT="-98" flisp_expr; ok string-compare-4 a less then umlaut a
 
-IN='(ascii 64)' OUT='"@"'
-flisp_expr; ok ascii-1 ascii 64 is @
+# string extension
 
-IN='(ascii->number "@")' OUT='64'
-flisp_expr 5; ok ascii-to-number-1 of @ is 64
+IN='(char-length "a")' OUT=1
+flisp_expr; ok char-length-1 ascii is 1
+
+IN='(char-length "ä")' OUT=2
+flisp_expr; ok char-length-1 umlaut a is 2
+
+IN='(code-char 64)' OUT='"@"'
+flisp_expr; ok code-char-1 ascii 64 is @
+
+IN='(code-char 228)' OUT='"ä"'
+flisp_expr; ok code-char-2 codepoint 228 is umlaut a
+
+IN='(char-code "@")' OUT='64'
+flisp_expr; ok char-code-1 of @ is 64
+
+IN='(char-code "ä")' OUT='228'
+flisp_expr; ok char-code-2 of umlaut a is 228
 
 # File extension
 
