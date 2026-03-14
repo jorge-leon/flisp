@@ -690,11 +690,10 @@ Object *newErrorObject(Interpreter *interp, Object *error_type, Object *culprit,
     GC_CHECKPOINT;
     GC_TRACE(gcErrorType, error_type);
     GC_TRACE(gcCulprit, culprit);
+    GC_TRACE(gcMessage, flisp_empty_string);
     GC_TRACE(gcError, newObject(interp, type_error, sizeof(Object *[3])));
     (*gcError)->count = 3;
-    if (format == NULL || format[0] == '\0') {
-        (*gcError)->message = flisp_empty_string;
-    } else {
+    if (format != NULL && format[0] != '\0') {
         message = interp->message.string;
         va_list(args);
         va_start(args, format);
@@ -707,9 +706,10 @@ Object *newErrorObject(Interpreter *interp, Object *error_type, Object *culprit,
             message = FLISP_FORMAT_ERROR_MESSAGE;
             len = sizeof(FLISP_FORMAT_ERROR_MESSAGE);
         }
-        (*gcError)->message = newStringWithLength(interp, message, len);
+        *gcMessage = newStringWithLength(interp, message, len);
     }
     (*gcError)->error_type = *gcErrorType;
+    (*gcError)->message = *gcMessage;
     (*gcError)->culprit = *gcCulprit;
     GC_RETURN(*gcError);
 }
@@ -1847,7 +1847,6 @@ Object *primitiveTypeOf(Interpreter *interp, Object **args, Object **env)
 {
     return (FLISP_ARG_ONE->type);
 }
-
 Object *primitiveConsP(Interpreter *interp, Object **args, Object **env)
 {
     return (FLISP_ARG_ONE->type == type_cons) ? t : nil;
@@ -1894,6 +1893,62 @@ Object *primitiveCdr(Interpreter *interp, Object **args, Object **env)
     exceptionWithObject(interp, FLISP_ARG_ONE, wrong_type_argument, "(cdr args) - arg 1 expected %s, got: %s", type_cons->string, FLISP_ARG_ONE->type->string);
 
 }
+/** (object type[ ..]) => extended object */
+Object *primitiveObject(Interpreter *interp, Object **args, Object **env)
+{
+    FLISP_ARG_TYPECHECK(FLISP_ARG_ONE, type_symbol, "(object type[ ..]) - type");
+    GC_CHECKPOINT;
+    GC_TRACE(gcType, FLISP_ARG_ONE);
+    GC_TRACE(gcArgs, (*args)->cdr);
+    
+    /* Note: the following is inefficient and we did it alread when we
+     *   were called.  Consider adding an nArgs parameter to
+     *   primitives. Probably others would benefit too.
+     */
+    /* Start counting arguments */
+    size_t nArgs = 0;
+    Object *arg;
+    for (arg = *gcArgs; arg != nil; arg = arg->cdr, nArgs++);
+    /* End counting arguments, used here ------------------------vvvvv*/
+    Object *object = newObject(interp, *gcType, sizeof(Object *)*nArgs);
+    object->count = nArgs;
+    size_t i = 0;
+    for (arg = (*gcArgs); arg != nil; arg = arg->cdr, i++)
+        object->objects[i] = arg->car;
+    GC_RETURN(object);
+}
+Object *primitiveObjectCount(Interpreter *interp, Object **args, Object **env)
+{
+    return newInteger(interp, FLISP_ARG_ONE->count);
+}
+/** (object-list object[ start[ end]]) => list of contained object */
+Object *primitiveObjectList(Interpreter *interp, Object **args, Object **env)
+{
+    int64_t i = 0, end = FLISP_ARG_ONE->count;
+    if (FLISP_HAS_ARG_TWO) {
+        FLISP_ARG_TYPECHECK(FLISP_ARG_TWO, type_integer, "(object-list object[ start[ end]]) - start");
+        i = (FLISP_ARG_TWO->value < 0) ? end + FLISP_ARG_TWO->value : FLISP_ARG_TWO->value;
+        if (i < 0 || i >= end)
+            return newErrorObject(interp, range_error, FLISP_ARG_TWO,
+                                  "(object-list object[ start[ end]]) - start out of range [0, %lu]: %ld", end-1, FLISP_ARG_TWO->value);
+        if (FLISP_HAS_ARG_THREE) {
+            int64_t j = (FLISP_ARG_THREE->value < 0) ? end + FLISP_ARG_THREE->value : FLISP_ARG_THREE->value;
+            if (j < 0 || j >= end)
+                return newErrorObject(interp, range_error, FLISP_ARG_THREE,
+                                      "(object-list object[ start[ end]]) - end out of range [0, %lu]: %ld", end-1, FLISP_ARG_THREE->value);
+            end = j;
+        }
+    }
+    if (i > end)
+        return newErrorObject(interp, range_error, FLISP_ARG_TWO, "(object-list object[ start[ end]]) - start > end: [%lu, %lu]", i, end-1);
+
+    GC_CHECKPOINT;
+    GC_TRACE(gcObject, FLISP_ARG_ONE);
+    GC_TRACE(gcList, nil);
+    while (i < end)
+        *gcList = newCons(interp, &(*gcObject)->objects[i++], gcList);
+    GC_RETURN(reverseList(interp, *gcList));
+}
 Object *primitiveCons(Interpreter *interp, Object **args, Object **env)
 {
     return newCons(interp, &(*args)->car, &(*args)->cdr->car);
@@ -1909,12 +1964,19 @@ Object *primitiveError(Interpreter *interp, Object **args, Object **env)
     FLISP_ARG_TYPECHECK(FLISP_ARG_ONE, type_symbol, "(error type message[ object]) - result");
     FLISP_ARG_TYPECHECK(FLISP_ARG_TWO, type_string, "(error type message[ object]) - message");
 
-    Object *error = newErrorObject(interp,
-                                   FLISP_ARG_ONE,
-                                   (FLISP_HAS_ARG_THREE) ? FLISP_ARG_THREE : nil,
-                                   NULL);
+    /* Object *error = newErrorObject(interp, */
+    /*                                FLISP_ARG_ONE, */
+    /*                                (FLISP_HAS_ARG_THREE) ? FLISP_ARG_THREE : nil, */
+    /*                                NULL); */
+    GC_CHECKPOINT;
+    GC_TRACE(gcArgs, *args);
+    Object *error = newObject(interp, type_error, sizeof(Object*[3]));
+    error->count=3;
+    args = gcArgs;
+    error->error_type = FLISP_ARG_ONE;
     error->message = FLISP_ARG_TWO;
-    return error;
+    error->culprit = (FLISP_HAS_ARG_THREE) ? FLISP_ARG_THREE : nil;
+    GC_RETURN(error);
 }
 Object *primitiveErrorType(Interpreter *interp, Object **args, Object **env)
 {
@@ -2514,6 +2576,9 @@ bool flisp_primitives_register(Interpreter *interp)
          && flisp_register_primitive(interp, "intern",        1,  1, type_string,    primitiveIntern)
          && flisp_register_primitive(interp, "symbol-name",   1,  1, type_symbol,    primitiveSymbolName)
          && flisp_register_primitive(interp, "same",          2,  2, nil,            primitiveSame)
+         && flisp_register_primitive(interp, "object",        1, -1, nil,            primitiveObject)
+         && flisp_register_primitive(interp, "object-count",  1, -1, nil,            primitiveObjectCount)
+         && flisp_register_primitive(interp, "object-list",   1,  3, nil,            primitiveObjectList)
          && flisp_register_primitive(interp, "car",           1,  1, nil,            primitiveCar) /* Note: nil|cons */
          && flisp_register_primitive(interp, "cdr",           1,  1, nil,            primitiveCdr) /* Note: nil|cons */
          && flisp_register_primitive(interp, "cons",          2,  2, nil,            primitiveCons)
