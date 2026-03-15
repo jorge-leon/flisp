@@ -488,6 +488,38 @@ Object *newPrimitive(Interpreter *interp, Primitive* primitive)
 }
 
 /// Extended objects
+
+/** flisp_ext_obj(interp, type, obj_list, count, extra) - create and initialize an extended object.
+ *
+ * @param interp   .. Interpreter in which to create the object.
+ * @param obj_list .. List of initializer objects.
+ * @param count    .. Number of objects in the list to use for initialization.
+ * @param extra    .. Number of additional space in bytes to allocate for extension data.
+ *
+ * If there are more then count objects in the list, only the first count ones will be used.
+ * If there are less then count objects in the list, nil is used to initialize the respective slot.
+ *
+ * The extra space is not initialized.
+ * 
+ * @returns Object
+ *
+ */
+Object *flisp_ext_obj(Interpreter *interp, Object *type, Object **objects, size_t count, size_t extra)
+{
+    GC_CHECKPOINT;
+    GC_TRACE(gcType, type);
+    GC_TRACE(gcObjs, *objects);
+    Object *object = newObject(interp, *gcType, (sizeof(Object *) * count) + extra);
+    GC_RELEASE;
+    object->count = count;
+    size_t i;
+    for(i = 0; i < count && (*gcObjs) != nil; (*gcObjs) = (*gcObjs)->cdr)
+        object->objects[i++] = (*gcObjs)->car;
+    while(i < count)
+        object->objects[i++] = nil;
+    return object;
+}
+
 Object *newCons(Interpreter *interp, Object ** car, Object ** cdr)
 {
     GC_CHECKPOINT;
@@ -550,6 +582,10 @@ Object *newStringWithLength(Interpreter *interp, char *string, size_t length)
     if (length == 0)
         return flisp_empty_string;
 
+    /* Note: we just could allocated the original string, let
+     *   unescapeString do the counting and and set the size correctly
+     *   afterwards. The next GC cycle will discard the extra bytes.
+     */
     for (i = 1; i < length; ++i)
         if (string[i - 1] == '\\' && strchr("\\\"trn", string[i]))
             ++i, ++nEscapes;
@@ -587,41 +623,64 @@ Object *newSymbol(Interpreter *interp, char *string)
     return newSymbolWithLength(interp, string, strlen(string));
 }
 
-Object *newObjectWithClosure(Interpreter *interp, Object *type, Object ** params, Object ** body, Object **env)
+#define FLISP_FORMAT_ERROR_MESSAGE "failed to format error message"
+Object *newErrorObject(Interpreter *interp, Object *error_type, Object *culprit, char *format, ...)
 {
-    Object *list;
-
-    for (list = *params; list->type == type_cons; list = list->cdr) {
-        if (list->car->type != type_symbol)
-            exceptionWithObject(interp, list->car, wrong_type_argument, "(lambda|macro params body) - param is not a symbol");
-        if (list->car == nil || list->car == t)
-            exceptionWithObject(interp, list->car, invalid_value, "(lambda|macro params body) - param cannot be used as a parameter");
-    }
-
-    if (list != nil && list->type != type_symbol)
-        exceptionWithObject(interp, list, wrong_type_argument, "(lambda|macro params body) - param is not a symbol");
+    size_t written;
+    size_t len = sizeof(interp->message.string);
+    char *message;
 
     GC_CHECKPOINT;
-    GC_TRACE(gcParams, *params);
-    GC_TRACE(gcBody, *body);
-    GC_TRACE(gcEnv, *env);
-    Object *closure = newObject(interp, type, sizeof(Object*[3]));
-    GC_RELEASE;
-    closure->count = 3;
-    closure->params = *gcParams;
-    closure->body = *gcBody;
-    closure->env = *gcEnv;
-    return closure;
+    GC_TRACE(gcErrorType, error_type);
+    GC_TRACE(gcCulprit, culprit);
+    GC_TRACE(gcMessage, flisp_empty_string);
+    GC_TRACE(gcError, newObject(interp, type_error, sizeof(Object *[3])));
+    (*gcError)->count = 3;
+    if (format != NULL && format[0] != '\0') {
+        message = interp->message.string;
+        va_list(args);
+        va_start(args, format);
+        written = vsnprintf(message, len, format, args);
+        va_end(args);
+        if (written > len) {
+            strcpy(message+len-4, "...");
+            written = len;
+        } else if (written < 0) {
+            message = FLISP_FORMAT_ERROR_MESSAGE;
+            len = sizeof(FLISP_FORMAT_ERROR_MESSAGE);
+        }
+        *gcMessage = newStringWithLength(interp, message, len);
+    }
+    (*gcError)->error_type = *gcErrorType;
+    (*gcError)->message = *gcMessage;
+    (*gcError)->culprit = *gcCulprit;
+    GC_RETURN(*gcError);
 }
 
-Object *newLambda(Interpreter *interp, Object ** params, Object ** body, Object **env)
+Object *newClosure(Interpreter *interp, Object *type, Object ** args, Object **env)
 {
-    return newObjectWithClosure(interp, type_lambda, params, body, env);
-}
+    Object *o;
+    char *type_string = (type == type_lambda) ? "lambda" : "macro";
 
-Object *newMacro(Interpreter *interp, Object ** params, Object ** body, Object **env)
-{
-    return newObjectWithClosure(interp, type_macro, params, body, env);
+    /* Cover: (closure (a b ..) body) and (closure (a b . ?) body) */
+    for (o = (*args)->car; o->type == type_cons;  o = o->cdr) {
+        if (o->car->type != type_symbol)
+            return newErrorObject(interp, o->car, wrong_type_argument,
+                                  "(%s params body) - param is not a symbol", type_string);
+        if (!gcCollectableObject(interp, o->car))
+            return newErrorObject(interp, o->car, invalid_value, "(%s params body) - param cannot be used as a parameter");
+    }
+
+    /* Cover: (closure a body) and (closure (a b . c) body) */
+    if (o != nil && o->type != type_symbol)
+        return newErrorObject(interp, o, wrong_type_argument, "(%s params body) - param is not a symbol");
+
+    /* Note: check with GC_ALWAYS */
+    o = flisp_ext_obj(interp, type, &nil, 3, 0);
+    o->objects[0] = (*args)->car;
+    o->objects[1] = (*args)->cdr;
+    o->objects[2] = *env;
+    return o;
 }
 
 Object *newEnv(Interpreter *interp, Object ** func, Object ** vals)
@@ -679,39 +738,6 @@ Object *newStreamObject(Interpreter *interp, FILE *fd, char *path)
     stream->path = *gcPath;
 
     return stream;
-}
-#define FLISP_FORMAT_ERROR_MESSAGE "failed to format error message"
-Object *newErrorObject(Interpreter *interp, Object *error_type, Object *culprit, char *format, ...)
-{
-    size_t written;
-    size_t len = sizeof(interp->message.string);
-    char *message;
-
-    GC_CHECKPOINT;
-    GC_TRACE(gcErrorType, error_type);
-    GC_TRACE(gcCulprit, culprit);
-    GC_TRACE(gcMessage, flisp_empty_string);
-    GC_TRACE(gcError, newObject(interp, type_error, sizeof(Object *[3])));
-    (*gcError)->count = 3;
-    if (format != NULL && format[0] != '\0') {
-        message = interp->message.string;
-        va_list(args);
-        va_start(args, format);
-        written = vsnprintf(message, len, format, args);
-        va_end(args);
-        if (written > len) {
-            strcpy(message+len-4, "...");
-            written = len;
-        } else if (written < 0) {
-            message = FLISP_FORMAT_ERROR_MESSAGE;
-            len = sizeof(FLISP_FORMAT_ERROR_MESSAGE);
-        }
-        *gcMessage = newStringWithLength(interp, message, len);
-    }
-    (*gcError)->error_type = *gcErrorType;
-    (*gcError)->message = *gcMessage;
-    (*gcError)->culprit = *gcCulprit;
-    GC_RETURN(*gcError);
 }
 
 // ENVIRONMENT ////////////////////////////////////////////////////////////////
@@ -1427,16 +1453,6 @@ next_clause:
     return evalCond(interp, &next_clause, env);
 }
 
-Object *evalLambda(Interpreter *interp, Object **args, Object **env)
-{
-    return newLambda(interp, &(*args)->car, &(*args)->cdr, env);
-}
-
-Object *evalMacro(Interpreter *interp, Object **args, Object **env)
-{
-    return newMacro(interp, &(*args)->car, &(*args)->cdr, env);
-}
-
 Object *expandMacro(Interpreter *interp, Object ** macro, Object **args)
 {
     GC_CHECKPOINT;
@@ -1594,9 +1610,9 @@ Object *evalExpr(Interpreter *interp, Object ** object, Object **env)
                 *gcObject = evalCond(interp, gcArgs, gcEnv);
                 break;
             case PRIMITIVE_LAMBDA:
-                GC_RETURN(evalLambda(interp, gcArgs, gcEnv));
+                GC_RETURN(newClosure(interp, type_lambda, gcArgs, gcEnv));
             case PRIMITIVE_MACRO:
-                GC_RETURN(evalMacro(interp, gcArgs, gcEnv));
+                GC_RETURN(newClosure(interp, type_macro, gcArgs, gcEnv));
             case PRIMITIVE_MACROEXPAND:
                 GC_RETURN(evalMacroExpand(interp, gcArgs, gcEnv));
             case PRIMITIVE_CATCH:
@@ -1880,42 +1896,31 @@ Object *primitiveCar(Interpreter *interp, Object **args, Object **env)
 {
     if (FLISP_ARG_ONE == nil)
         return nil;
-    if (FLISP_ARG_ONE->type == type_cons)
-        return FLISP_ARG_ONE->car;
-    exceptionWithObject(interp, FLISP_ARG_ONE, wrong_type_argument, "(car args) - arg 1 expected %s, got: %s", type_cons->string, FLISP_ARG_ONE->type->string);
+    FLISP_ARG_TYPECHECK(FLISP_ARG_ONE, type_cons, "(car o) - o");
+    return FLISP_ARG_ONE->car;
 }
 Object *primitiveCdr(Interpreter *interp, Object **args, Object **env)
 {
     if (FLISP_ARG_ONE == nil)
         return nil;
-    if (FLISP_ARG_ONE->type == type_cons)
-        return FLISP_ARG_ONE->cdr;
-    exceptionWithObject(interp, FLISP_ARG_ONE, wrong_type_argument, "(cdr args) - arg 1 expected %s, got: %s", type_cons->string, FLISP_ARG_ONE->type->string);
-
+    FLISP_ARG_TYPECHECK(FLISP_ARG_ONE, type_cons, "(cdr o) - o");
+    return FLISP_ARG_ONE->cdr;
 }
 /** (object type[ ..]) => extended object */
 Object *primitiveObject(Interpreter *interp, Object **args, Object **env)
 {
     FLISP_ARG_TYPECHECK(FLISP_ARG_ONE, type_symbol, "(object type[ ..]) - type");
-    GC_CHECKPOINT;
-    GC_TRACE(gcType, FLISP_ARG_ONE);
-    GC_TRACE(gcArgs, (*args)->cdr);
     
     /* Note: the following is inefficient and we did it alread when we
      *   were called.  Consider adding an nArgs parameter to
      *   primitives. Probably others would benefit too.
      */
     /* Start counting arguments */
-    size_t nArgs = 0;
+    size_t nArgs = -1;
     Object *arg;
-    for (arg = *gcArgs; arg != nil; arg = arg->cdr, nArgs++);
-    /* End counting arguments, used here ------------------------vvvvv*/
-    Object *object = newObject(interp, *gcType, sizeof(Object *)*nArgs);
-    object->count = nArgs;
-    size_t i = 0;
-    for (arg = (*gcArgs); arg != nil; arg = arg->cdr, i++)
-        object->objects[i] = arg->car;
-    GC_RETURN(object);
+    for (arg = *args; arg != nil; arg = arg->cdr, nArgs++);
+    /* End counting arguments, used here -------------------------vvvvv*/
+    return flisp_ext_obj(interp, FLISP_ARG_ONE, &(*args)->cdr, nArgs, 0);
 }
 Object *primitiveObjectCount(Interpreter *interp, Object **args, Object **env)
 {
@@ -1951,45 +1956,20 @@ Object *primitiveObjectList(Interpreter *interp, Object **args, Object **env)
 }
 Object *primitiveCons(Interpreter *interp, Object **args, Object **env)
 {
-    return newCons(interp, &(*args)->car, &(*args)->cdr->car);
+    return flisp_ext_obj(interp, type_cons, args, 2, 0);
 }
-
 Object *primitiveNreverse(Interpreter *interp, Object **args, Object **env)
 {
     return reverseList(interp, (*args)->car);
 }
-
 Object *primitiveError(Interpreter *interp, Object **args, Object **env)
 {
     FLISP_ARG_TYPECHECK(FLISP_ARG_ONE, type_symbol, "(error type message[ object]) - result");
     FLISP_ARG_TYPECHECK(FLISP_ARG_TWO, type_string, "(error type message[ object]) - message");
 
-    /* Object *error = newErrorObject(interp, */
-    /*                                FLISP_ARG_ONE, */
-    /*                                (FLISP_HAS_ARG_THREE) ? FLISP_ARG_THREE : nil, */
-    /*                                NULL); */
-    GC_CHECKPOINT;
-    GC_TRACE(gcArgs, *args);
-    Object *error = newObject(interp, type_error, sizeof(Object*[3]));
-    error->count=3;
-    args = gcArgs;
-    error->error_type = FLISP_ARG_ONE;
-    error->message = FLISP_ARG_TWO;
-    error->culprit = (FLISP_HAS_ARG_THREE) ? FLISP_ARG_THREE : nil;
-    GC_RETURN(error);
+    return flisp_ext_obj(interp, type_error, args, 3, 0);
 }
-Object *primitiveErrorType(Interpreter *interp, Object **args, Object **env)
-{
-    return FLISP_ARG_ONE->error_type;
-}
-Object *primitiveErrorMessage(Interpreter *interp, Object **args, Object **env)
-{
-    return FLISP_ARG_ONE->message;
-}
-Object *primitiveErrorCulprit(Interpreter *interp, Object **args, Object **env)
-{
-    return FLISP_ARG_ONE->culprit;
-}
+/* Note: we want to throw error objects instead of giving all the parameters. */
 Object *primitiveThrow(Interpreter *interp, Object **args, Object **env)
 {
     Object *object = (FLISP_HAS_ARG_THREE) ? FLISP_ARG_THREE : nil;
@@ -2034,6 +2014,13 @@ Object *integerMod(Interpreter *interp, Object **args, Object **env)
     exceptionWithObject(interp, FLISP_ARG_TWO, arithmetic_error, "(i%% q d) - d: division by zero");
 }
 
+/* Note: only (zerop not <) are needed:
+ *
+ * a = b .. (zerop (- a b))
+ * a > b .. b < a
+ * a <= b .. (not (b > a))
+ * ...
+ */
 Object *integerEqual(Interpreter *interp, Object **args, Object **env)
 {
     return (FLISP_ARG_ONE->value == FLISP_ARG_TWO->value) ? t : nil;
@@ -2060,6 +2047,7 @@ Object *integerGreaterEqual(Interpreter *interp, Object **args, Object **env)
 }
 
 // Integer bit operations //////
+/* Note: only Xor and Not are needed, see De morgan */
 Object *integerAnd(Interpreter *interp, Object **args, Object **env)
 {
     return newInteger(interp, FLISP_ARG_ONE->value & FLISP_ARG_TWO->value);
@@ -2604,9 +2592,6 @@ bool flisp_primitives_register(Interpreter *interp)
         && flisp_register_primitive(interp, "gctrace",       0,  0, nil,            primitiveGcTrace)
 #endif
         && flisp_register_primitive(interp, "error",         2,  3, nil,            primitiveError)
-        && flisp_register_primitive(interp, "error-type",    1,  1, type_error,     primitiveErrorType)
-        && flisp_register_primitive(interp, "error-message", 1,  1, type_error,     primitiveErrorMessage)
-        && flisp_register_primitive(interp, "error-culprit", 1,  1, type_error,     primitiveErrorCulprit)
         && flisp_register_primitive(interp, "throw",         2,  3, nil,            primitiveThrow)
         && flisp_register_primitive(interp, "i+",            2,  2, type_integer,   integerAdd)
         && flisp_register_primitive(interp, "i-",            2,  2, type_integer,   integerSubtract)
