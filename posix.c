@@ -1,3 +1,10 @@
+/*
+ * fLisp posix extension: Bag of POSIX libc wrappers
+ *
+ * leg20260315, CC0 1.0
+ *
+ */
+
 #include <errno.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -7,7 +14,6 @@
 #include <fcntl.h>
 #include <fnmatch.h>
 
-#include "lisp.h"
 #include "posix.h"
 
 /* Bag of POSIX libc wrappers */
@@ -28,16 +34,16 @@ Object *posixFflush(Interpreter *interp, Object** args, Object **env)
         if (FLISP_ARG_ONE == t)
             fd = NULL;
         else {
-            FLISP_CHECK_TYPE(FLISP_ARG_ONE, type_stream,  "(fflush[ stream]) - stream");
+            FLISP_ARG_TYPECHECK(FLISP_ARG_ONE, type_stream,  "(fflush[ stream]) - stream");
             if (FLISP_ARG_ONE->fd == NULL)
-                exception(interp, invalid_value, "(fflush[ stream]) - stream already closed");
+                return newError(interp, invalid_value, FLISP_ARG_ONE, "(fflush[ stream]) - stream already closed");
             fd = FLISP_ARG_ONE->fd;
         }
     else if (fd == NULL)
-        exception(interp, invalid_value, "(fflush[ stream]) - output stream not set");
+        return newError(interp, invalid_value, FLISP_ARG_ONE, "(fflush[ stream]) - output stream not set");
 
     if (fflush(fd) == EOF)
-        exception(interp, io_error, "(fflush[ stream]) - fflush() failed: %s", strerror(errno));
+        return newError(interp, io_error, FLISP_ARG_ONE, "(fflush[ stream]) - fflush() failed: %s", strerror(errno));
 
     return t;
 }
@@ -53,30 +59,30 @@ Object *posixFflush(Interpreter *interp, Object** args, Object **env)
 Object *posixFseek(Interpreter *interp, Object** args, Object **env)
 {
     int result, whence = SEEK_SET;
-    FILE *fd = interp->input.fd;
     off_t pos;
+    Object *stream = FLISP_ARG_ONE;
 
-    if (FLISP_ARG_ONE == nil) {
-        if (fd == NULL)
-            exception(interp, invalid_value, "(fseek stream offset[ relativep]) - input stream not set");
+    if (stream == nil) {
+        stream = &interp->input;
+        if (stream->fd == NULL)
+            return newError(interp, invalid_value, stream, "(fseek stream offset[ relativep]) - input stream not set");
     } else {
-        FLISP_CHECK_TYPE(FLISP_ARG_ONE, type_stream,  "(fseek stream offset) - stream");
-        if (FLISP_ARG_ONE->fd == NULL)
-            exception(interp, invalid_value, "(fseek stream) - stream already closed");
-        fd = FLISP_ARG_ONE->fd;
+        FLISP_ARG_TYPECHECK(stream, type_stream,  "(fseek stream offset) - stream");
+        if (stream->fd == NULL)
+            return newError(interp, invalid_value, stream, "(fseek stream) - stream already closed");
     }
-    FLISP_CHECK_TYPE(FLISP_ARG_TWO, type_integer, "(fseek stream offset) - offset");
+    FLISP_ARG_TYPECHECK(FLISP_ARG_TWO, type_integer, "(fseek stream offset) - offset");
 
     if (FLISP_HAS_ARG_THREE && FLISP_ARG_THREE != nil)
         whence = SEEK_CUR;
     else if (FLISP_ARG_TWO->value < 0)
         whence = SEEK_END;
-    result = fseeko(fd, FLISP_ARG_TWO->value, whence);
+    result = fseeko(stream->fd, FLISP_ARG_TWO->value, whence);
     if (result == -1)
-        exception(interp, io_error, "(fseek stream offset) - fseeko() failed: %s", strerror(errno));
+        return newError(interp, io_error, stream, "(fseek stream offset) - fseeko() failed: %s", strerror(errno));
 
-    if ((pos = ftello(fd)) == -1)
-        exception(interp, io_error, "(fseek stream offset) - ftello() failed: %s", strerror(errno));
+    if ((pos = ftello(stream->fd)) == -1)
+        return newError(interp, io_error, stream, "(fseek stream offset) - ftello() failed: %s", strerror(errno));
 
     return newInteger(interp, pos);
 }
@@ -92,17 +98,17 @@ Object *posixFseek(Interpreter *interp, Object** args, Object **env)
  */
 Object *posixFtell(Interpreter *interp, Object** args, Object **env)
 {
-    FILE *fd = interp->input.fd;
+    Object *stream = &interp->input;
     off_t pos;
 
-    if (FLISP_HAS_ARGS) {
-        if (FLISP_ARG_ONE->fd == NULL)
-            exception(interp, invalid_value, "(ftell[ stream]) - stream already closed");
-        fd = FLISP_ARG_ONE->fd;
-    } else if (fd == NULL)
-        exception(interp, invalid_value, "(ftell[ stream]) - input stream not set");
-    if ((pos = ftello(fd)) == -1)
-        exception(interp, io_error, "(ftell[ stream]) - ftello() failed: %s", strerror(errno));
+    if (FLISP_HAS_ARGS)
+        stream = FLISP_ARG_ONE;
+
+    if (stream->fd == NULL)
+        return newError(interp, invalid_value, stream, "(ftell[ stream]) - stream already closed");
+
+    if ((pos = ftello(stream->fd)) == -1)
+        return newError(interp, io_error, stream, "(ftell[ stream]) - ftello() failed: %s", strerror(errno));
 
     return newInteger(interp, pos);
 }
@@ -114,16 +120,14 @@ Object *posixFtell(Interpreter *interp, Object** args, Object **env)
  */
 Object *posixFeof(Interpreter *interp, Object** args, Object **env)
 {
-    FILE *fd = interp->input.fd;
+    Object *stream = &interp->input;
 
-    if (FLISP_HAS_ARGS) {
-        if (FLISP_ARG_ONE->fd == NULL)
-            exception(interp, invalid_value, "(feof[ stream]) - stream already closed");
-        fd = FLISP_ARG_ONE->fd;
-    } else if (fd == NULL)
-        exception(interp, invalid_value, "(feof[ stream]) - input stream not set");
+    if (FLISP_HAS_ARGS)
+        stream = FLISP_ARG_ONE;
+    if (stream->fd == NULL)
+        return newError(interp, invalid_value, stream, "(feof[ stream]) - stream already closed");
 
-    return (feof(fd)) ? end_of_file : nil;
+    return (feof(stream->fd)) ? end_of_file : nil;
 }
 /** (fgetc[ stream]) - read one character from stream or input
  *
@@ -134,19 +138,20 @@ Object *posixFgetc(Interpreter *interp, Object** args, Object **env)
 {
     char s[] = "\0\0";
     int c;
-    FILE *fd = interp->input.fd;
+    Object *stream = &interp->input;
 
     if (FLISP_HAS_ARGS) {
-        FLISP_CHECK_TYPE(FLISP_ARG_ONE, type_stream, "(fgetc[ stream] - stream)");
+        stream = FLISP_ARG_ONE;
         if (FLISP_ARG_ONE->fd == NULL)
-            exception(interp, invalid_value, "(fgetc[ stream]) - stream already closed");
-        fd = FLISP_ARG_ONE->fd;
-    } else if (fd == NULL)
-        exception(interp, invalid_value, "(fgetc[ stream]) - input stream not set");
-
-    c = streamGetc(interp, fd);
-    if (c == EOF)
+            return newError(interp, invalid_value, stream, "(fgetc[ stream]) - stream already closed");
+    }
+    
+    c = fgetc(stream->fd);
+    if (c == EOF) {
+        if (ferror(stream->fd))
+            return newError(interp, io_error, stream, "(fgetc[ stream]) - stream I/O error: %s", strerror(errno));
         return end_of_file;
+    }
     s[0] = (char)c;
     return newString(interp, s);
 }
@@ -170,20 +175,21 @@ Object *posixFgetc(Interpreter *interp, Object** args, Object **env)
 Object *posixFungetc(Interpreter *interp, Object** args, Object **env)
 {
     int c;
-    FILE *fd = interp->input.fd;
+    Object *stream = &interp->input;
 
-    FLISP_CHECK_TYPE(FLISP_ARG_ONE, type_integer, "(fungetc char[ stream] - char)");
+    FLISP_ARG_TYPECHECK(FLISP_ARG_ONE, type_integer, "(fungetc char[ stream] - char)");
+    c = (int)FLISP_ARG_TWO->value;
+    
     if (FLISP_HAS_ARG_TWO) {
-        FLISP_CHECK_TYPE(FLISP_ARG_TWO, type_stream, "(fungetc char[ stream] - stream)");
-        if (FLISP_ARG_TWO->fd == NULL)
-            exception(interp, invalid_value, "(fungetc char [ stream]) - stream already closed");
-        fd = FLISP_ARG_TWO->fd;
-    } else if (fd == NULL)
-        exception(interp, invalid_value, "(fungetc char [ stream]) - input stream not set");
+        FLISP_ARG_TYPECHECK(FLISP_ARG_TWO, type_stream, "(fungetc char[ stream] - stream)");
+        stream = FLISP_ARG_TWO;
+    }
+    if (stream->fd == NULL)
+        return newError(interp, invalid_value, stream, "(fungetc char [ stream]) - stream already closed");
 
-    c = ungetc((int)(FLISP_ARG_ONE->value), fd);
+    c = ungetc(c, stream->fd);
     if (c == EOF)
-        exception(interp, io_error, "(fungetc char [ stream]) - ungetc() failed");
+        return newError(interp, io_error, stream, "(fungetc char [ stream]) - ungetc() failed");
 
     return newInteger(interp, FLISP_ARG_ONE->value);
 }
@@ -203,28 +209,28 @@ Object *posixFgets(Interpreter *interp, Object** args, Object **env)
 {
     Object *string = nil;
     char *input;
-    FILE *fd = interp->input.fd;
+    Object *stream = &interp->input;
 
     if (FLISP_HAS_ARGS) {
-        FLISP_CHECK_TYPE(FLISP_ARG_ONE, type_stream, "(fgets[ stream] - stream)");
-        if (FLISP_ARG_ONE->fd == NULL)
-            exception(interp, invalid_value, "(fgets[ stream]) - stream already closed");
-        fd = FLISP_ARG_ONE->fd;
+        stream = FLISP_ARG_ONE;
+        FLISP_ARG_TYPECHECK(stream, type_stream, "(fgets[ stream] - stream)");
+        if (stream->fd == NULL)
+            return newError(interp, invalid_value, stream, "(fgets[ stream]) - stream already closed");
     }
     input = malloc(INPUT_FMT_BUFSIZ);
     if(input == NULL)
-        exception(interp, out_of_memory, "fgets() failed, %s", strerror(errno));
+        flisp_exception(interp, newError(interp, out_of_memory, stream, "fgets() failed, %s", strerror(errno)));
 
     *input = '\0';
 
-    if(fgets(input, INPUT_FMT_BUFSIZ, fd) != NULL) {
+    if(fgets(input, INPUT_FMT_BUFSIZ, stream->fd) != NULL) {
         string = newString(interp, input);
         free(input);
         return string;
     }
     free(input);
-    if (!feof(fd))
-        exceptionWithObject(interp, FLISP_ARG_ONE, io_error, "fgets() failed: %s", strerror(errno));
+    if (!feof(stream->fd))
+        return newError(interp, stream, io_error, "fgets() failed: %s", strerror(errno));
     return end_of_file;
 }
 /** (fstat path[ linkp]) - get  information about file
@@ -256,7 +262,7 @@ Object *posixFstat(Interpreter *interp, Object** args, Object **env)
     Object *object;
     char *type;
 
-    FLISP_CHECK_TYPE(FLISP_ARG_ONE, type_string,  "(fstat path[ linkp]) - stream");
+    FLISP_ARG_TYPECHECK(FLISP_ARG_ONE, type_string,  "(fstat path[ linkp]) - stream");
 
     if (FLISP_HAS_ARG_TWO && FLISP_ARG_TWO != nil)
         result = lstat(FLISP_ARG_ONE->string, &info);
@@ -266,16 +272,15 @@ Object *posixFstat(Interpreter *interp, Object** args, Object **env)
     if (result == -1) {
         switch(errno) {
         case EACCES:
-            exceptionWithObject(interp, FLISP_ARG_ONE, permission_denied, "(fstat path[ linkp]): %s", strerror(errno));
-            break;
+            return newError(interp, FLISP_ARG_ONE, permission_denied, "(fstat path[ linkp]): %s", strerror(errno));
         case ENOENT:
         case ENOTDIR:
-            exceptionWithObject(interp, FLISP_ARG_ONE, not_found, "(fstat path[ linkp]): %s", strerror(errno));
+            return newError(interp, FLISP_ARG_ONE, not_found, "(fstat path[ linkp]): %s", strerror(errno));
             break;
         case ENAMETOOLONG:
-            exceptionWithObject(interp, FLISP_ARG_ONE, invalid_value, "(fstat path[ linkp]): %s", strerror(errno));
+            return newError(interp, FLISP_ARG_ONE, invalid_value, "(fstat path[ linkp]): %s", strerror(errno));
         }
-        exceptionWithObject(interp, FLISP_ARG_ONE, io_error, "(fstat path[ linkp]): l/stat() failed: %s", strerror(errno));
+        return newError(interp, FLISP_ARG_ONE, io_error, "(fstat path[ linkp]): l/stat() failed: %s", strerror(errno));
     }
 
     /* (size _size_ type _type_ mode _mode_ uid _uid_ gid _gid_ ) */
@@ -362,27 +367,27 @@ Object *posixFttyP(Interpreter *interp, Object** args, Object **env)
 Object *posixMkdir(Interpreter *interp, Object** args, Object **env)
 {
     mode_t mode = S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH;
-    FLISP_CHECK_TYPE(FLISP_ARG_ONE, type_string,  "(fmkdir path[ mode) - path");
+    FLISP_ARG_TYPECHECK(FLISP_ARG_ONE, type_string,  "(fmkdir path[ mode) - path");
     if (FLISP_HAS_ARG_TWO) {
-        FLISP_CHECK_TYPE(FLISP_ARG_TWO, type_integer,  "(fmkdir path[ mode) - mode");
+        FLISP_ARG_TYPECHECK(FLISP_ARG_TWO, type_integer,  "(fmkdir path[ mode) - mode");
         mode = FLISP_ARG_TWO->value;
     }
     if (mkdir(FLISP_ARG_ONE->string, mode) == -1) {
         switch(errno) {
         case EACCES:
         case EROFS:
-            exceptionWithObject(interp, FLISP_ARG_ONE, permission_denied,
+            return newError(interp, FLISP_ARG_ONE, permission_denied,
                                 "(fmkdir path[ mode]): %s", strerror(errno));
         case EEXIST:
-            exceptionWithObject(interp, FLISP_ARG_ONE, file_exists,
+            return newError(interp, FLISP_ARG_ONE, file_exists,
                                 "(fmkdir path[ mode]): %s", strerror(errno));
         case ENAMETOOLONG:
         case ENOENT:
         case ENOTDIR:
-            exceptionWithObject(interp, FLISP_ARG_ONE, invalid_value,
+            return newError(interp, FLISP_ARG_ONE, invalid_value,
                                 "(fmkdir path[ mode]): %s", strerror(errno));
         }
-        exceptionWithObject(interp, FLISP_ARG_ONE, io_error,
+        return newError(interp, FLISP_ARG_ONE, io_error,
                             "(fmkdir path[ mode]): %s", strerror(errno));
     }
     return t;
@@ -411,7 +416,7 @@ Object *posixPopen(Interpreter *interp, Object** args, Object **env)
 
     if(FLISP_HAS_ARG_TWO) {
         if (strcmp(FLISP_ARG_TWO->string, "r") && strcmp(FLISP_ARG_TWO->string, "w"))
-            exception(interp, invalid_value,
+            return newError(interp, invalid_value, FLISP_ARG_TWO,
                       "(popen path[ mode]) - mode must be \"r\" or \"w\", got: %s",
                       FLISP_ARG_TWO->string);
         mode = FLISP_ARG_TWO->string;
@@ -419,7 +424,7 @@ Object *posixPopen(Interpreter *interp, Object** args, Object **env)
 
     fd = popen(FLISP_ARG_ONE->string, mode);
     if (fd == NULL)
-        exception(interp, io_error, "(popen path[ mode]) - popen() failed: %s", strerror(errno));
+        return newError(interp, io_error, FLISP_ARG_ONE, "(popen path[ mode]) - popen() failed: %s", strerror(errno));
 
     return newStreamObject(interp, fd, FLISP_ARG_ONE->string);
 }
@@ -437,7 +442,7 @@ Object *posixPclose(Interpreter *interp, Object** args, Object **env)
     int result = pclose(FLISP_ARG_ONE->fd);
 
     if (result == -1)
-        exceptionWithObject(interp, FLISP_ARG_ONE, io_error, "pclose() failed: %s", strerror(errno));
+        return newError(interp, io_error, FLISP_ARG_ONE, "pclose() failed: %s", strerror(errno));
 
     return newInteger(interp, result);
 }
@@ -481,7 +486,7 @@ Object *posixGetcwd(Interpreter *interp, Object **args, Object **env)
     char buf[PATH_MAX] = "";
 
     if (NULL == getcwd(buf, PATH_MAX))
-        exception(interp, io_error, "getcwd() failed: %s", strerror(errno));
+        flisp_exception(interp, newError(interp, io_error, nil, "getcwd() failed: %s", strerror(errno)));
     return newString(interp, buf);
 }
 
@@ -500,8 +505,8 @@ Object *posixFnmatch(Interpreter *interp, Object** args, Object **env)
 {
     int result, flags = 0;
 
-    FLISP_CHECK_TYPE(FLISP_ARG_ONE, type_string, "(fnmatch pattern string[ flags]) - pattern");
-    FLISP_CHECK_TYPE(FLISP_ARG_TWO, type_string, "(fnmatch pattern string[ flags]) - string");
+    FLISP_ARG_TYPECHECK(FLISP_ARG_ONE, type_string, "(fnmatch pattern string[ flags]) - pattern");
+    FLISP_ARG_TYPECHECK(FLISP_ARG_TWO, type_string, "(fnmatch pattern string[ flags]) - string");
     
     if (FLISP_HAS_ARG_THREE)
         flags = FLISP_ARG_THREE->value;
@@ -510,12 +515,17 @@ Object *posixFnmatch(Interpreter *interp, Object** args, Object **env)
         return t;
     if (result == FNM_NOMATCH)
         return nil;
-    exception(interp, invalid_value, "(fnmatch pattern string[ flags]) - error");
+    return newError(interp, invalid_value, nil, "(fnmatch pattern string[ flags]) - error");
 }
+
+Object *posix_extension = &(Object) { .string = "extension-posix" };
 
 bool flisp_posix_register(Interpreter *interp)
 {
-    Object *object = newInteger(interp, FNM_PATHNAME);
+    Object *object = newString(interp, FLISP_POSIX_VERSION);
+    flisp_register_constant(interp, posix_extension, object);
+   
+    object = newInteger(interp, FNM_PATHNAME);
     flisp_register_constant(interp, fnm_pathname, object);
     object = newInteger(interp, FNM_NOESCAPE);
     flisp_register_constant(interp, fnm_noescape, object);
@@ -524,13 +534,13 @@ bool flisp_posix_register(Interpreter *interp)
 
     
     return
-        flisp_register_primitive(   interp, "fflush",  0, 1, nil,         posixFflush)
+        flisp_register_primitive(   interp, "fflush",  0, 1, type_stream, posixFflush)
         && flisp_register_primitive(interp, "fseek",   2, 3, nil,         posixFseek)
         && flisp_register_primitive(interp, "ftell",   0, 1, type_stream, posixFtell)
         && flisp_register_primitive(interp, "feof",    0, 1, type_stream, posixFeof)
-        && flisp_register_primitive(interp, "fgetc",   0, 1, nil,         posixFgetc)
+        && flisp_register_primitive(interp, "fgetc",   0, 1, type_stream, posixFgetc)
         && flisp_register_primitive(interp, "fungetc", 1, 2, nil,         posixFungetc)
-        && flisp_register_primitive(interp, "fgets",   0, 1, nil,         posixFgets)
+        && flisp_register_primitive(interp, "fgets",   0, 1, type_stream, posixFgets)
         && flisp_register_primitive(interp, "fstat",   1, 2, nil,         posixFstat)
         && flisp_register_primitive(interp, "fttyp",   0, 1, type_stream, posixFttyP)
         && flisp_register_primitive(interp, "fmkdir",  1, 2, nil,         posixMkdir)

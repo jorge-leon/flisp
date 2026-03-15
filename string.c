@@ -1,3 +1,10 @@
+/*
+ * fLisp string extension: utf-8 and matching
+ *
+ * leg20260315, CC0 1.0
+ *
+ */
+
 #include <ctype.h>
 #include <string.h>
 
@@ -9,11 +16,11 @@ Object *stringCharLength(Interpreter *interp, Object **args, Object **env)
     size_t len;
 
     if (*(FLISP_ARG_ONE->string) == '\0')
-        exceptionWithObject(interp, FLISP_ARG_ONE, invalid_value,
+        return newError(interp, FLISP_ARG_ONE, invalid_value,
                             "(char-length string) - string is empty");
     len = flisp_char_length(*(FLISP_ARG_ONE->string));
     if (len == 0)
-        exceptionWithObject(interp, FLISP_ARG_ONE, range_error,
+        return newError(interp, FLISP_ARG_ONE, range_error,
                             "char-length string) - invalid UTF-8 encoding");
     return newInteger(interp, len);
 }
@@ -67,7 +74,7 @@ Object *stringCodeChar(Interpreter *interp, Object **args, Object **env)
 
     len = flisp_code_char(FLISP_ARG_ONE->value, string);
     if (len == -1)
-        exceptionWithObject(interp, FLISP_ARG_ONE, range_error,
+        return newError(interp, FLISP_ARG_ONE, range_error,
                             "(code-char n) - n out of Unicode range");
     fl_debug(interp, "%d: %hhX %hhX %hhX %hhX %hhX\n",
              len, string[0], string[1], string[2], string[3], string[4]
@@ -111,11 +118,11 @@ Object *stringCharCode(Interpreter *interp, Object **args, Object **env)
     int64_t code;
 
     if (*(FLISP_ARG_ONE->string) == '\0')
-        exceptionWithObject(interp, FLISP_ARG_ONE, invalid_value,
+        return newError(interp, FLISP_ARG_ONE, invalid_value,
                             "(char-code string) - string is empty");
     code = flisp_char_code(FLISP_ARG_ONE->string);
     if (code == -1)
-        exceptionWithObject(interp, FLISP_ARG_ONE, invalid_value,
+        return newError(interp, FLISP_ARG_ONE, invalid_value,
                             "(char-code string) - string invalid UTF-8 encoding");
     return newInteger(interp, code);
 }
@@ -135,8 +142,13 @@ Object *stringStrcspn(Interpreter *interp, Object** args, Object **env)
     return newInteger(interp, flisp_char_count(interp, FLISP_ARG_ONE->string, i));
 }
 
+Object *string_extension = &(Object) { .string = "extension-string" };
+
 bool flisp_string_register(Interpreter *interp)
 {
+    Object *object = newString(interp, FLISP_STRING_VERSION);
+    flisp_register_constant(interp, string_extension, object);
+
     return
         flisp_register_primitive(   interp, "char-length",  1, 1, type_string,  stringCharLength)
         && flisp_register_primitive(interp, "code-char",    1, 1, type_integer, stringCodeChar)

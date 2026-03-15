@@ -91,7 +91,9 @@ flisp_err; ok reader-17 read list without end
 
 # Special forms
 IN='(quote)' ERR='expects at least 1 arguments' OBJ='#<Primitive quote>'
-flisp_err; ok quote-1 w/o arg error message
+### flisp_err; ok quote-1 w/o arg error message
+OUT='#<Error #<Primitive quote>: "expects at least 1 arguments", wrong-number-of-arguments>'
+flisp_expr; ok quote-1 w/o arg error message
 
 IN="(bind var 'val)" OUT=val
 flisp_expr; ok bind-2 assignment returns value
@@ -100,7 +102,9 @@ IN="(bind var 'val) var" OUT="val"
 flisp_expr; ok bind-3 var evaluates to val
 
 IN='(bind var1)' OBJ='#<Primitive bind>' ERR='expects at least 2 arguments'
-flisp_err; ok bind-4 one arg fails
+###flisp_err; ok bind-4 one arg fails
+OUT='#<Error #<Primitive bind>: "expects at least 2 arguments", wrong-number-of-arguments>'
+flisp_expr; ok bind-4 one arg fails
 
 IN="(bind var1 3) ((lambda () (bind var1 2))) var1" OUT=3
 flisp_expr; ok setq-5 local bind does not set outer variable.
@@ -158,11 +162,15 @@ IN="(cond nil ((consp (quote (a b)))))" OUT=t
 flisp_expr; ok cond-13 cond with last expresion funcall gives result
 
 IN='(cond . "a")' ERR='(cond args) - args is not a list: arg 0' OBJ='"a"'
-flisp_err; ok cond-14 fail if not called with a cons
+###flisp_err; ok cond-14 fail if not called with a cons
+OUT='#<Error "a": "(cond args) - args is not a list: arg 0", wrong-type-argument>'
+flisp_expr; ok cond-14 fail if not called with a cons
 
 IN='(cond "a" ())' OBJ='"a"' ERR='(cond clause ..) - is not a list: clause'
-flisp_err; ok cond-15 fail if clause is not a cons
-
+###flisp_err; ok cond-15 fail if clause is not a cons
+OUT='#<Error "a": "(cond clause ..) - is not a list: clause", wrong-type-argument>'
+flisp_expr; ok cond-15 fail if clause is not a cons
+return
 IN='(cond (nil . "a"))' ERR='unexpected dot at start of list' OBJ=
 flisp_err; ok cond-16 fail if clause is cons with car nil - captured by reader
 

@@ -32,7 +32,7 @@ Object *readDouble(Interpreter *interp)
     errno = 0;
     d = strtod(interp->buf, NULL);
     if (errno == ERANGE)
-        exception(interp, range_error, "integer out of range,: %f", d);
+        flisp_exception(interp, newError(interp, range_error, nil, "integer out of range,: %f", d));
     // Note: purposely not dealing with NaN
     number = newDouble(interp, d);
     resetBuf(interp);

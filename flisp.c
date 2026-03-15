@@ -48,6 +48,11 @@ int main(int argc, char **argv)
     if (interp == NULL)
         fatal("fLisp interpreter initialization failed");
 
+    /* if (flisp_error(interp)) { */
+    /*     flisp_write_error(interp, stderr); */
+    /*     exit(1); */
+    /* } */
+
 #ifdef FLISP_DOUBLE_EXTENSION
     flisp_double_register(interp);
 #endif
@@ -55,8 +60,8 @@ int main(int argc, char **argv)
     flisp_string_register(interp);
 
     flisp_eval(interp, NULL);
-    if (FLISP_RESULT_CODE(interp) != nil) {
-        flisp_write_error(interp, stderr);
+    if (flisp_error(interp)) {
+        //flisp_write_error(interp, stderr);
         return 1;
     }
     return 0;

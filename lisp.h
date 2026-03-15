@@ -1,10 +1,14 @@
 #ifndef LISP_H
 #define LISP_H
 /*
- * lisp.h, femto, Georg Lehner, 2024
- * fLisp header file
+ * fLisp - a tiny yet practical Lisp interpreter.
+ *
+ * Based on Tiny-Lisp: https://github.com/matp/tiny-lisp, public domain
+ *
+ * Georg Lehner 2024, CC0 1.0
  *
  */
+
 #include <setjmp.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -37,7 +41,7 @@
 /* Debugging */
 #define DEBUG_GC 0
 #define DEBUG_GC_ALWAYS 0
-#define FLISP_TRACE 0
+#define FLISP_TRACE 1
 
 /* Lisp objects */
 
@@ -101,14 +105,8 @@ typedef struct Memory {
 typedef struct Interpreter {
 
     /* private */
-    Object *error;                   /* error code */
-    struct {
-        Object * type;
-        size_t size;
-        union { int64_t i; double n; size_t s; void *p;};
-        char string[WRITE_FMT_BUFSIZ]; /* Error message string object */
-    } message;
     Object *result;                  /* result or error object */
+    Object message;
 
     Object input;                    /* default input stream object */
     Object output;                   /* default output stream object */
@@ -175,20 +173,12 @@ extern Object *newStringWithLength(Interpreter *, char *, size_t);
 extern Object *newString(Interpreter *, char *);
 extern Object *newCons(Interpreter *, Object **, Object **);
 extern Object *newSymbol(Interpreter *, char *);
+extern Object *newError(Interpreter *, Object *, Object *, char *, ...);
 extern Object *newStreamObject(Interpreter *, FILE *, char *);
 
 extern int streamGetc(Interpreter *interp, FILE *fd);
 extern void resetBuf(Interpreter *);
 extern size_t addCharToBuf(Interpreter *, int);
-
-extern void setInterpreterResult(Interpreter *, Object *, Object *, char *, ...);
-#define exceptionWithObject(interp, object, error, ...)           \
-    do {                                                          \
-        resetBuf(interp);                                         \
-        setInterpreterResult(interp, object, error, __VA_ARGS__); \
-        longjmp(*interp->catch, 2);                               \
-    } while(0)
-#define exception(interp, error, ...)       exceptionWithObject(interp, nil, error, __VA_ARGS__)
 
 #define GC_PASTE1(name, id)  name ## id
 #define GC_PASTE2(name, id)  GC_PASTE1(name, id)
@@ -215,13 +205,9 @@ void fl_debug(Interpreter *, char *, ...);
 #define FLISP_HAS_ARG_TWO ((*args)->cdr != nil)
 #define FLISP_HAS_ARG_THREE ((*args)->cdr->cdr != nil)
 
-#define FLISP_CHECK_TYPE(PARAM, TYPE, SIGNATURE) \
-    if (PARAM->type != TYPE)               \
-        exceptionWithObject(interp, PARAM, wrong_type_argument, \
-                            SIGNATURE " expected %s, got: %s", TYPE->string, PARAM->type->string)
 #define FLISP_ARG_TYPECHECK(PARAM, TYPE, SIGNATURE)                     \
     if (PARAM->type != TYPE)                                            \
-        return newErrorObject(interp, wrong_type_argument, PARAM,     \
+        return newError(interp, wrong_type_argument, PARAM,     \
             SIGNATURE " expected %s, got: %s", TYPE->string, PARAM->type->string)
 
 /* UTF-8 handling */
@@ -234,16 +220,18 @@ extern Interpreter *flisp_new(size_t size, char **, char*, FILE*, FILE*, FILE*);
 extern void flisp_destroy(Interpreter *);
 extern void flisp_eval(Interpreter *, char *);
 /* Note: experimental */
+extern bool flisp_error(Interpreter *);
 extern void flisp_expr(Interpreter *, Object *);
 extern void flisp_write_object(Interpreter *, FILE *, Object *, bool);
 extern void flisp_write_error(Interpreter *, FILE *);
+extern void flisp_exception(Interpreter *, Object *);
 
 extern void flisp_register_constant(Interpreter *, Object *, Object *);
 extern Primitive *flisp_register_primitive(Interpreter *, char *, int, int, Object *, LispEval);
 
-#define FLISP_RESULT_CODE(INTERPRETER) INTERPRETER->error
-#define FLISP_RESULT_MESSAGE(INTERPRETER) ((Object *)&INTERPRETER->message)
-#define FLISP_RESULT_OBJECT(INTERPRETER) INTERPRETER->result
+#define FLISP_RESULT_CODE(INTERPRETER) INTERPRETER->result->error_type
+#define FLISP_RESULT_MESSAGE(INTERPRETER) INTERPRETER->result->message->string
+#define FLISP_RESULT_OBJECT(INTERPRETER) INTERPRETER->result->culprit
 
 #endif
 /*

@@ -1,11 +1,11 @@
 /*
- * speed extension: C-implementation of some core functions
+ * fLisp speed extension: C-implementation of some core functions
+ *
+ * leg20260315, CC0 1.0
+ *
  */
 
-#include "lisp.h"
 #include "speed.h"
-
-#define FLISP_SPEED_VERSION 0.1
 
 /*
  * Candidates:
