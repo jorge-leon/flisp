@@ -11,7 +11,7 @@
 #include "lisp.h"
 #include "string.h"
 
-Object *stringCharLength(Interpreter *interp, Object **args, Object **env)
+Object *stringCharLength(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     size_t len;
 
@@ -67,7 +67,7 @@ size_t flisp_code_char(int64_t code, char *string)
     return len;
 }
 
-Object *stringCodeChar(Interpreter *interp, Object **args, Object **env)
+Object *stringCodeChar(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     size_t len = 0;
     char string[5] = { 0 };
@@ -113,7 +113,7 @@ int64_t flisp_char_code(char *string)
     return code;
 }
 
-Object *stringCharCode(Interpreter *interp, Object **args, Object **env)
+Object *stringCharCode(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     int64_t code;
 
@@ -128,7 +128,7 @@ Object *stringCharCode(Interpreter *interp, Object **args, Object **env)
 }
 
 /** strspn */
-Object *stringStrspn(Interpreter *interp, Object** args, Object **env)
+Object *stringStrspn(Interpreter *interp, Object** args, Object **env, size_t nArgs)
 {
     int64_t i = strspn(FLISP_ARG_ONE->string, FLISP_ARG_TWO->string);
     return newInteger(interp, flisp_char_count(interp, FLISP_ARG_ONE->string, i));
@@ -136,7 +136,7 @@ Object *stringStrspn(Interpreter *interp, Object** args, Object **env)
 
 
 /** strcspn */
-Object *stringStrcspn(Interpreter *interp, Object** args, Object **env)
+Object *stringStrcspn(Interpreter *interp, Object** args, Object **env, size_t nArgs)
 {
     int64_t i = strcspn(FLISP_ARG_ONE->string, FLISP_ARG_TWO->string);
     return newInteger(interp, flisp_char_count(interp, FLISP_ARG_ONE->string, i));
@@ -146,8 +146,7 @@ Object *string_extension = &(Object) { .string = "extension-string" };
 
 bool flisp_string_register(Interpreter *interp)
 {
-    Object *object = newString(interp, FLISP_STRING_VERSION);
-    flisp_register_constant(interp, string_extension, object);
+    flisp_register_constant(interp, string_extension, newString(interp, FLISP_STRING_VERSION));
 
     return
         flisp_register_primitive(   interp, "char-length",  1, 1, type_string,  stringCharLength)

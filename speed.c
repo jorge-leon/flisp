@@ -33,8 +33,7 @@ Object *speed_extension = &(Object) { .string = "extension-speed" };
 
 bool flisp_speed_register(Interpreter *interp)
 {
-    Object *object = newString(interp, #FLISP_SPEED_VERSON);
-    flisp_register_constant(interp, speed_extension, object);
+    flisp_register_constant(interp, speed_extension, newString(interp, #FLISP_SPEED_VERSON));
     
     return
         flisp_register_primitive(   interp, "cons",  2, 2, nil, speedCons)

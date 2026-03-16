@@ -8,52 +8,21 @@
 /* Constants */
 /* Types */
 
-Object *newDouble(Interpreter *interp, double number)
-{
-    Object *object = newObject(interp, type_double, 0);
-    object->number = number;
-    return object;
-}
-
-/** readDouble - add a float from the read buffer to the interpreter
- *
- * @param interp  fLisp interpreter
- *
- * returns: double object
- *
- * throws: range-error
- */
-Object *readDouble(Interpreter *interp)
-{
-    double d;
-    Object *number;
-
-    addCharToBuf(interp, '\0');
-    errno = 0;
-    d = strtod(interp->buf, NULL);
-    if (errno == ERANGE)
-        flisp_exception(interp, newError(interp, range_error, nil, "integer out of range,: %f", d));
-    // Note: purposely not dealing with NaN
-    number = newDouble(interp, d);
-    resetBuf(interp);
-    return number;
-}
-
 // Number Type Conversion /////
-Object *integerFromDouble(Interpreter *interp, Object **args, Object **env)
+Object *integerFromDouble(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     return newInteger(interp, (int64_t) FLISP_ARG_ONE->number);
 }
 
-Object *doubleFromInteger(Interpreter *interp, Object **args, Object **env)
+Object *doubleFromInteger(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     return newDouble(interp, (double) FLISP_ARG_ONE->value);
 }
 // Double Math ///////
-#define FLISP_DOUBLE_MATHOP(name, op)                                         \
-Object *name(Interpreter *interp, Object **args, Object **env)                \
-{                                                                             \
-    return newDouble(interp, FLISP_ARG_ONE->number op FLISP_ARG_TWO->number); \
+#define FLISP_DOUBLE_MATHOP(name, op)                                        \
+Object *name(Interpreter *interp, Object **args, Object **env, size_t nArgs) \
+{                                                                            \
+    return newDouble(interp, FLISP_ARG_ONE->number op FLISP_ARG_TWO->number);\
 }
 FLISP_DOUBLE_MATHOP(doubleAdd, +)
 FLISP_DOUBLE_MATHOP(doubleSubtract, -)
@@ -65,13 +34,17 @@ FLISP_DOUBLE_MATHOP(doubleLessEqual, <=)
 FLISP_DOUBLE_MATHOP(doubleGreater, >)
 FLISP_DOUBLE_MATHOP(doubleGreaterEqual, >=)
 
-Object *doubleMod(Interpreter *interp, Object **args, Object **env)
+Object *doubleMod(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     return newDouble(interp, fmod(FLISP_ARG_ONE->number, FLISP_ARG_TWO->number));
 }
 
+Object *double_extension = &(Object) { .string = "extension-double" };
+
 bool flisp_double_register(Interpreter *interp)
 {
+    flisp_register_constant(interp, double_extension, newString(interp, FLISP_DOUBLE_VERSION));
+
     return
         flisp_register_primitive(   interp, "integer", 1,  1, type_double,  integerFromDouble)
         && flisp_register_primitive(interp, "double",  1,  1, type_integer, doubleFromInteger)

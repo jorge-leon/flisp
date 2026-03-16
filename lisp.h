@@ -47,7 +47,7 @@
 
 typedef struct Object Object;
 typedef struct Interpreter Interpreter;
-typedef Object *(*LispEval) (Interpreter *, Object **, Object **);
+typedef Object *(*LispEval) (Interpreter *, Object **, Object **, size_t);
 
 typedef struct Primitive {
     char *name;
@@ -91,7 +91,7 @@ struct Object {
         struct { Object *car;    Object *cdr; };                          // Cons
         struct { Object *params; Object *body; Object *env; };            // Closure: Lambda, Macro 
         struct { Object *parent; Object *vars; Object *vals; };           // Environment
-        char string[PATH_MAX];                                            // String
+        char string[PATH_MAX];                                            // String, Symbol
         struct { Object *error; Object *message; Object *culprit; }; // Error
         struct { Object *path; FILE *fd; char *buf; size_t len; };        // Stream
     };
@@ -153,17 +153,19 @@ extern Object *t;
 /* Types */
 extern Object *type_integer;
 extern Object *type_double;
-extern Object *type_string;
-extern Object *type_symbol;
+extern Object *type_primitive;
+/* internal */
+extern Object *type_moved;
+
+extern Object *type_vector;
 extern Object *type_cons;
 extern Object *type_lambda;
 extern Object *type_macro;
-extern Object *type_error;
-extern Object *type_primitive;
-extern Object *type_stream;
-/* internal */
 extern Object *type_env;
-extern Object *type_moved;
+extern Object *type_string;
+extern Object *type_symbol;
+extern Object *type_error;
+extern Object *type_stream;
 /* Exceptions */
 extern Object *end_of_file;
 extern Object *range_error;
@@ -184,6 +186,7 @@ extern Object *flisp_empty_string;
 /* Note: flisp_' ify these names */
 extern Object *newObject(Interpreter *, Object *, size_t);
 extern Object *newInteger(Interpreter *, int64_t);
+extern Object *newDouble(Interpreter *, double);
 extern Object *newStringWithLength(Interpreter *, char *, size_t);
 extern Object *newString(Interpreter *, char *);
 extern Object *newCons(Interpreter *, Object **, Object **);
@@ -192,7 +195,7 @@ extern Object *newError(Interpreter *, Object *, Object *, char *, ...);
 extern Object *newStreamObject(Interpreter *, FILE *, char *);
 
 extern void resetBuf(Interpreter *);
-extern size_t addCharToBuf(Interpreter *, int);
+extern bool addCharToBuf(Interpreter *, int);
 
 /* Garbage Collector */
 #define GC_PASTE1(name, id)  name ## id
@@ -214,10 +217,6 @@ void fl_debug(Interpreter *, char *, ...);
 #define FLISP_ARG_ONE (*args)->car
 #define FLISP_ARG_TWO (*args)->cdr->car
 #define FLISP_ARG_THREE (*args)->cdr->cdr->car
-
-#define FLISP_HAS_ARGS *args != nil
-#define FLISP_HAS_ARG_TWO ((*args)->cdr != nil)
-#define FLISP_HAS_ARG_THREE ((*args)->cdr->cdr != nil)
 
 #define FLISP_ARG_TYPECHECK(PARAM, TYPE, SIGNATURE)                     \
     if (PARAM->type != TYPE)                                            \

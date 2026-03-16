@@ -1,23 +1,15 @@
 #ifndef DOUBLE_H
 #define DOUBLE_H
+/*
+ * fLisp double extension: IEEE double floating point arithmethic
+ *
+ * leg20260316, CC0 1.0
+ *
+ */
 
 #include "lisp.h"
 
-extern Object *newDouble(Interpreter *, double);
-extern Object *readDouble(Interpreter *);
-
-extern Object *integerFromDouble(Interpreter *, Object **, Object **);
-extern Object *doubleFromInteger(Interpreter *, Object **, Object **);
-extern Object *doubleAdd(Interpreter *, Object **, Object **);
-extern Object *doubleSubtract(Interpreter *, Object **, Object **);
-extern Object *doubleMultiply(Interpreter *, Object **, Object **);
-extern Object *doubleDivide(Interpreter *, Object **, Object **);
-extern Object *doubleMod(Interpreter *, Object **, Object **);
-extern Object *doubleEqual(Interpreter *, Object **, Object **);
-extern Object *doubleLess(Interpreter *, Object **, Object **);
-extern Object *doubleLessEqual(Interpreter *, Object **, Object **);
-extern Object *doubleGreater(Interpreter *, Object **, Object **);
-extern Object *doubleGreaterEqual(Interpreter *, Object **, Object **);
+#define FLISP_DOUBLE_VERSION "0.1"
 
 extern bool flisp_double_register(Interpreter *);
 

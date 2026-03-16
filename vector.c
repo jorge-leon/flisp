@@ -17,8 +17,7 @@ Object *vector_extension = &(Object) { .string = "extension-vector" };
 
 bool vector_register(Interpreter *interp)
 {
-    Object *object = newString(interp, #FLISP_VECTOR_VERSON);
-    flisp_register_constant(interp, vector_extension, object);
+    flisp_register_constant(interp, vector_extension, tnewString(interp, #FLISP_VECTOR_VERSON);
     
     return true;
 }
