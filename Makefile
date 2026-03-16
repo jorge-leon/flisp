@@ -35,7 +35,7 @@ RC_FILES = init.lsp
 HEADER = lisp.h string.h posix.h double.h
 
 LISPLIB = flisp.lsp string.lsp file.lsp cl.lsp
-SOURCES = flisp.c lisp.c lisp.h double.c double.h posix.c posix.h
+SOURCES = fl.c flisp.c lisp.c lisp.h double.c double.h posix.c posix.h
 
 DOCFILES = README.md doc/flisp.html doc/develop.html doc/history.html doc/implementation.html
 MOREDOCS = README.html doc/flisp.md doc/develop.md doc/history.md doc/implementation.md
@@ -51,6 +51,9 @@ debug: $(BINARIES) $(LIBRARIES)
 
 double.o: double.c double.h lisp.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) -D FLISP_DOUBLE_EXTENSION -c $<
+
+fl: fl.o lisp.o
+	$(LD) $(LDFLAGS) -o $@ $^
 
 flisp: flisp.o $(OBJ) init.lsp
 	$(LD) $(LDFLAGS) -o $@ $< $(OBJ)
@@ -118,7 +121,7 @@ doxygen: FORCE
 	doxygen
 
 # Development
-fl: flisp FORCE
+ifl: flisp FORCE
 	FLISPRC=init.lsp FLISPLIB=. FLISP_DEBUG=f.log $$(which rlwrap) ./flisp
 dfl: flispd FORCE
 	FLISPRC=init.lsp FLISPLIB=. FLISP_DEBUG=f.log $$(which rlwrap) ./flispd

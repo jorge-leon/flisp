@@ -664,8 +664,8 @@ Object *newError(Interpreter *interp, Object *error, Object *culprit, char *form
     GC_TRACE(gcErrorType, error);
     GC_TRACE(gcCulprit, culprit);
     GC_TRACE(gcMessage, flisp_empty_string);
-    GC_TRACE(gcError, newObject(interp, type_error, sizeof(Object *[3])));
-    (*gcError)->length = 3;
+    GC_TRACE(gcError, flisp_ext_obj(interp, type_error, &nil, 3, 0));
+
     if (format != NULL && format[0] != '\0') {
         message = interp->message.string;
         va_list(args);
@@ -744,7 +744,7 @@ Object *envLookup(Interpreter *interp, Object *var, Object *env)
             return vals;
     }
 
-    return newError(interp, var, invalid_value, "has no value");
+    return newError(interp, invalid_value, var, "has no value");
 }
 Object *envAdd(Interpreter *interp, Object ** var, Object ** val, Object **env)
 {
@@ -809,7 +809,7 @@ Object *reverseList(Interpreter *interp, Object *list)
 
     while (list != nil) {
         if (list->type != type_cons)
-            return newError(interp, list, invalid_value, "(nreverse list) - list not a proper list");
+            return newError(interp, invalid_value, list,  "(nreverse list) - list not a proper list");
         Object *swap = list;
         list = list->cdr;
         swap->cdr = object;
@@ -1244,7 +1244,7 @@ Object *primitiveRead(Interpreter *interp, Object **args, Object **env, size_t n
 
     if (result == NULL) {
         if (*gcEofv == nil)
-            return newError(interp, *gcStream, end_of_file , "(read[ stream[ eofv]) - input exhausted");
+            return newError(interp, end_of_file, *gcStream, "(read[ stream[ eofv]) - input exhausted");
         else
             result = *gcEofv;
     }
@@ -1294,7 +1294,7 @@ Object *evalBind(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 
     FLISP_ARG_TYPECHECK(FLISP_ARG_ONE, type_symbol, "(bind symbol object[ globalp]) - symbol");
     if (!gcCollectableObject(interp, FLISP_ARG_ONE))
-        return newError(interp, FLISP_ARG_ONE, wrong_type_argument,
+        return newError(interp, wrong_type_argument, FLISP_ARG_ONE,
                             "(bind symbol object[ globalp] - symbol: is a constant and cannot be redefined");
     if (nArgs == 3)
         globalp = (FLISP_ARG_THREE != nil);
@@ -1315,7 +1315,7 @@ Object *evalProgn(Interpreter *interp, Object **args, Object **env)
         return nil;
 
     if ((*args)->type != type_cons)
-        return newError(interp, *args, wrong_type_argument, "(progn args) args is not a list");
+        return newError(interp, wrong_type_argument, *args, "(progn args) args is not a list");
 
     if ((*args)->cdr == nil)
         return (*args)->car;
@@ -1348,11 +1348,11 @@ Object *evalCond(Interpreter *interp, Object **args, Object **env)
         goto next_clause;
 
     if (clause->type != type_cons)
-        return newError(interp, clause, wrong_type_argument, "(cond clause ..) - is not a list: clause");
+        return newError(interp, wrong_type_argument, clause, "(cond clause ..) - is not a list: clause");
 
     Object *action = clause->cdr;
     if (action != nil && action->type != type_cons)
-        return newError(interp, clause, wrong_type_argument, "(cond (pred action) ..) action is not a list");
+        return newError(interp, wrong_type_argument, clause, "(cond (pred action) ..) action is not a list");
 
     Object *pred = clause->car;
     if (pred == nil)
@@ -1444,7 +1444,7 @@ Object *evalCatch(Interpreter *interp, Object **args, Object **env)
     GC_CHECKPOINT;
     if (setjmp(exceptionEnv)) {
         /* Note: we must protect against invalid values here */
-        fl_debug(interp, "catch:%s: '%s'\n", (FLISP_RESULT_CODE(interp))->string, FLISP_RESULT_MESSAGE(interp));
+        fl_debug(interp, "catch:%s: '%s'\n", (FLISP_ERROR_TYPE(interp)), FLISP_ERROR_MESSAGE(interp));
     } else {
         do {
             interp->result = evalExpr(interp, &(*args)->car, env);
@@ -1498,22 +1498,22 @@ Object *evalExpr(Interpreter *interp, Object ** object, Object **env)
 
             for (args = *gcArgs; args != nil; args = args->cdr, nArgs++) {
                 if (args->type != type_cons)
-                    return newError(interp, args, wrong_type_argument,
+                    return newError(interp, wrong_type_argument, args,
                                         "(%s args) - args is not a list: arg %d",
                                         primitive->name, nArgs);
                 if (args->car->type == type_moved || args->cdr->type == type_moved)
-                    return newError(interp, args->car, gc_error,
+                    return newError(interp, gc_error, args->car,
                                         "(%s args) - arg %d is already disposed off",
                                         primitive->name, nArgs);
             }
             if (nArgs < primitive->nMinArgs)
-                return newError(interp, *gcFunc, wrong_number_of_arguments,
+                return newError(interp, wrong_number_of_arguments, *gcFunc,
                                     "expects at least %d arguments", primitive->nMinArgs);
             if (nArgs > primitive->nMaxArgs && primitive->nMaxArgs >= 0)
-                return newError(interp, *gcFunc, wrong_number_of_arguments,
+                return newError(interp, wrong_number_of_arguments, *gcFunc,
                                     "expects at most %d arguments", primitive->nMaxArgs);
             if (primitive->nMaxArgs < 0 && nArgs % -primitive->nMaxArgs)
-                return newError(interp, *gcFunc, wrong_number_of_arguments,
+                return newError(interp, wrong_number_of_arguments, *gcFunc,
                                     "expects a multiple of %d arguments", -primitive->nMaxArgs);
 
             switch ((uintptr_t)primitive->eval) {
@@ -1541,7 +1541,7 @@ Object *evalExpr(Interpreter *interp, Object ** object, Object **env)
                 if (primitive->argsType != nil)
                     for (args = *gcArgs; args != nil; args = args->cdr, i++)
                         if (args->car->type != primitive->argsType)
-                            return newError(interp, args->car, wrong_type_argument, "(%s args) - arg %d expected %s, got: %s",
+                            return newError(interp, wrong_type_argument, args->car, "(%s args) - arg %d expected %s, got: %s",
                                                 primitive->name, i,
                                                 primitive->argsType->string,
                                                 args->car->type->string
@@ -1557,7 +1557,7 @@ Object *evalExpr(Interpreter *interp, Object ** object, Object **env)
                 GC_RETURN(primitive->eval(interp, gcArgs, gcEnv, nArgs));
             }
         } else {
-            return newError(interp, *gcFunc, wrong_type_argument, "is not a function");
+            return newError(interp, wrong_type_argument, *gcFunc, "is not a function");
         }
     }
 }
@@ -1913,7 +1913,7 @@ Object *integerMultiply(Interpreter *interp, Object **args, Object **env, size_t
 Object *integerDivide(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     if (FLISP_ARG_TWO->value == 0)
-        return newError(interp, FLISP_ARG_TWO, arithmetic_error, "(i/ q d) - d: division by zero");
+        return newError(interp, arithmetic_error, FLISP_ARG_TWO, "(i/ q d) - d: division by zero");
 
     return newInteger(interp, FLISP_ARG_ONE->value / FLISP_ARG_TWO->value);
 }
@@ -1921,7 +1921,7 @@ Object *integerDivide(Interpreter *interp, Object **args, Object **env, size_t n
 Object *integerMod(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     if (FLISP_ARG_TWO->value == 0)
-        return newError(interp, FLISP_ARG_TWO, arithmetic_error, "(i%% q d) - d: division by zero");
+        return newError(interp, arithmetic_error, FLISP_ARG_TWO, "(i%% q d) - d: division by zero");
 
     return newInteger(interp, FLISP_ARG_ONE->value % FLISP_ARG_TWO->value);
 }
@@ -2146,9 +2146,9 @@ Object *primitiveFclose(Interpreter *interp, Object**args, Object **env, size_t 
     int result;
 
     if (FLISP_ARG_ONE->fd == NULL)
-        return newError(interp, FLISP_ARG_ONE, invalid_value, "(fclose stream) - stream already closed");
+        return newError(interp, invalid_value, FLISP_ARG_ONE, "(fclose stream) - stream already closed");
     if ((result = file_fclose(interp, FLISP_ARG_ONE)))
-        return newError(interp, FLISP_ARG_ONE, io_error, "(fclose stream) - failed to close: %s", strerror(result));
+        return newError(interp, io_error, FLISP_ARG_ONE, "(fclose stream) - failed to close: %s", strerror(result));
     return nil;
 }
 
@@ -2173,7 +2173,7 @@ Object *stringAppend(Interpreter *interp, Object **args, Object **env, size_t nA
     char *new = strdup(FLISP_ARG_ONE->string);
     new = realloc(new, len1 + len2 + 1);
     if (new == NULL)
-        return newError(interp, FLISP_ARG_TWO, out_of_memory,
+        return newError(interp, out_of_memory, FLISP_ARG_TWO,
                             "(string-append s a) - failed to allocate memory for a");
     memcpy(new + len1, FLISP_ARG_TWO->string, len2);
     new[len1 + len2] = '\0';
@@ -2298,16 +2298,16 @@ Object *stringSubstring(Interpreter *interp, Object **args, Object **env, size_t
                 end = FLISP_ARG_THREE->value;
     }
     if (start < 0 || start > len)
-        return newError(interp, FLISP_ARG_TWO, range_error,
+        return newError(interp, range_error, FLISP_ARG_TWO,
                             "(substring string [start [end]]) - start out of range");
     if (end < 0 || end > len)
-        return newError(interp, FLISP_ARG_THREE, range_error,
+        return newError(interp, range_error, FLISP_ARG_THREE,
                             "(substring string [start [end]]) - end out of range");
     if (start == end)
         return flisp_empty_string;
 
     if (start > end)
-        return newError(interp, FLISP_ARG_TWO, range_error,
+        return newError(interp, range_error, FLISP_ARG_TWO,
                             "(substring string [start [end]]) - end > start");
     len = end - start;
     start = flisp_char_index(interp, FLISP_ARG_ONE->string, start);
@@ -2394,7 +2394,7 @@ Object *primitiveInterp(Interpreter *interp, Object **args, Object **env, size_t
                 return e->vars;
             if (!strcmp(FLISP_ARG_TWO->string, "vals"))
                 return e->vals;
-            return newError(interp, FLISP_ARG_TWO, invalid_value,
+            return newError(interp, invalid_value, FLISP_ARG_TWO,
                         "(interp env[ field[ env]]) - field must be one of :parent, :vars, :vals");
         }
         /* Note: This one fails in the global environment with an
@@ -2406,7 +2406,7 @@ Object *primitiveInterp(Interpreter *interp, Object **args, Object **env, size_t
         return nil;
     }
 
-    return newError(interp, FLISP_ARG_ONE, invalid_value,
+    return newError(interp, invalid_value, FLISP_ARG_ONE,
                             "(flisp cmd[ arg..]) - unknown command");
 }
 
@@ -2626,7 +2626,7 @@ Interpreter *flisp_new(
     interp = malloc(sizeof(Interpreter));
     if (interp == NULL) return NULL;
 
-    /* enable debug output */
+    interp->result = nil;
     interp->debug.fd = debug;
 
     Memory *memory = newMemory((size < FLISP_MEMORY_INC_SIZE) ? FLISP_MEMORY_INC_SIZE :size);
@@ -2766,14 +2766,13 @@ void flisp_destroy(Interpreter *interp)
  */
 void flisp_write_error(Interpreter *interp, FILE *fd)
 {
-    if (FLISP_RESULT_OBJECT(interp) == nil)
-        fprintf(fd, "error: %s\n", FLISP_RESULT_MESSAGE(interp));
+    if (FLISP_ERROR_CULPRIT(interp) == nil)
+        fprintf(fd, "error:%s: %s\n", FLISP_ERROR_TYPE(interp), FLISP_ERROR_MESSAGE(interp));
     else {
-        fprintf(fd, "error: '");
-        flisp_write_object(interp, fd, FLISP_RESULT_OBJECT(interp), true);
-        fprintf(fd, "', %s\n", FLISP_RESULT_MESSAGE(interp));
+        fprintf(fd, "error:%s: %s: ", FLISP_ERROR_TYPE(interp), FLISP_ERROR_MESSAGE(interp));
+        flisp_write_object(interp, fd, FLISP_ERROR_CULPRIT(interp), true);
+        fputs("\n", fd);
     }
-    fprintf(fd, "error-type: %s\n", FLISP_RESULT_CODE(interp)->string);
     fflush(fd);
 }
 
@@ -2860,9 +2859,6 @@ void flisp_eval(Interpreter *interp, char *input)
     for (;;) {
         object = cerf(interp, fd);
         if (object->type == type_error) {
-            fl_debug(interp, "debug: ");
-            flisp_write_object(interp, interp->debug.fd, object->error, true);
-            fflush(interp->debug.fd);
             if (object->error == end_of_file) {
                 fl_debug(interp, "read: EOF\n");
                 interp->result = *gcResult;
@@ -2888,7 +2884,7 @@ void flisp_expr(Interpreter *interp, Object *object)
 }
 bool flisp_error(Interpreter *interp)
 {
-    return interp->result->type == type_error;
+    return interp->result != nil && interp->result->type == type_error;
 }
 
 /*

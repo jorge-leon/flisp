@@ -226,9 +226,9 @@ void fl_debug(Interpreter *, char *, ...);
 extern void flisp_register_constant(Interpreter *, Object *, Object *);
 extern Primitive *flisp_register_primitive(Interpreter *, char *, int, int, Object *, LispEval);
 
-#define FLISP_RESULT_CODE(INTERPRETER) INTERPRETER->result->error
-#define FLISP_RESULT_MESSAGE(INTERPRETER) INTERPRETER->result->message->string
-#define FLISP_RESULT_OBJECT(INTERPRETER) INTERPRETER->result->culprit
+#define FLISP_ERROR_TYPE(INTERPRETER) INTERPRETER->result->error->string
+#define FLISP_ERROR_MESSAGE(INTERPRETER) INTERPRETER->result->message->string
+#define FLISP_ERROR_CULPRIT(INTERPRETER) INTERPRETER->result->culprit
 
 /* UTF-8 handling */
 extern size_t flisp_char_length(char);
