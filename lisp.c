@@ -792,7 +792,7 @@ Object *envSet(Interpreter *interp, Object ** var, Object ** val, Object **env, 
     }
 }
 
-Object *evalExpr(Interpreter *, Object **, Object **);
+Object *evalExpr(Interpreter *, Object **, Object **, size_t);
 
 
 // READING S-EXPRESSIONS //////////////////////////////////////////////////////
@@ -1313,7 +1313,7 @@ enum {
  *
  * throws: wrong-type-argument
  */
-Object *evalBind(Interpreter *interp, Object **args, Object **env)
+Object *evalBind(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     bool globalp = false;
 
@@ -1328,13 +1328,13 @@ Object *evalBind(Interpreter *interp, Object **args, Object **env)
     GC_TRACE(gcEnv, *env);
     GC_TRACE(gcVar, FLISP_ARG_ONE);
     GC_TRACE(gcVal, FLISP_ARG_TWO);
-    *gcVal = evalExpr(interp, gcVal, gcEnv);
+    *gcVal = evalExpr(interp, gcVal, gcEnv, nArgs);
     envSet(interp, gcVar, gcVal, gcEnv, globalp);
     GC_RETURN(*gcVal);
 }
 
 /** (progn[ ..]) => o: return last value of list */
-Object *evalProgn(Interpreter *interp, Object **args, Object **env)
+Object *evalProgn(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     if (*args == nil)
         return nil;
@@ -1349,8 +1349,8 @@ Object *evalProgn(Interpreter *interp, Object **args, Object **env)
     GC_TRACE(gcObject, (*args)->car);
     GC_TRACE(gcArgs, (*args)->cdr);
     GC_TRACE(gcEnv, *env);
-    evalExpr(interp, gcObject, gcEnv);
-    GC_RETURN(evalProgn(interp, gcArgs, gcEnv));
+    evalExpr(interp, gcObject, gcEnv, nArgs);
+    GC_RETURN(evalProgn(interp, gcArgs, gcEnv, nArgs));
 }
 
 /** (cond [clause ..]), clause: (pred [action]) - generic conditional
@@ -1361,7 +1361,7 @@ Object *evalProgn(Interpreter *interp, Object **args, Object **env)
  * (pred) => pred
  * (pred action) => nil|* .. nil|(progn action)
  */
-Object *evalCond(Interpreter *interp, Object **args, Object **env)
+Object *evalCond(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     if (*args == nil)
         return nil;
@@ -1388,7 +1388,7 @@ Object *evalCond(Interpreter *interp, Object **args, Object **env)
     GC_TRACE(gcAction, action);
     GC_TRACE(gcEnv, *env);
     GC_TRACE(gcNext, next_clause);
-    pred = evalExpr(interp, gcPred, gcEnv);
+    pred = evalExpr(interp, gcPred, gcEnv, nArgs);
     GC_RELEASE;
     if (pred == nil) {
         *env = *gcEnv;
@@ -1399,12 +1399,12 @@ Object *evalCond(Interpreter *interp, Object **args, Object **env)
         return *gcPred;
 
     if ((*gcAction)->type == type_cons)
-        return evalProgn(interp, gcAction, gcEnv);
-    return evalExpr(interp, gcAction, gcEnv);
+        return evalProgn(interp, gcAction, gcEnv, nArgs);
+    return evalExpr(interp, gcAction, gcEnv, nArgs);
 
 next_clause:
     if (next_clause == nil) return nil;
-    return evalCond(interp, &next_clause, env);
+    return evalCond(interp, &next_clause, env, nArgs);
 }
 
 Object *expandMacro(Interpreter *interp, Object ** macro, Object **args)
@@ -1413,8 +1413,10 @@ Object *expandMacro(Interpreter *interp, Object ** macro, Object **args)
     GC_TRACE(gcBody, (*macro)->body);
     GC_TRACE(gcEnv, newEnv(interp, macro, args));
 
-    GC_TRACE(gcObject, evalProgn(interp, gcBody, gcEnv));
-    GC_RETURN(evalExpr(interp, gcObject, gcEnv));
+    size_t nArgs = 0;
+    for (Object *arg = *args; arg->cdr != nil; arg = arg->cdr, nArgs++);
+    GC_TRACE(gcObject, evalProgn(interp, gcBody, gcEnv, nArgs));
+    GC_RETURN(evalExpr(interp, gcObject, gcEnv, nArgs));
 }
 
 Object *expandMacroTo(Interpreter *interp, Object ** macro, Object **args)
@@ -1431,35 +1433,35 @@ Object *expandMacroTo(Interpreter *interp, Object ** macro, Object **args)
     GC_RETURN(newCons(interp, gcProg, gcCons));
 }
 
-Object *evalMacroExpand(Interpreter *interp, Object **args, Object **env)
+Object *evalMacroExpand(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     if ((*args)->type != type_cons)
-        return evalExpr(interp, args, env);
+        return evalExpr(interp, args, env, nArgs);
 
     GC_CHECKPOINT;
     GC_TRACE(gcArgs, (*args)->cdr);
-    GC_TRACE(gcMacro, evalExpr(interp, &(*args)->car, env));
+    GC_TRACE(gcMacro, evalExpr(interp, &(*args)->car, env, nArgs));
     if ((*gcMacro)->type != type_macro)
         GC_RETURN(*gcMacro);
 
     GC_RETURN(expandMacro(interp, gcMacro, gcArgs));
 }
 
-Object *evalList(Interpreter *interp, Object **args, Object **env)
+Object *evalList(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     if ((*args)->type != type_cons)
-        return evalExpr(interp, args, env);
+        return evalExpr(interp, args, env, nArgs);
     else {
         GC_CHECKPOINT;
         GC_TRACE(gcEnv, *env);
         GC_TRACE(gcCdr, (*args)->cdr);
-        GC_TRACE(gcObject, evalExpr(interp, &(*args)->car, gcEnv));
-        *gcCdr = evalList(interp, gcCdr, gcEnv);
+        GC_TRACE(gcObject, evalExpr(interp, &(*args)->car, gcEnv, nArgs--));
+        *gcCdr = evalList(interp, gcCdr, gcEnv, nArgs);
         GC_RETURN(newCons(interp, gcObject, gcCdr));
     }
 }
 
-Object *evalCatch(Interpreter *interp, Object **args, Object **env)
+Object *evalCatch(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     jmp_buf exceptionEnv, *prevEnv;
 
@@ -1472,7 +1474,7 @@ Object *evalCatch(Interpreter *interp, Object **args, Object **env)
         fl_debug(interp, "catch:%s: '%s'\n", (FLISP_RESULT_CODE(interp))->string, FLISP_RESULT_MESSAGE(interp));
     } else {
         do {
-            interp->result = evalExpr(interp, &(*args)->car, env);
+            interp->result = evalExpr(interp, &(*args)->car, env, nArgs);
         } while(0);
     }
     GC_RELEASE;
@@ -1483,7 +1485,7 @@ Object *evalCatch(Interpreter *interp, Object **args, Object **env)
 
 //Primitive primitives[];
 
-Object *evalExpr(Interpreter *interp, Object ** object, Object **env)
+Object *evalExpr(Interpreter *interp, Object ** object, Object **env, size_t nArgs)
 {
     GC_CHECKPOINT;
     GC_TRACE(gcObject, *object);
@@ -1502,16 +1504,16 @@ Object *evalExpr(Interpreter *interp, Object ** object, Object **env)
         *gcFunc = (*gcObject)->car;
         *gcArgs = (*gcObject)->cdr;
 
-        *gcFunc = evalExpr(interp, gcFunc, gcEnv);
+        *gcFunc = evalExpr(interp, gcFunc, gcEnv, nArgs);
         *gcBody = nil;
 
         if ((*gcFunc)->type == type_lambda) {
             *gcBody = (*gcFunc)->body;
-            *gcArgs = evalList(interp, gcArgs, gcEnv);
+            *gcArgs = evalList(interp, gcArgs, gcEnv, nArgs);
             *gcEnv = newEnv(interp, gcFunc, gcArgs);
             if ((*gcEnv)->type == type_error)
                 return *gcEnv;
-            *gcObject = evalProgn(interp, gcBody, gcEnv);
+            *gcObject = evalProgn(interp, gcBody, gcEnv, nArgs);
         } else if ((*gcFunc)->type == type_macro) {
             *gcObject = expandMacroTo(interp, gcFunc, gcArgs);
             if ((*gcObject)->type == type_error)
@@ -1545,41 +1547,42 @@ Object *evalExpr(Interpreter *interp, Object ** object, Object **env)
             case PRIMITIVE_QUOTE:
                 GC_RETURN((*gcArgs)->car);
             case PRIMITIVE_BIND:
-                GC_RETURN(evalBind(interp, gcArgs, gcEnv));
+                GC_RETURN(evalBind(interp, gcArgs, gcEnv, nArgs));
             case PRIMITIVE_PROGN:
-                *gcObject = evalProgn(interp, gcArgs, gcEnv);
+                *gcObject = evalProgn(interp, gcArgs, gcEnv, nArgs);
                 break;
             case PRIMITIVE_COND:
-                *gcObject = evalCond(interp, gcArgs, gcEnv);
+                *gcObject = evalCond(interp, gcArgs, gcEnv, nArgs);
                 break;
             case PRIMITIVE_LAMBDA:
-                GC_RETURN(newClosure(interp, type_lambda, gcArgs, gcEnv));
+                GC_RETURN(newClosure(interp, type_lambda, gcArgs, gcEnv, nArgs));
             case PRIMITIVE_MACRO:
-                GC_RETURN(newClosure(interp, type_macro, gcArgs, gcEnv));
+                GC_RETURN(newClosure(interp, type_macro, gcArgs, gcEnv, nArgs));
             case PRIMITIVE_MACROEXPAND:
-                GC_RETURN(evalMacroExpand(interp, gcArgs, gcEnv));
+                GC_RETURN(evalMacroExpand(interp, gcArgs, gcEnv, nArgs));
             case PRIMITIVE_CATCH:
-                GC_RETURN(evalCatch(interp, gcArgs, gcEnv));
+                GC_RETURN(evalCatch(interp, gcArgs, gcEnv, nArgs));
             default:
-                *gcArgs = evalList(interp, gcArgs, gcEnv);
-                nArgs = 1;
+                *gcArgs = evalList(interp, gcArgs, gcEnv, nArgs);
+                i = 1;
                 if (primitive->argsType != nil)
-                    for (args = *gcArgs; args != nil; args = args->cdr, nArgs++)
+                    for (args = *gcArgs; args != nil; args = args->cdr, i++)
                         if (args->car->type != primitive->argsType)
                             return newError(interp, args->car, wrong_type_argument, "(%s args) - arg %d expected %s, got: %s",
-                                                primitive->name, nArgs,
+                                                primitive->name, i,
                                                 primitive->argsType->string,
                                                 args->car->type->string
                                 );
 #if FLISP_TRACE
-                fl_debug(interp, "(%s", primitive->name);
-                for (args = *gcArgs; args != nil; args = args->cdr, nArgs++) {
+                fl_debug(interp, "trace: (%s", primitive->name);
+                i = 0;
+                for (args = *gcArgs; args != nil; args = args->cdr, i++) {
                     fl_debug(interp, " ");
                     flisp_write_object(interp, interp->debug.fd, args->car, true);
                 }
                 fl_debug(interp, ")\n");
 #endif
-                GC_RETURN(primitive->eval(interp, gcArgs, gcEnv));
+                GC_RETURN(primitive->eval(interp, gcArgs, gcEnv, nArgs));
             }
         } else {
             return newError(interp, *gcFunc, wrong_type_argument, "is not a function");
@@ -1587,9 +1590,9 @@ Object *evalExpr(Interpreter *interp, Object ** object, Object **env)
     }
 }
 
-Object *primitiveEval(Interpreter *interp, Object **args, Object **env)
+Object *primitiveEval(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
-    return evalExpr(interp, &(*args)->car, env);
+    return evalExpr(interp, &(*args)->car, env, nArgs);
 }
 
 
@@ -1775,7 +1778,7 @@ void flisp_write_object(Interpreter *interp, FILE *fd, Object *object, bool read
  * If no stream is specified the interpreters output file descriptor is used.
  * If the interpreters output file descriptor is NULL, no output is written.
  */
-Object *primitiveWrite(Interpreter *interp, Object **args, Object **env)
+Object *primitiveWrite(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     bool readably = false;
     FILE *fd = interp->output.fd;
@@ -1797,26 +1800,26 @@ Object *primitiveWrite(Interpreter *interp, Object **args, Object **env)
 
 // PRIMITIVES /////////////////////////////////////////////////////////////////
 
-Object *primitiveNullP(Interpreter *interp, Object **args, Object **env)
+Object *primitiveNullP(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     return (FLISP_ARG_ONE == nil) ? t : nil;
 }
 
-Object *primitiveTypeOf(Interpreter *interp, Object **args, Object **env)
+Object *primitiveTypeOf(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     return (FLISP_ARG_ONE->type);
 }
-Object *primitiveConsP(Interpreter *interp, Object **args, Object **env)
+Object *primitiveConsP(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     return (FLISP_ARG_ONE->type == type_cons) ? t : nil;
 }
 
-Object *primitiveIntern(Interpreter *interp, Object **args, Object **env)
+Object *primitiveIntern(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     return newSymbol(interp, FLISP_ARG_ONE->string);
 }
 
-Object *primitiveSymbolName(Interpreter *interp, Object **args, Object **env)
+Object *primitiveSymbolName(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     GC_CHECKPOINT;
     GC_TRACE(gcFirst, FLISP_ARG_ONE);
@@ -1830,35 +1833,35 @@ Object *primitiveSymbolName(Interpreter *interp, Object **args, Object **env)
  *
  * @returns t if o1 is the same object as o2, nil otherwise.
  */
-Object *primitiveSame(Interpreter *interp, Object **args, Object **env)
+Object *primitiveSame(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     return (FLISP_ARG_ONE == FLISP_ARG_TWO) ? t : nil;
 }
 
-Object *primitiveCar(Interpreter *interp, Object **args, Object **env)
+Object *primitiveCar(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     if (FLISP_ARG_ONE == nil)
         return nil;
     FLISP_ARG_TYPECHECK(FLISP_ARG_ONE, type_cons, "(car o) - o");
     return FLISP_ARG_ONE->car;
 }
-Object *primitiveCdr(Interpreter *interp, Object **args, Object **env)
+Object *primitiveCdr(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     if (FLISP_ARG_ONE == nil)
         return nil;
     FLISP_ARG_TYPECHECK(FLISP_ARG_ONE, type_cons, "(cdr o) - o");
     return FLISP_ARG_ONE->cdr;
 }
-Object *primitiveObjectSize(Interpreter *interp, Object **args, Object **env)
+Object *primitiveObjectSize(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     return newInteger(interp, FLISP_ARG_ONE->size);
 }
-Object *primitiveObjectLength(Interpreter *interp, Object **args, Object **env)
+Object *primitiveObjectLength(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     return newInteger(interp, FLISP_ARG_ONE->length);
 }
 /** (vector ..]) => v */
-Object *primitiveVector(Interpreter *interp, Object **args, Object **env)
+Object *primitiveVector(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     /* Note: the following is inefficient and we did it alread when we
      *   were called.  Consider adding an nArgs parameter to
@@ -1872,7 +1875,7 @@ Object *primitiveVector(Interpreter *interp, Object **args, Object **env)
     return flisp_ext_obj(interp, type_vector, args, nArgs, 0);
 }
 /** (object-list object[ start[ end]]) => list of contained object */
-Object *primitiveVectorRange(Interpreter *interp, Object **args, Object **env)
+Object *primitiveVectorRange(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     int64_t i = 0, end = FLISP_ARG_ONE->length;
     if (FLISP_HAS_ARG_TWO) {
@@ -1901,15 +1904,15 @@ Object *primitiveVectorRange(Interpreter *interp, Object **args, Object **env)
         *gcList = newCons(interp, &(*gcObject)->objects[i++], gcList);
     GC_RETURN(reverseList(interp, *gcList));
 }
-Object *primitiveCons(Interpreter *interp, Object **args, Object **env)
+Object *primitiveCons(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     return flisp_ext_obj(interp, type_cons, args, 2, 0);
 }
-Object *primitiveNreverse(Interpreter *interp, Object **args, Object **env)
+Object *primitiveNreverse(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     return reverseList(interp, (*args)->car);
 }
-Object *primitiveError(Interpreter *interp, Object **args, Object **env)
+Object *primitiveError(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     FLISP_ARG_TYPECHECK(FLISP_ARG_ONE, type_symbol, "(error type message[ object]) - result");
     FLISP_ARG_TYPECHECK(FLISP_ARG_TWO, type_string, "(error type message[ object]) - message");
@@ -1917,7 +1920,7 @@ Object *primitiveError(Interpreter *interp, Object **args, Object **env)
     return flisp_ext_obj(interp, type_error, args, 3, 0);
 }
 
-Object *primitiveThrow(Interpreter *interp, Object **args, Object **env)
+Object *primitiveThrow(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     flisp_exception(interp, (*args)->car);
     return NULL;
@@ -1925,21 +1928,21 @@ Object *primitiveThrow(Interpreter *interp, Object **args, Object **env)
 
 // Integer Math //////
 
-Object *integerAdd(Interpreter *interp, Object **args, Object **env)
+Object *integerAdd(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     return newInteger(interp, FLISP_ARG_ONE->value + FLISP_ARG_TWO->value);
 }
-Object *integerSubtract(Interpreter *interp, Object **args, Object **env)
+Object *integerSubtract(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     return newInteger(interp, FLISP_ARG_ONE->value - FLISP_ARG_TWO->value);
 }
 
-Object *integerMultiply(Interpreter *interp, Object **args, Object **env)
+Object *integerMultiply(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     return newInteger(interp, FLISP_ARG_ONE->value * FLISP_ARG_TWO->value);
 }
 
-Object *integerDivide(Interpreter *interp, Object **args, Object **env)
+Object *integerDivide(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     if (FLISP_ARG_TWO->value == 0)
         return newError(interp, FLISP_ARG_TWO, arithmetic_error, "(i/ q d) - d: division by zero");
@@ -1947,7 +1950,7 @@ Object *integerDivide(Interpreter *interp, Object **args, Object **env)
     return newInteger(interp, FLISP_ARG_ONE->value / FLISP_ARG_TWO->value);
 }
 
-Object *integerMod(Interpreter *interp, Object **args, Object **env)
+Object *integerMod(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     if (FLISP_ARG_TWO->value == 0)
         return newError(interp, FLISP_ARG_TWO, arithmetic_error, "(i%% q d) - d: division by zero");
@@ -1962,54 +1965,54 @@ Object *integerMod(Interpreter *interp, Object **args, Object **env)
  * a <= b .. (not (b > a))
  * ...
  */
-Object *integerEqual(Interpreter *interp, Object **args, Object **env)
+Object *integerEqual(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     return (FLISP_ARG_ONE->value == FLISP_ARG_TWO->value) ? t : nil;
 }
 
-Object *integerLess(Interpreter *interp, Object **args, Object **env)
+Object *integerLess(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     return (FLISP_ARG_ONE->value < FLISP_ARG_TWO->value) ? t : nil;
 }
 
-Object *integerLessEqual(Interpreter *interp, Object **args, Object **env)
+Object *integerLessEqual(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     return (FLISP_ARG_ONE->value <= FLISP_ARG_TWO->value) ? t : nil;
 }
 
-Object *integerGreater(Interpreter *interp, Object **args, Object **env)
+Object *integerGreater(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     return (FLISP_ARG_ONE->value > FLISP_ARG_TWO->value) ? t : nil;
 }
 
-Object *integerGreaterEqual(Interpreter *interp, Object **args, Object **env)
+Object *integerGreaterEqual(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     return (FLISP_ARG_ONE->value >= FLISP_ARG_TWO->value) ? t : nil;
 }
 
 // Integer bit operations //////
 /* Note: only Xor and Not are needed, see De morgan */
-Object *integerAnd(Interpreter *interp, Object **args, Object **env)
+Object *integerAnd(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     return newInteger(interp, FLISP_ARG_ONE->value & FLISP_ARG_TWO->value);
 }
-Object *integerOr(Interpreter *interp, Object **args, Object **env)
+Object *integerOr(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     return newInteger(interp, FLISP_ARG_ONE->value | FLISP_ARG_TWO->value);
 }
-Object *integerXor(Interpreter *interp, Object **args, Object **env)
+Object *integerXor(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     return newInteger(interp, FLISP_ARG_ONE->value ^ FLISP_ARG_TWO->value);
 }
-Object *integerShiftLeft(Interpreter *interp, Object **args, Object **env)
+Object *integerShiftLeft(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     return newInteger(interp, FLISP_ARG_ONE->value << FLISP_ARG_TWO->value);
 }
-Object *integerShiftRight(Interpreter *interp, Object **args, Object **env)
+Object *integerShiftRight(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     return newInteger(interp, FLISP_ARG_ONE->value >> FLISP_ARG_TWO->value);
 }
-Object *integerNot(Interpreter *interp, Object **args, Object **env)
+Object *integerNot(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     return newInteger(interp, ~FLISP_ARG_ONE->value);
 }
@@ -2135,7 +2138,7 @@ Object *file_fopen(Interpreter *interp, char *path, char* mode) {
  * @returns: stream object
  * @errors: different io errors, invalid-value, out-of-memory
  */
- Object *primitiveFopen(Interpreter *interp, Object **args, Object **env)
+ Object *primitiveFopen(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     char *mode = "r";
 
@@ -2171,7 +2174,7 @@ int file_fclose(Interpreter *interp, Object *stream)
  * @returns nil on success
  * @errors: invalid-value, io-error
  */
-Object *primitiveFclose(Interpreter *interp, Object**args, Object **env)
+Object *primitiveFclose(Interpreter *interp, Object**args, Object **env, size_t nArgs)
 {
     int result;
 
@@ -2182,7 +2185,7 @@ Object *primitiveFclose(Interpreter *interp, Object**args, Object **env)
     return nil;
 }
 
- Object *primitiveFinfo(Interpreter *interp, Object **args, Object **env)
+ Object *primitiveFinfo(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     GC_CHECKPOINT;
     GC_TRACE(gcObject, (FLISP_ARG_ONE->fd == NULL) ?
@@ -2196,7 +2199,7 @@ Object *primitiveFclose(Interpreter *interp, Object**args, Object **env)
 /* Strings */
 
 // (string-append s a)
-Object *stringAppend(Interpreter *interp, Object **args, Object **env)
+Object *stringAppend(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     int len1 = FLISP_ARG_ONE->size - 1;
     int len2 = FLISP_ARG_TWO->size - 1;
@@ -2271,7 +2274,7 @@ size_t flisp_char_count(Interpreter *interp, char *string, size_t len)
     return n;
 }
 
-Object *stringLength(Interpreter *interp, Object **args, Object **env)
+Object *stringLength(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     return newInteger(interp, flisp_char_count(interp, FLISP_ARG_ONE->string, SIZE_MAX));
 }
@@ -2279,7 +2282,7 @@ Object *stringLength(Interpreter *interp, Object **args, Object **env)
 /** (string-search needle haystack)
  *
  */
-Object *stringSearch(Interpreter *interp, Object **args, Object **env)
+Object *stringSearch(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     char *pos;
 
@@ -2303,7 +2306,7 @@ Object *stringSearch(Interpreter *interp, Object **args, Object **env)
  * end-1. Length of string is default for *end*, 0 is default for
  * *start*.
  */
-Object *stringSubstring(Interpreter *interp, Object **args, Object **env)
+Object *stringSubstring(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     int64_t start = 0, end, len;
 
@@ -2355,7 +2358,7 @@ Object *stringSubstring(Interpreter *interp, Object **args, Object **env)
 }
 
 // (string-compare s1 s2)
-Object *stringCompare(Interpreter *interp, Object **args, Object **env)
+Object *stringCompare(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     return newInteger(interp, strcmp(FLISP_ARG_ONE->string, FLISP_ARG_TWO->string));
 }
@@ -2376,7 +2379,7 @@ void setInterpStream(Object *stream, Object *new)
 }
 
 /** (interp cmd[ arg..]) - query or set interpreter internals */
-Object *primitiveInterp(Interpreter *interp, Object **args, Object **env)
+Object *primitiveInterp(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     FLISP_ARG_TYPECHECK(FLISP_ARG_ONE, type_symbol, "(interp cmd[ arg..])");
 
