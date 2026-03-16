@@ -37,7 +37,7 @@
 
 /* Constants */
 /* Fundamentals */
-Object *nil =                       &(Object) { .size = 4, .count = 0, .string = "nil" };
+Object *nil =                       &(Object) { .size = 4, .length = 0, .string = "nil" };
 Object *t =                         &(Object) { .string = "t" };
 /* Types */
 Object *type_integer =              &(Object) { .string = "type-integer" };
@@ -76,10 +76,10 @@ Object *debug_output =              &(Object) { .string = "*debug-output*" };
 Object *standard_input =            &(Object) { .string = "*standard-input*" };
 Object *standard_output =           &(Object) { .string = "*standard-output*" };
 /* Internal symbols */
-Object *type_env =                  &(Object) { .size = 17, .count = 0, .string = "type-environment" };
-Object *type_moved =                &(Object) { .size = 11, .count = 0, .string = "type-moved" };
+Object *type_env =                  &(Object) { .size = 17, .length = 0, .string = "type-environment" };
+Object *type_moved =                &(Object) { .size = 11, .length = 0, .string = "type-moved" };
 /* Constant strings */
-Object *flisp_empty_string =        &(Object) { .size =  1, .count = 0, .string = "\0" };
+Object *flisp_empty_string =        &(Object) { .size =  1, .length = 0, .string = "\0" };
 
 bool gc_always = false;
 
@@ -303,7 +303,7 @@ void gc(Interpreter *interp)
          object = (Object *) ((char *)object + sizeof(SimpleObject) + object->size)) {
 
         if (object->size != 0)
-            for (size_t i = 0; i < object->count; i++)
+            for (size_t i = 0; i < object->length; i++)
                 object->objects[i] = gcMoveObject(interp, object->objects[i], &stats);
     }
     // swap from- and to-space
@@ -457,33 +457,33 @@ Object *newPrimitive(Interpreter *interp, Primitive* primitive)
 
 /// Extended objects
 
-/** flisp_ext_obj(interp, type, obj_list, count, extra) - create and initialize an extended object.
+/** flisp_ext_obj(interp, type, obj_list, length, extra) - create and initialize an extended object.
  *
  * @param interp   .. Interpreter in which to create the object.
  * @param obj_list .. List of initializer objects.
- * @param count    .. Number of objects in the list to use for initialization.
+ * @param length    .. Number of objects in the list to use for initialization.
  * @param extra    .. Number of additional space in bytes to allocate for extension data.
  *
- * If there are more then count objects in the list, only the first count ones will be used.
- * If there are less then count objects in the list, nil is used to initialize the respective slot.
+ * If there are more then length objects in the list, only the first length ones will be used.
+ * If there are less then length objects in the list, nil is used to initialize the respective slot.
  *
  * The extra space is not initialized.
  *
  * @returns Object
  *
  */
-Object *flisp_ext_obj(Interpreter *interp, Object *type, Object **objects, size_t count, size_t extra)
+Object *flisp_ext_obj(Interpreter *interp, Object *type, Object **objects, size_t length, size_t extra)
 {
     GC_CHECKPOINT;
     GC_TRACE(gcType, type);
     GC_TRACE(gcObjs, *objects);
-    Object *object = newObject(interp, *gcType, (sizeof(Object *) * count) + extra);
+    Object *object = newObject(interp, *gcType, (sizeof(Object *) * length) + extra);
     GC_RELEASE;
-    object->count = count;
+    object->length = length;
     size_t i;
-    for(i = 0; i < count && (*gcObjs) != nil; (*gcObjs) = (*gcObjs)->cdr)
+    for(i = 0; i < length && (*gcObjs) != nil; (*gcObjs) = (*gcObjs)->cdr)
         object->objects[i++] = (*gcObjs)->car;
-    while(i < count)
+    while(i < length)
         object->objects[i++] = nil;
     return object;
 }
@@ -495,7 +495,7 @@ Object *newCons(Interpreter *interp, Object ** car, Object ** cdr)
     GC_TRACE(gcCdr, *cdr);
     Object *object = newObject(interp, type_cons, sizeof(Object *[2]));
     GC_RELEASE;
-    object->count = 2;
+    object->length = 2;
     object->car = *gcCar;
     object->cdr = *gcCdr;
     return object;
@@ -559,7 +559,7 @@ Object *newStringWithLength(Interpreter *interp, char *string, size_t length)
             ++i, ++nEscapes;
 
     Object *object = newObject(interp, type_string, length - nEscapes + 1);
-    object->count = 0;
+    object->length = 0;
     unescapeString(object->string, string, length);
     return object;
 }
@@ -578,7 +578,7 @@ Object *newSymbolWithLength(Interpreter *interp, char *string, size_t length)
 
     GC_CHECKPOINT;
     GC_TRACE(gcSymbol, newObject(interp, type_symbol, length + 1));
-    (*gcSymbol)->count = 0;
+    (*gcSymbol)->length = 0;
     memcpy((*gcSymbol)->string, string, length);
     (*gcSymbol)->string[length] = '\0';
     interp->symbols = newCons(interp, gcSymbol, &interp->symbols);
@@ -592,18 +592,18 @@ Object *newSymbol(Interpreter *interp, char *string)
 }
 
 #define FLISP_FORMAT_ERROR_MESSAGE "failed to format error message"
-Object *newError(Interpreter *interp, Object *error_type, Object *culprit, char *format, ...)
+Object *newError(Interpreter *interp, Object *error, Object *culprit, char *format, ...)
 {
     size_t written;
     size_t len = sizeof(interp->message.string);
     char *message;
 
     GC_CHECKPOINT;
-    GC_TRACE(gcErrorType, error_type);
+    GC_TRACE(gcErrorType, error);
     GC_TRACE(gcCulprit, culprit);
     GC_TRACE(gcMessage, flisp_empty_string);
     GC_TRACE(gcError, newObject(interp, type_error, sizeof(Object *[3])));
-    (*gcError)->count = 3;
+    (*gcError)->length = 3;
     if (format != NULL && format[0] != '\0') {
         message = interp->message.string;
         va_list(args);
@@ -619,7 +619,7 @@ Object *newError(Interpreter *interp, Object *error_type, Object *culprit, char 
         }
         *gcMessage = newStringWithLength(interp, message, len);
     }
-    (*gcError)->error_type = *gcErrorType;
+    (*gcError)->error = *gcErrorType;
     (*gcError)->message = *gcMessage;
     (*gcError)->culprit = *gcCulprit;
     GC_RETURN(*gcError);
@@ -655,7 +655,7 @@ Object *newEnv(Interpreter *interp, Object ** func, Object ** vals)
 {
     int nArgs;
     Object *environment = newObject(interp, type_env, sizeof(Object*[3]));
-    environment->count = 3;
+    environment->length = 3;
     if ((*func) == nil) {
         environment->parent = environment->vars = environment->vals = nil;
         return environment;
@@ -1740,7 +1740,7 @@ void flisp_write_object(Interpreter *interp, FILE *fd, Object *object, bool read
         writeChar(interp, fd, '>');
     } else if (object->type == type_error) {
         writeFmt(interp, fd, "#<Error ");
-        flisp_write_object(interp, fd, object->error_type, readably);
+        flisp_write_object(interp, fd, object->error, readably);
         writeString(interp, fd, ": ");
         flisp_write_object(interp, fd, object->message, readably);
         writeString(interp, fd, ", ");
@@ -1855,7 +1855,7 @@ Object *primitiveObjectSize(Interpreter *interp, Object **args, Object **env)
 }
 Object *primitiveObjectLength(Interpreter *interp, Object **args, Object **env)
 {
-    return newInteger(interp, FLISP_ARG_ONE->count);
+    return newInteger(interp, FLISP_ARG_ONE->length);
 }
 /** (vector ..]) => v */
 Object *primitiveVector(Interpreter *interp, Object **args, Object **env)
@@ -1874,7 +1874,7 @@ Object *primitiveVector(Interpreter *interp, Object **args, Object **env)
 /** (object-list object[ start[ end]]) => list of contained object */
 Object *primitiveVectorRange(Interpreter *interp, Object **args, Object **env)
 {
-    int64_t i = 0, end = FLISP_ARG_ONE->count;
+    int64_t i = 0, end = FLISP_ARG_ONE->length;
     if (FLISP_HAS_ARG_TWO) {
         FLISP_ARG_TYPECHECK(FLISP_ARG_TWO, type_integer, "(object-list object[ start[ end]]) - start");
         i = (FLISP_ARG_TWO->value < 0) ? end + FLISP_ARG_TWO->value : FLISP_ARG_TWO->value;
@@ -2446,7 +2446,7 @@ void flisp_register_constant(Interpreter *interp, Object *symbol, Object *value)
 {
     symbol->type = type_symbol;
     symbol->size = strlen(symbol->string) +1;
-    symbol->count = 0;
+    symbol->length = 0;
     if (value == NULL)
         value = symbol;
     envSet(interp, &symbol, &value, &interp->global, true);
@@ -2611,18 +2611,18 @@ Memory *newMemory(size_t size)
  * Public interface for embedding fLisp into an application.
  */
 
-Object init_env_failed =  { .size = 56, .count = 0, .string = "failed to create global environment for the interpreter" };
-Object init_oom_message = { .size = 46, .count = 0, .string = "failed to allocate memory for the interpreter" };
+Object init_env_failed =  { .size = 56, .length = 0, .string = "failed to create global environment for the interpreter" };
+Object init_oom_message = { .size = 46, .length = 0, .string = "failed to allocate memory for the interpreter" };
 
-Object eval_no_input =    { .size = 27, .count = 0, .string = "no input stream configured" };
-Object eval_input_open =  { .size = 35, .count = 0, .string = "fmemopen() for input string failed" };
+Object eval_no_input =    { .size = 27, .length = 0, .string = "no input stream configured" };
+Object eval_input_open =  { .size = 35, .length = 0, .string = "fmemopen() for input string failed" };
 
 Object init_error;
 
-Interpreter *interp_error(Interpreter *interp, Object *type, Object *message)
+Interpreter *interp_error(Interpreter *interp, Object *error, Object *message)
 {
     init_error.type = type_error;
-    init_error.error_type = type;
+    init_error.error = error;
     init_error.message = message;
     init_error.culprit = nil;
     interp->result = &init_error;
