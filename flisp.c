@@ -1,5 +1,8 @@
 /*
- * flisp.c, Georg Lehner, Public Domain, 2024
+ * fLisp - Command line interpreter
+ *
+ * Georg Lehner <jorge@magma-soft.at> 2024, CC0 1.0
+ *
  */
 
 #include <stdlib.h>
@@ -48,10 +51,10 @@ int main(int argc, char **argv)
     if (interp == NULL)
         fatal("fLisp interpreter initialization failed");
 
-    /* if (flisp_error(interp)) { */
-    /*     flisp_write_error(interp, stderr); */
-    /*     exit(1); */
-    /* } */
+    if (flisp_error(interp)) {
+        flisp_write_error(interp, stderr);
+        exit(1);
+    }
 
 #ifdef FLISP_DOUBLE_EXTENSION
     flisp_double_register(interp);
@@ -61,7 +64,7 @@ int main(int argc, char **argv)
 
     flisp_eval(interp, NULL);
     if (flisp_error(interp)) {
-        //flisp_write_error(interp, stderr);
+        flisp_write_error(interp, stderr);
         return 1;
     }
     return 0;
