@@ -1059,6 +1059,8 @@ Object *readList(Interpreter *interp, FILE *fd)
     Object *last = nil;
     Object *list = nil;
     for (;;) {
+        interp->len = 0;
+
         int ch = skipToNext(interp, fd);
         if (ch == EOF) { if (ferror(fd)) goto io_error; else
                 return newError(interp, read_incomplete, nil, "unexpected end of stream in list"); }
@@ -1066,9 +1068,9 @@ Object *readList(Interpreter *interp, FILE *fd)
             return (list == nil) ? nil : reverseList(interp, list);
         if (ch == '.') {
             ch = streamPeek(fd);
-            if (ch == EOF) { if (ferror(fd)) goto dotted_io_error; else
-                    return newError(interp, read_incomplete, nil, "unexpected end of stream in dotted list"); }
             if (!isSymbolChar(ch)) {
+                if (ch == EOF) { if (ferror(fd)) goto dotted_io_error; else
+                        return newError(interp, read_incomplete, nil, "unexpected end of stream in dotted list"); }
                 if (last == nil)
                     return newError(interp, invalid_read_syntax, nil, "unexpected dot at start of list");
                 if ((ch = peekNext(interp, fd)) == ')')
@@ -1083,8 +1085,9 @@ Object *readList(Interpreter *interp, FILE *fd)
                     return newError(interp, invalid_value, last, "read error while reading expression in dotted list");
                 ch = peekNext(interp, fd);
                 if (ch == EOF && ferror(fd))  goto dotted_io_error;
-                if ((ch) != ')')
+                if (ch != ')')
                     return newError(interp, invalid_read_syntax, nil, "unexpected object at end of dotted list");
+                (void)skipToNext(interp, fd);
                 list = reverseList(interp, *gcList);
                 (*gcList)->cdr = last;
                 return list;
