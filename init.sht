@@ -5,56 +5,55 @@
 $(cat core.lsp)
 
 ;;; REPL
+(setq *error-output* (open ">2"))
 
 (defun repl-princ s  (princ (concat s)))
+(defun repl-eprinc s (princ (concat s) *error-output*))
 
 (defun repl-print-result (result)
-  (print (caddr result))
+  (print result)
   (princ "\n")
   result )
 
-(setq *error-output* (open ">2"))
-(defun repl-eprinc s (princ (concat s) *error-output*))
-(defun repl-print-error (result)
-  (repl-eprinc "error: "(car result)": '")
-  (print (caddr result) *error-output*)
-  (repl-eprinc "', "(cadr result)"\n")
-  result  )
+(defun repl-print-error (err)
+  (print err *error-output*)
+  (princ "\n" *error-output*) )
 
 (defun repl (result)
   (when (fttyp) (repl-princ "> "))
-  (setq result (catch (eval (read))))
-  (cond ((same (car result) end-of-file)
-	 (when (fttyp) (princ "\n"))
-	 result )
-	((car result)  (repl (repl-print-error result)))
-	(t  (repl (repl-print-result result))) ))
+  (let ((e (read)))
+    (if (eq type-error (type-of e))
+	(if (same (car (objects e)) end-of-file)
+	    (when (fttyp) (princ "\n") e)
+	    (repl (repl-print-error e)) )
+	(let ((r (eval e)))
+	  (if (same type-error (type-of r))
+	      (repl (repl-print-error r))
+	      (repl (repl-print-result r)) )))))
 
-;;; User init file
-;;; Note: this is a quick workaround only.
-;;;   it covers file errors, but not exceptions within the rcfile
-(let ((rcfile (concat (getenv "HOME") "/" ".config/flisp/init.lsp")))
-  (on-error (load rcfile)
+(defun repl-rcfile ()
+  (let ((rcfile (concat (getenv "HOME") "/" ".config/flisp/init.lsp")))
+    (on-error (load rcfile)
+	      (lambda (e)
+		(when (fttyp)
+		  (repl-eprinc "Failed to load user init file: "rcfile"\n")
+		  (repl-print-error e) )))))
+
+;;; load all files on the commandline
+(defun repl-getopts (opts result)
+  (unless (eq type-of result type-error)
+    (repl-getopts (cdr opts) (load (car opts))) ))
+
+(defun repl-args ()
+  (on-error (getopts argv nil)
 	    (lambda (e)
-	      (when (fttyp)
-		(repl-eprinc "Failed to load user init file: "rcfile":" (error-type e)"\n") ))))
-
-(defun getopts (opts result)
-  (if-not (car opts) result
-	  (getopts (cdr opts) (load (car opts))) ))
-
-(defun process-command-line ()
-  (let ((result (catch (getopts argv nil))))
-    (if-not (car result) (caddr result)
-	    (princ "Error parsing commandline..\n")
-	    (repl-print-error result) )))
+	      (repl-eprinc "Error parsing commandline..\n")
+	      (repl-print-error e) )))
 (progn
-    (interp :output (open ">1" "w"))
-    (if argv (process-command-line)
-	(interp :input (open "<0"))
-	(when (fttyp)
-	  (repl-princ (interp :version)"\n"
-		      "exit with C-d\n" ))
-	(let ((result (repl nil)))
-	  (if (car result) (apply throw result)
-	      (caddr result) ) )))
+  (interp :output (open ">1" "w"))
+  (if argv (repl-args)
+      (interp :input (open "<0"))
+      (when (fttyp) (repl-princ (interp :version)"\n"))
+      (repl-rcfile)
+      (when (fttyp) (repl-princ "exit with C-d\n"))
+      (repl nil) ))
