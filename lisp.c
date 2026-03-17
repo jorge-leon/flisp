@@ -619,7 +619,7 @@ Object *newStringWithLength(Interpreter *interp, char *string, size_t length)
      */
     Object *object = newObject(interp, type_string, length + 1);
     object->length = 0;
-    object->size = unescapeString(object->string, string, length);
+    object->size = unescapeString(object->string, string, length) + 1;
     return object;
 }
 Object *newString(Interpreter *interp, char *string)
@@ -643,7 +643,7 @@ Object *newSymbolWithLength(Interpreter *interp, char *string, size_t length)
     GC_TRACE(gcSymbol, newObject(interp, type_symbol, length + 1));
     (*gcSymbol)->length = 0;
     strncpy((*gcSymbol)->string, string, length);
-    (*gcSymbol)->string[length + 1] = '\0';
+    (*gcSymbol)->string[length] = '\0';
     interp->symbols = newCons(interp, gcSymbol, &interp->symbols);
     GC_RELEASE;
     return *gcSymbol;
@@ -1847,10 +1847,18 @@ Object *primitiveVector(Interpreter *interp, Object **args, Object **env, size_t
 {
     return flisp_ext_obj(interp, type_vector, args, nArgs, 0);
 }
-/** (object-list object[ start[ end]]) => list of contained object */
-Object *primitiveVectorRange(Interpreter *interp, Object **args, Object **env, size_t nArgs)
+/** (object-elements object[ start[ end]]) => list of contained object */
+Object *primitiveObjects(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     int64_t i = 0, end = FLISP_ARG_ONE->length;
+
+    if (end == 0) {
+        if (FLISP_ARG_ONE->size == 0)
+            return newError(interp, invalid_value, FLISP_ARG_ONE,
+                "(object-elements[ object[ start[ end]]]) - object is simple object, expected: extended");
+        else
+            return nil;
+    }
     if (nArgs > 1) {
         FLISP_ARG_TYPECHECK(FLISP_ARG_TWO, type_integer, "(object-list object[ start[ end]]) - start");
         i = (FLISP_ARG_TWO->value < 0) ? end + FLISP_ARG_TWO->value : FLISP_ARG_TWO->value;
@@ -2480,7 +2488,7 @@ bool flisp_primitives_register(Interpreter *interp)
          && flisp_register_primitive(interp, "object-size",   1,  1, nil,            primitiveObjectSize)
          && flisp_register_primitive(interp, "object-length", 1,  1, nil,            primitiveObjectLength)
          && flisp_register_primitive(interp, "vector",        1, -1, nil,            primitiveVector)
-         && flisp_register_primitive(interp, "vector-range",  1,  3, nil,            primitiveVectorRange)
+         && flisp_register_primitive(interp, "objects",       1,  3, nil,            primitiveObjects)
          && flisp_register_primitive(interp, "cons",          2,  2, nil,            primitiveCons)
          && flisp_register_primitive(interp, "open",          1,  2, type_string,    primitiveFopen)
          && flisp_register_primitive(interp, "close",         1,  1, type_stream,    primitiveFclose)
@@ -2499,10 +2507,6 @@ bool flisp_primitives_register(Interpreter *interp)
         return false;
     return
         flisp_register_primitive(interp,    "write",         1,  3, nil,            primitiveWrite)
-#if DEBUG_GC
-        && flisp_register_primitive(interp, "gc",            0,  0, nil,            primitiveGc)
-        && flisp_register_primitive(interp, "gctrace",       0,  0, nil,            primitiveGcTrace)
-#endif
         && flisp_register_primitive(interp, "error",         2,  3, nil,            primitiveError)
         && flisp_register_primitive(interp, "throw",         1,  1, type_error,     primitiveThrow)
         && flisp_register_primitive(interp, "i+",            2,  2, type_integer,   integerAdd)

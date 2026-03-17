@@ -16,7 +16,7 @@
 #include <limits.h>
 
 #define FL_NAME     "fLisp"
-#define FL_VERSION  "0.16"
+#define FL_VERSION  "0.17α1"
 
 #ifndef FLISPLIB
 #define FLISPLIB /usr/local/share/flisp
