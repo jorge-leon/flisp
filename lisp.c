@@ -3,7 +3,7 @@
  *
  * Based on Tiny-Lisp: https://github.com/matp/tiny-lisp, public domain
  *
- * Georg Lehner 2024, CC0 1.0
+ * Georg Lehner <jorge@magma-soft.at> 2024, CC0 1.0
  *
  */
 
