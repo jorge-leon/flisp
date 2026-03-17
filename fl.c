@@ -15,7 +15,7 @@ int main(int argc, char **argv)
 
     fputs("\n" FL_NAME " " FL_VERSION "\n", stderr);
 
-    interp = flisp_new((size_t) 0, argv, NULL, stdin, stdout, stderr);
+    interp = flisp_new((size_t) 0, argv, NULL, stdin, stdout, getenv("FLISP_DEBUG") ? stderr : NULL);
     if (interp == NULL) {
         fputs("fLisp interpreter initialization failed", stderr);
         return 1;
@@ -29,7 +29,7 @@ int main(int argc, char **argv)
         if (flisp_error(interp))
             flisp_write_error(interp, stderr);
         else
-            break;
+            return 0;
     }
 }
 
