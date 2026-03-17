@@ -1688,10 +1688,12 @@ void flisp_write_object(Interpreter *interp, FILE *fd, Object *object, bool read
         Object *symbols = object->vars, *values = object->vals;
         while (symbols != nil) {
             flisp_write_object(interp, fd, symbols->car, readably);
-            writeFmt(interp, fd, ",  ");
+            writeFmt(interp, fd, "  ");
             flisp_write_object(interp, fd, values->car, readably);
             symbols = symbols->cdr;
             values = values->cdr;
+            if (symbols != nil)
+                writeFmt(interp, fd, ",  ");
         }
         writeChar(interp, fd, '>');
     } else if (object->type == type_string)
