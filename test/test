@@ -31,7 +31,7 @@
 : ${SUMMARY:=}
 : ${TEST_ALL=}
 
-: ${FLISP:=../flispd}
+: ${FLISP:=../fl}
 FLISP_DEBUG=
 FEMTO_DEBUG=
 
@@ -111,24 +111,20 @@ ok () {
 # pipe expr $PREPARE, then $IN to fLisp, extract $1 last values of
 # output, default 1. Filters trailing 't.  Compare output with $OUT
 flisp_expr () {
-    [ "$(echo -n "$PREPARE $IN" | $FLISP | tail -n ${1:-1})" = "$OUT" ]
+    [ "$(echo -n "$PREPARE $IN" | $FLISP 2>&1 | tail -n ${1:-1})" = "$OUT" ]
 }
 flisp_err () {
     echo -n "$PREPARE $IN" | $FLISP 2>&1 >/dev/null | tail -n ${1:-1} |{
-	read PRE REST
+	IFS=: read PRE ECODE MSG EOBJ
 	: $PRE
-	: $REST
-	MSG=${REST#*, }
-	[ "$OBJ" ] && {
-	    EOBJ=${REST%%\',*}
-	    EOBJ=${EOBJ#*\'}
-	    [ "$PRE" = "error:" -a "$MSG" = "$ERR" -a "$OBJ" = "$EOBJ" ]
-	    RC=$? ERR= OBJ=
-	    return $RC
-	}
-	[ "$PRE" = "error:" -a "$MSG" = "$ERR" ]
-	RC=$? PRE= OBJ=
-	return $RC
+	: $ECODE
+	: $MSG
+	: $EOBJ
+	[ "$PRE" = error ] || return 1
+	[ "$CODE" = "$ECODE" ]  || return 2
+	[ "$ERR" ] && { [ " $ERR" = "$MSG" ] || return 3; }
+	[ "$OBJ" ] && { [ " $OBJ" = "$EOBJ" ] || return 4; }
+	return 0
     }
 }
 

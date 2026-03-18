@@ -3,30 +3,33 @@
 # test executable and fLisp functionality
 # leg20231128: Femto
 
-export FLISPRC=
-export PREPARE='(interp :output (open ">1" "w"))'
-export FLISP_DEBUG=f.log
-export FLISP_SIZE=$((20*1024*1024))
+export FLISP=../fl
+unset FLISP_DEBUG
+unset PREPARE
+
+#export PREPARE='(interp :output (open ">1" "w"))'
+#export FLISP_DEBUG=f.log
+#export FLISP_SIZE=$((20*1024*1024))
 
 tap 199
 
-[ -x ../flispd ]
+[ -x $FLISP ]
 ok flisp-1 flisp exists and is executable;
 
-(: | FLISPRC= ../flispd)
-ok flisp-2 empty input succeeds
+IN= OUT="fLisp 0.17α1"
+flisp_expr; ok flisp-2 empty input succeeds
 
 # reader
-IN='(' ERR='unexpected end of stream in list'
+IN='(' OBJ= CODE=read-incomplete ERR='unexpected end of stream in list'
 flisp_err; ok reader-1 incomplete sexp error msg
 
-IN='"' ERR='unexpected end of stream in string literal'
+IN='"' OBJ= CODE=read-incomplete ERR='unexpected end of stream in string literal'
 flisp_err; ok reader-2 incomplete string error msg
 
-IN='}' OBJ="" ERR="unexpected character: '}'"
+IN='}' OBJ="'}'" CODE=invalid-read-syntax ERR="unexpected character"
 flisp_err; ok reader-3-1 unexpected ascii character error msg
 
-IN='ä' OBJ="" ERR="unexpected character: 0xC3"
+IN='ä' OBJ="0xA4" CODE=invalid-read-syntax ERR="unexpected character"
 flisp_err; ok reader-3-2 unexpected unicode character error msg
 
 IN="0" OUT='0'
@@ -42,13 +45,19 @@ IN="0x10" OUT='16'
 flisp_expr; ok reader-4-4 read integer hex 10 is 16
 
 IN=".1" OUT='0.1'
-flisp_expr; ok reader-4-5 read double .1 is 0.1
+flisp_expr; ok reader-4-5 read double .1 is 0.1 at eof
 
 IN="3.14" OUT='3.14'
-flisp_expr; ok reader-4-6 read double 3.14 is 3.14
+flisp_expr; ok reader-4-6 read double 3.14 is 3.14 at eof
+
+IN="7." OUT='7'
+flisp_expr; ok reader-4-7 read double 7. is 7 at eof
+
+IN="7. " OUT='7'
+flisp_expr; ok reader-4-8 read double 7. is 7
 
 IN="t" OUT='t'
-flisp_expr; ok reader-5 read constant t
+flisp_expr; ok reader-5 read constant t at eof
 
 IN="nil" OUT='nil'
 flisp_expr; ok reader-6 read constant nil
@@ -71,9 +80,9 @@ flisp_expr; ok reader-10 read tick-quoted yields symbol
 IN=":a" OUT='a'
 flisp_expr; ok reader-11 read colon-quoted yields symbol
 
-IN="'(0 (\"a\" b))" OUT='(0 ("a" b))'
+IN="'(0 (\"a\" b)) " OUT='(0 ("a" b))'
 flisp_expr; ok reader-12 read nested list
-
+return
 IN="'(0 . 1)" OUT='(0 . 1)'
 flisp_expr; ok reader-13 read dotted pair
 
