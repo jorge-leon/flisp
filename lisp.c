@@ -983,10 +983,11 @@ Object *readString(Interpreter *interp, FILE *fd)
  */
 Object *readNumberOrSymbol(Interpreter *interp, FILE *fd)
 {
+    interp->len = 0;
+
     int ch = streamPeek(fd);
     if (ch == EOF)  { if (ferror(fd)) goto io_error; else goto eof_error; }
 
-    interp->len = 0;
     /* skip optional leading sign */
     if (ch == '+' || ch == '-') {
         if (!addCharToBuf(interp, fgetc(fd)))  goto oom_error;
@@ -1010,31 +1011,40 @@ Object *readNumberOrSymbol(Interpreter *interp, FILE *fd)
         }
         if (isdigit(ch)) {
             ch = readWhile(interp, fd, isdigit);
-            if (ch == EOF) { if (ferror(fd)) goto io_error; else if (interp-> buf == NULL)  goto oom_error; }
+            if (ch == EOF) { if (ferror(fd)) goto io_error; else if (interp->buf == NULL)  goto oom_error; }
             if (interp->len == 0) goto eof_error;
         }
         if (!isSymbolChar(ch))
             return readInteger(interp);
         if (ch == '.') {
             if (!addCharToBuf(interp, ch))  goto oom_error;
+            (void)fgetc(fd);
             ch = streamPeek(fd);
-            if (ch == EOF && ferror(fd))  goto io_error;
+            if (ch == EOF) {
+                if (ferror(fd))  goto io_error;
+                if (interp->len > 1)
+                    return readDouble(interp);
+            }
             if (isdigit(ch)) {
-                if (!addCharToBuf(interp, ch))  goto oom_error;
                 ch = readWhile(interp, fd, isdigit);
                 if (ch == EOF) { if (ferror(fd)) goto io_error; else if (interp->buf == NULL)  goto oom_error; }
                 if (interp->len == 0) goto eof_error;
                 if (!isSymbolChar(ch))
                     return readDouble(interp);
             }
+            if (!isSymbolChar(ch))
+                return readDouble(interp);
         }
     }
     /* non-numeric character encountered, read a symbol */
-    if (EOF == readWhile(interp, fd, isSymbolChar)) { if (ferror(fd))  goto io_error; else goto oom_error; }
+    if (EOF == readWhile(interp, fd, isSymbolChar)) {
+        if (ferror(fd))  goto io_error;
+        if (interp->buf == NULL) goto oom_error;
+    }
     return newSymbolWithLength(interp, interp->buf, interp->len);
 
 oom_error:
-    return newError(interp, out_of_memory, nil, "OOM while reading number of symbol");
+    return newError(interp, out_of_memory, nil, "OOM while reading number or symbol");
 io_error:
     return newError(interp, io_error, nil, "I/O error while reading number or symbol");
 eof_error:
@@ -1058,6 +1068,7 @@ Object *readList(Interpreter *interp, FILE *fd)
 {
     Object *last = nil;
     Object *list = nil;
+
     for (;;) {
         interp->len = 0;
 
@@ -1174,6 +1185,7 @@ Object *readExpr(Interpreter *interp, FILE *fd)
 {
     Object *object;
     for (;;) {
+        interp->len = 0;
 
         int ch = skipToNext(interp, fd);
 
@@ -1220,7 +1232,7 @@ io_error:
 /** (read [stream [eofv]]) - read one object from input stream
  * @param interp  fLisp interpreter.
  * @param stream  input stream to read, if nil, use interp input stream.
- * @param eofv    On EOF: if nil throw exception, else value to return.
+ * @param eofv    On EOF: if nil return error, else value to return.
  * @returns: Object
  * @errors: invalid-value, io-error, end-of-file
  */
