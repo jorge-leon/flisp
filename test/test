@@ -114,7 +114,8 @@ flisp_expr () {
     [ "$(echo -n "$PREPARE $IN" | $FLISP 2>&1 | tail -n ${1:-1})" = "$OUT" ]
 }
 flisp_err () {
-    echo -n "$PREPARE $IN" | $FLISP 2>&1 >/dev/null | tail -n ${1:-1} |{
+    echo -n "$PREPARE $IN" | $FLISP 2>&1 >/dev/null \
+    | tail -n ${1:-2} | head -n ${2:-1} |{
 	IFS=: read PRE ECODE MSG EOBJ
 	: $PRE
 	: $ECODE

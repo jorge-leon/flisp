@@ -82,27 +82,35 @@ flisp_expr; ok reader-11 read colon-quoted yields symbol
 
 IN="'(0 (\"a\" b)) " OUT='(0 ("a" b))'
 flisp_expr; ok reader-12 read nested list
-return
+
 IN="'(0 . 1)" OUT='(0 . 1)'
 flisp_expr; ok reader-13 read dotted pair
 
 IN="'(0 1 . 2)" OUT='(0 1 . 2)'
 flisp_expr; ok reader-14 read dotted list
 
-IN="'(0 1 . 2 3)" ERR="unexpected object at end of dotted list" OBJ=
+IN="'(0 1 . " CODE="read-incomplete"
+ERR="unexpected end of stream in dotted list" OBJ=
+flisp_err; ok reader-14-1 dotted list w/o end paren
+
+IN="'(0 1 . 2 3)" CODE="invalid-read-syntax"
+ERR="unexpected object at end of dotted list" OBJ=
 flisp_err; ok reader-15 read dotted list with extra element
 
-IN="'(0 1 .)" ERR="expected object at end of dotted list" OBJ=
+IN="'(0 1 .)" CODE="invalid-read-syntax"
+ERR="expected object at end of dotted list" OBJ=
 flisp_err; ok reader-16 read dotted list without cdr
 
-IN="'(" ERR="unexpected end of stream in list" OBJ=
-flisp_err; ok reader-17 read list without end
+IN="'(" CODE="read-incomplete"
+ERR="unexpected end of stream in list" OBJ=
+flisp_err 1; ok reader-17 read list without end
 
 # Special forms
-IN='(quote)' ERR='expects at least 1 arguments' OBJ='#<Primitive quote>'
-### flisp_err; ok quote-1 w/o arg error message
-OUT='#<Error #<Primitive quote>: "expects at least 1 arguments", wrong-number-of-arguments>'
-flisp_expr; ok quote-1 w/o arg error message
+IN='(quote)' CODE=wrong-number-of-arguments
+ERR='expects at least 1 arguments' OBJ='#<Primitive quote>'
+flisp_err 1; ok quote-1 w/o arg error message
+#OUT='#<Error #<Primitive quote>: "expects at least 1 arguments", wrong-number-of-arguments>'
+#flisp_expr; ok quote-1 w/o arg error message
 
 IN="(bind var 'val)" OUT=val
 flisp_expr; ok bind-2 assignment returns value
@@ -110,10 +118,11 @@ flisp_expr; ok bind-2 assignment returns value
 IN="(bind var 'val) var" OUT="val"
 flisp_expr; ok bind-3 var evaluates to val
 
-IN='(bind var1)' OBJ='#<Primitive bind>' ERR='expects at least 2 arguments'
-###flisp_err; ok bind-4 one arg fails
-OUT='#<Error #<Primitive bind>: "expects at least 2 arguments", wrong-number-of-arguments>'
-flisp_expr; ok bind-4 one arg fails
+IN='(bind var1)' CODE=wrong-number-of-arguments
+OBJ='#<Primitive bind>' ERR='expects at least 2 arguments'
+flisp_err 1; ok bind-4 one arg fails
+#OUT='#<Error #<Primitive bind>: "expects at least 2 arguments", wrong-number-of-arguments>'
+#flisp_expr; ok bind-4 one arg fails
 
 IN="(bind var1 3) ((lambda () (bind var1 2))) var1" OUT=3
 flisp_expr; ok setq-5 local bind does not set outer variable.
@@ -170,16 +179,18 @@ flisp_expr; ok cond-12 cond with last expresion single string list gives its val
 IN="(cond nil ((consp (quote (a b)))))" OUT=t
 flisp_expr; ok cond-13 cond with last expresion funcall gives result
 
-IN='(cond . "a")' ERR='(cond args) - args is not a list: arg 0' OBJ='"a"'
-###flisp_err; ok cond-14 fail if not called with a cons
-OUT='#<Error "a": "(cond args) - args is not a list: arg 0", wrong-type-argument>'
-flisp_expr; ok cond-14 fail if not called with a cons
+IN='(cond . "a")' CODE=wrong-type-argument
+ERR='(cond args) - args is not a list, arg 0' OBJ='"a"'
+flisp_err 1; ok cond-14 fail if not called with a cons
+#OUT='#<Error "a": "(cond args) - args is not a list: arg 0", wrong-type-argument>'
+#flisp_expr; ok cond-14 fail if not called with a cons
 
-IN='(cond "a" ())' OBJ='"a"' ERR='(cond clause ..) - is not a list: clause'
-###flisp_err; ok cond-15 fail if clause is not a cons
-OUT='#<Error "a": "(cond clause ..) - is not a list: clause", wrong-type-argument>'
-flisp_expr; ok cond-15 fail if clause is not a cons
-return
+IN='(cond "a" ())' OBJ='"a"' CODE=wrong-type-argument
+ERR='(cond clause ..) - is not a list, clause'
+flisp_err 1; ok cond-15 fail if clause is not a cons
+#OUT='#<Error "a": "(cond clause ..) - is not a list: clause", wrong-type-argument>'
+#flisp_expr 1; ok cond-15 fail if clause is not a cons
+
 IN='(cond (nil . "a"))' ERR='unexpected dot at start of list' OBJ=
 flisp_err; ok cond-16 fail if clause is cons with car nil - captured by reader
 
@@ -500,7 +511,7 @@ flisp_expr; ok substring-2 substring answer is answer
 
 IN='(substring "answer" 3)' OUT='"wer"'
 flisp_expr; ok substring-3 substring answer 3 wer
-
+return
 IN='(substring "answer" -2)' OUT='"er"'
 flisp_expr; ok substring-4 substring answer -2 er
 
