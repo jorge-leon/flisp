@@ -138,7 +138,7 @@ extern void flisp_eval(Interpreter *, char *);
 /* Note: experimental */
 extern bool flisp_error(Interpreter *);
 extern void flisp_expr(Interpreter *, Object *);
-extern void flisp_write_object(Interpreter *, FILE *, Object *, bool);
+extern Object *flisp_write_object(Interpreter *, FILE *, Object *, bool);
 extern void flisp_write_error(Interpreter *, FILE *);
 extern void flisp_exception(Interpreter *, Object *);
 
@@ -232,8 +232,8 @@ extern Primitive *flisp_register_primitive(Interpreter *, char *, int, int, Obje
 
 /* UTF-8 handling */
 extern size_t flisp_char_length(char);
-extern size_t flisp_char_index(Interpreter *, char *, size_t);
-extern size_t flisp_char_count(Interpreter *, char *, size_t);
+extern Object *flisp_char_index(Interpreter *, char *, size_t);
+extern Object *flisp_char_count(Interpreter *, Object *, size_t);
 
 #endif
 /*

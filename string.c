@@ -15,12 +15,12 @@ Object *stringCharLength(Interpreter *interp, Object **args, Object **env, size_
 {
     size_t len;
 
-    if (*(FLISP_ARG_ONE->string) == '\0')
-        return newError(interp, FLISP_ARG_ONE, invalid_value,
+    if (FLISP_ARG_ONE->size < 2)
+        return newError(interp, invalid_value, FLISP_ARG_ONE,
                             "(char-length string) - string is empty");
     len = flisp_char_length(*(FLISP_ARG_ONE->string));
     if (len == 0)
-        return newError(interp, FLISP_ARG_ONE, range_error,
+        return newError(interp, range_error, FLISP_ARG_ONE,
                             "char-length string) - invalid UTF-8 encoding");
     return newInteger(interp, len);
 }
@@ -131,7 +131,7 @@ Object *stringCharCode(Interpreter *interp, Object **args, Object **env, size_t 
 Object *stringStrspn(Interpreter *interp, Object** args, Object **env, size_t nArgs)
 {
     int64_t i = strspn(FLISP_ARG_ONE->string, FLISP_ARG_TWO->string);
-    return newInteger(interp, flisp_char_count(interp, FLISP_ARG_ONE->string, i));
+    return flisp_char_count(interp, FLISP_ARG_ONE, i);
 }
 
 
@@ -139,7 +139,7 @@ Object *stringStrspn(Interpreter *interp, Object** args, Object **env, size_t nA
 Object *stringStrcspn(Interpreter *interp, Object** args, Object **env, size_t nArgs)
 {
     int64_t i = strcspn(FLISP_ARG_ONE->string, FLISP_ARG_TWO->string);
-    return newInteger(interp, flisp_char_count(interp, FLISP_ARG_ONE->string, i));
+    return flisp_char_count(interp, FLISP_ARG_ONE, i);
 }
 
 Object *string_extension = &(Object) { .string = "extension-string" };

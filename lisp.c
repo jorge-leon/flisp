@@ -2297,53 +2297,53 @@ Object *stringSearch(Interpreter *interp, Object **args, Object **env, size_t nA
  */
 Object *stringSubstring(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
-    int64_t start = 0, end, len;
+    int64_t start = 0, end;
+    Object *len, *i, *j;
 
     FLISP_ARG_TYPECHECK(FLISP_ARG_ONE, type_string, "(substring string [start [end]]) - string");
 
-    if (*(FLISP_ARG_ONE->string) == '\0')
-        return flisp_empty_string;
+    if (*(FLISP_ARG_ONE->string) == '\0') return flisp_empty_string;
 
-    end = len = flisp_char_count(interp, FLISP_ARG_ONE->string, SIZE_MAX);
+    len = flisp_char_count(interp, FLISP_ARG_ONE, SIZE_MAX);
+    if (len->type == type_error)  return len;
+    end = len->value;
 
     if (nArgs > 1) {
         FLISP_ARG_TYPECHECK(FLISP_ARG_TWO, type_integer, "(substring string [start [end]]) - start");
         start = (FLISP_ARG_TWO->value);
         if (start < 0)
-            start = end + start;
-    }        
+            start += end;
+    }
     if (nArgs > 2) {
         FLISP_ARG_TYPECHECK(FLISP_ARG_THREE, type_integer, "(substring string [start [end]]) - end");
-    if (FLISP_ARG_THREE->value < 0)
-                end = end + FLISP_ARG_THREE->value;
-            else
-                end = FLISP_ARG_THREE->value;
+        if (FLISP_ARG_THREE->value < 0)
+            end += FLISP_ARG_THREE->value;
+        else
+            end = FLISP_ARG_THREE->value;
     }
-    if (start < 0 || start > len)
+
+    if (start < 0 || start > len->value)
         return newError(interp, range_error, FLISP_ARG_TWO,
-                            "(substring string [start [end]]) - start out of range");
-    if (end < 0 || end > len)
+                        "(substring string [start [end]]) - start out of range [0, %ld]: %ld",
+                        len->value, start);
+    if (end < 0 || end > len->value)
         return newError(interp, range_error, FLISP_ARG_THREE,
-                            "(substring string [start [end]]) - end out of range");
-    if (start == end)
-        return flisp_empty_string;
+                        "(substring string [start [end]]) - end out of range [0, %ld]: %ld",
+                        len->value, end);
 
     if (start > end)
         return newError(interp, range_error, FLISP_ARG_TWO,
-                            "(substring string [start [end]]) - end > start");
-    len = end - start;
-    start = flisp_char_index(interp, FLISP_ARG_ONE->string, start);
-    char *buf = strdup(FLISP_ARG_ONE->string+start);
-    if (buf == NULL)
-        return newError(interp, out_of_memory, nil, "OOM allocating buffer for (substring)\n");
+                        "(substring string [start [end]]) - end > start");
 
-    /* Repurpose len for char length */
-    len = flisp_char_index(interp, buf, len);
-    Object *new = newStringWithLength(interp, buf, len+1);
-    free(buf);
-    new->string[len] = '\0';
+    if (start == end) return flisp_empty_string;
 
-    return new;
+    i = flisp_char_index(interp, FLISP_ARG_ONE->string, start);
+    if (i->type == type_error)  return i;
+
+    j = flisp_char_index(interp, FLISP_ARG_ONE->string+(i->value), end-start);
+    if (j->type == type_error)  return j;
+
+    return newStringWithLength(interp, FLISP_ARG_ONE->string+(i->value), j->value - i->value );
 }
 
 // (string-compare s1 s2)
