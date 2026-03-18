@@ -1363,7 +1363,7 @@ Object *evalCond(Interpreter *interp, Object **args, Object **env)
         goto next_clause;
 
     if (clause->type != type_cons)
-        return newError(interp, wrong_type_argument, clause, "(cond clause ..) - is not a list: clause");
+        return newError(interp, wrong_type_argument, clause, "(cond clause ..) - is not a list, clause");
 
     Object *action = clause->cdr;
     if (action != nil && action->type != type_cons)
@@ -1514,7 +1514,7 @@ Object *evalExpr(Interpreter *interp, Object ** object, Object **env)
             for (args = *gcArgs; args != nil; args = args->cdr, nArgs++) {
                 if (args->type != type_cons)
                     return newError(interp, wrong_type_argument, args,
-                                        "(%s args) - args is not a list: arg %d",
+                                        "(%s args) - args is not a list, arg %d",
                                         primitive->name, nArgs);
                 if (args->car->type == type_moved || args->cdr->type == type_moved)
                     return newError(interp, gc_error, args->car,

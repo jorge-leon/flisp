@@ -29,7 +29,7 @@ CFLAGS += -D FLISPLIB=$(DATADIR)/$(PACKAGE) -D FLISPRC=$(DATADIR)/$(PACKAGE)/ini
 
 OBJ = posix.o string.o lisp.o
 OBJD = double.o posix.o string.o lispd.o
-BINARIES = flisp flispd
+BINARIES = flisp flispd fl
 LIBRARIES = libflisp.a libflispd.a
 RC_FILES = init.lsp
 HEADER = lisp.h string.h posix.h double.h
@@ -155,7 +155,7 @@ splint: FORCE
 TAGS: FORCE
 	ctags -e *.c *.h *.lsp
 
-test: flispd test/test.lsp FORCE
+test: fl flispd test/test.lsp FORCE
 	@(cd test && ./test -as)
 
 # Exit 1 if any testsuite fails
