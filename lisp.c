@@ -387,13 +387,13 @@ Object *memoryAllocObject(Interpreter *interp, Object *type, size_t size)
     void *new;
     new = mmap(NULL, interp->memory->capacity + memory, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     if (new == (void *) -1) {
-        /* Note: fake that we have more memory and throw exception, then let's hope the best. */
+        /* Note: fake that we have more memory return an error and then hope the best. */
         interp->memory->capacity+= EXCEPTION_MEM_RESERVE;
-        flisp_exception(interp, newError(interp, out_of_memory, nil, "OOM reallocating toSpace: %s", strerror(errno)));
+        return newError(interp, out_of_memory, nil, "OOM reallocating toSpace: %s", strerror(errno));
     }
     if (munmap(interp->memory->toSpace, interp->memory->capacity) == -1) {
         interp->memory->capacity+= EXCEPTION_MEM_RESERVE;
-        flisp_exception(interp, newError(interp, out_of_memory, nil, "munmap(toSpace) failed: %s", strerror(errno)));
+        return newError(interp, out_of_memory, nil, "munmap(toSpace) failed: %s", strerror(errno));
     }
     interp->memory->toSpace = new;
     interp->memory->capacity += memory;
@@ -401,7 +401,7 @@ Object *memoryAllocObject(Interpreter *interp, Object *type, size_t size)
     gc(interp);
     if (munmap(interp->memory->toSpace, interp->memory->capacity - memory) == -1) {
         interp->memory->capacity+= EXCEPTION_MEM_RESERVE;
-        flisp_exception(interp, newError(interp, out_of_memory, nil, "munmap(fromSpace) failed: %s", strerror(errno)));
+        return newError(interp, out_of_memory, nil, "munmap(fromSpace) failed: %s", strerror(errno));
     }
     interp->memory->toSpace = NULL;
 
@@ -1583,12 +1583,13 @@ Object *primitiveEval(Interpreter *interp, Object **args, Object **env, size_t n
  *
  * throws: io-error
  */
-void writeChar(Interpreter *interp, FILE *fd, char ch)
+Object *writeChar(Interpreter *interp, FILE *fd, char ch)
 {
-    if (fd == NULL) return;
+    if (fd == NULL) return nil;
 
     if(fputc(ch, fd) == EOF)
-        flisp_exception(interp, newError(interp, io_error, nil, "failed to write character 0x%02X, errno: %s", ch, strerror(errno)));
+        return newError(interp, io_error, nil, "failed to write character 0x%02X, errno: %s", ch, strerror(errno));
+    return nil;
 }
 
 /** writeString - write string to file descriptor
@@ -1600,12 +1601,13 @@ void writeChar(Interpreter *interp, FILE *fd, char ch)
  * throws: io-error
  *
  */
-void writeString(Interpreter *interp, FILE *fd, char *str)
+Object *writeString(Interpreter *interp, FILE *fd, char *str)
 {
-    if (fd == NULL) return;
+    if (fd == NULL) return nil;
 
     if(fputs(str, fd) == EOF)
-        flisp_exception(interp, newError(interp, io_error, nil, "failed to write string %s",strerror(errno)));
+        return newError(interp, io_error, nil, "failed to write string %s",strerror(errno));
+    return nil;
 }
 /** writeFmt - write printf formatted string to file descriptor
  *
@@ -1616,21 +1618,22 @@ void writeString(Interpreter *interp, FILE *fd, char *str)
  * throws: io-error
  */
 #ifdef __GNUC__
-void writeFmt(Interpreter *, FILE *, char *format, ...)
+Object *writeFmt(Interpreter *, FILE *, char *format, ...)
     __attribute__ ((format(printf, 3, 4)));
 #endif
-void writeFmt(Interpreter *interp, FILE *fd, char *format, ...)
+Object *writeFmt(Interpreter *interp, FILE *fd, char *format, ...)
 {
     int len;
 
-    if (fd == NULL) return;
+    if (fd == NULL) return nil;
 
     va_list(args);
     va_start(args, format);
     len = vfprintf(fd, format, args);
     va_end(args);
     if (len < 0)
-        flisp_exception(interp, newError(interp, io_error, nil, "writeFmt(): failed to fprintf, %s", strerror(errno)));
+        return newError(interp, io_error, nil, "writeFmt(): failed to fprintf, %s", strerror(errno));
+    return nil;
 }
 
 
@@ -1646,106 +1649,113 @@ void writeFmt(Interpreter *interp, FILE *fd, char *format, ...)
  * throws: gc-error, io-error
  *
  */
-void flisp_write_object(Interpreter *interp, FILE *fd, Object *object, bool readably)
+Object *flisp_write_object(Interpreter *interp, FILE *fd, Object *object, bool readably)
 {
-    if (fd == NULL) return;
+    Object *result;
+    if (fd == NULL) return nil;
 
     if (object->type == type_integer)
-        writeFmt(interp, fd, "%"PRId64, object->value);
-    else if (object->type == type_double)
-        writeFmt(interp, fd, "%g", object->number);
-    else if (object->type == type_primitive)
-        writeFmt(interp, fd, "#<Primitive %s>", object->primitive->name);
+        return writeFmt(interp, fd, "%"PRId64, object->value);
+    if (object->type == type_double)
+        return writeFmt(interp, fd, "%g", object->number);
+    if (object->type == type_primitive)
+        return writeFmt(interp, fd, "#<Primitive %s>", object->primitive->name);
 
-    else if (object->type == type_vector)
-        writeFmt(interp, fd, "#<Vector %lu>", object->length);
-    else if (object->type == type_cons) {
-        writeChar(interp, fd, '(');
-        flisp_write_object(interp, fd, object->car, readably);
+    if (object->type == type_vector)
+        return writeFmt(interp, fd, "#<Vector %lu>", object->length);
+    if (object->type == type_cons) {
+        result = writeChar(interp, fd, '('); if (result != nil) return result;
+        result = flisp_write_object(interp, fd, object->car, readably); if (result !=nil) return result;
         while (object->cdr != nil) {
             object = object->cdr;
             if (object->type == type_cons) {
-                writeChar(interp, fd, ' ');
-                flisp_write_object(interp, fd, object->car, readably);
+                result = writeChar(interp, fd, ' '); if (result !=nil) return result;
+                result = flisp_write_object(interp, fd, object->car, readably); if (result !=nil) return result;
             } else {
-                writeString(interp, fd, " . ");
-                flisp_write_object(interp, fd, object, readably);
+                result = writeString(interp, fd, " . "); if (result !=nil) return result;
+                result = flisp_write_object(interp, fd, object, readably); if (result !=nil) return result;
                 break;
             }
         }
-        writeChar(interp, fd, ')');
-    } else if (object->type == type_lambda) {
-        writeFmt(interp, fd, "#<Lambda ");
-        flisp_write_object(interp, fd, object->params, readably);
-        writeChar(interp, fd, '>');
-    } else if (object->type == type_macro) {
-        writeFmt(interp, fd, "#<Macro ");
-        flisp_write_object(interp, fd, object->params, readably);
-        writeChar(interp, fd, '>');
-    } else if (object->type == type_env) {
-        /* Note: rather print as name = value pairs */
-        writeFmt(interp, fd, "<#Env ");
+        return writeChar(interp, fd, ')');
+    }
+    if (object->type == type_lambda) {
+        result = writeFmt(interp, fd, "#<Lambda "); if (result != nil) return result;
+        result = flisp_write_object(interp, fd, object->params, readably); if (result != nil) return result;
+        return writeChar(interp, fd, '>');
+    }
+    if (object->type == type_macro) {
+        result = writeFmt(interp, fd, "#<Macro "); if (result != nil) return result;
+        result = flisp_write_object(interp, fd, object->params, readably); if (result != nil) return result;
+        return writeChar(interp, fd, '>');
+    }
+    if (object->type == type_env) {
+        result = writeFmt(interp, fd, "<#Env "); if (result != nil) return result;
         Object *symbols = object->vars, *values = object->vals;
         while (symbols != nil) {
-            flisp_write_object(interp, fd, symbols->car, readably);
-            writeFmt(interp, fd, "  ");
-            flisp_write_object(interp, fd, values->car, readably);
+            result = flisp_write_object(interp, fd, symbols->car, readably); if (result != nil) return result;
+            result = writeFmt(interp, fd, "  ");  if (result != nil) return result;
+            result = flisp_write_object(interp, fd, values->car, readably); if (result != nil) return result;
             symbols = symbols->cdr;
             values = values->cdr;
-            if (symbols != nil)
-                writeFmt(interp, fd, ",  ");
-        }
-        writeChar(interp, fd, '>');
-    } else if (object->type == type_string)
-        if (!readably) writeString(interp, fd, object->string); else {
-            writeChar(interp, fd, '"');
-            char *string;
-            for (string = object->string; *string; ++string) {
-                switch (*string) {
-                case '"':
-                    writeString(interp, fd, "\\\"");
-                    break;
-                case '\t':
-                    writeString(interp, fd, "\\t");
-                    break;
-                case '\r':
-                    writeString(interp, fd, "\\r");
-                    break;
-                case '\n':
-                    writeString(interp, fd, "\\n");
-                    break;
-                case '\\':
-                    writeString(interp, fd, "\\\\");
-                    break;
-                default:
-                    writeChar(interp, fd, *string);
-                    break;
-                }
+            if (symbols != nil) {
+                result = writeFmt(interp, fd, ",  "); if (result != nil) return result;
             }
-            writeChar(interp, fd, '"');
         }
-    else if (object->type == type_symbol)
-        writeString(interp, fd, object->string);
-    else if (object->type == type_stream)
-        writeFmt(interp, fd, "#<Stream %"PRIXPTR" %s>",
-                 (uintptr_t) object->fd,
-                 object->path->string
+        return writeChar(interp, fd, '>');
+    }
+    if (object->type == type_string) {
+        if (!readably)
+            return writeString(interp, fd, object->string);
+        result = writeChar(interp, fd, '"'); if (result != nil) return result;
+        char *string;
+        for (string = object->string; *string; ++string) {
+            switch (*string) {
+            case '"':
+                writeString(interp, fd, "\\\"");
+                break;
+            case '\t':
+                writeString(interp, fd, "\\t");
+                break;
+            case '\r':
+                writeString(interp, fd, "\\r");
+                break;
+            case '\n':
+                writeString(interp, fd, "\\n");
+                break;
+            case '\\':
+                writeString(interp, fd, "\\\\");
+                break;
+            default:
+                writeChar(interp, fd, *string);
+                break;
+            }
+        }
+        result = writeChar(interp, fd, '"'); if (result != nil) return result;
+    }
+    if (object->type == type_symbol)
+        return writeString(interp, fd, object->string);
+    if (object->type == type_stream)
+        return writeFmt(interp, fd, "#<Stream %"PRIXPTR" %s>",
+                        (uintptr_t) object->fd,
+                        object->path->string
             );
-    else if (object->type == type_error) {
-        writeFmt(interp, fd, "#<Error ");
-        flisp_write_object(interp, fd, object->error, readably);
-        writeString(interp, fd, ": ");
-        flisp_write_object(interp, fd, object->message, readably);
-        writeString(interp, fd, ", ");
-        flisp_write_object(interp, fd, object->culprit, readably);
-        writeChar(interp, fd, '>');
+    if (object->type == type_error) {
+        result = writeFmt(interp, fd, "#<Error "); if (result != nil) return result;
+        result = flisp_write_object(interp, fd, object->error, readably); if (result != nil) return result;
+        result = writeString(interp, fd, ": "); if (result != nil) return result;
+        result = flisp_write_object(interp, fd, object->message, readably); if (result != nil) return result;
+        result = writeString(interp, fd, ", "); if (result != nil) return result;
+        result = flisp_write_object(interp, fd, object->culprit, readably); if (result != nil) return result;
+        result = writeChar(interp, fd, '>'); if (result != nil) return result;
     } else if (object->type == type_moved) {
         fl_debug(interp, " => ");
-        flisp_write_object(interp, fd, object->forward, readably);
+        result = flisp_write_object(interp, fd, object->forward, readably); if (result != nil) return result;
     } else
-        fl_fatal("lisp-write_error(): unidentifiable object", 66);
+        return newError(interp, invalid_value, nil, "Fatal: unidentifiable object: %p", (void *)object);
 
     fflush(fd);
+    return nil;
 }
 
 /** (write o[ p[ fd]]) - write object
@@ -2212,51 +2222,54 @@ size_t flisp_char_length(char c)
 
 /** flisp_char_index() - char offset of string index
  *
- * @param interp .. interpreter into which to throw exceptions.
+ * @param interp .. interpreter where to create the result
  * @param string .. string to index.
  * @param index  .. number of encoded characters for which to find offset.
  *
  * @returns: character offset into string corresponding to utf8
- * encoded character at position index */
-size_t flisp_char_index(Interpreter *interp, char *string, size_t index)
+ *   encoded character at position index
+ * @errors: invalid-value when string is not utf-8 encoded.
+ */
+Object *flisp_char_index(Interpreter *interp, char *string, size_t index)
 {
     size_t n = 0, i = 0, l = 0;
 
     while (string[i] != '\0' && n < index) {
         l = flisp_char_length(string[i]);
         if (l == 0)
-            flisp_exception(interp, newError(interp, invalid_value, nil, "flisp_char_index(): string not utf-8 encoded"));
+            return newError(interp, invalid_value, nil, "flisp_char_index(): string not utf-8 encoded");
         i += l;
         n++;
     }
-    return i;
+    return newInteger(interp, i);
 }
 
 /** flisp_char_count() - number of encoded characters in string
  *
- * @param interp .. interpreter into which to throw exceptions.
+ * @param interp .. interpreter where to create the result
  * @param string .. string in which to count encoded characters.
  * @param len    .. maximum number of char's to check.
  *
  * @returns: count of encoded characters, i.e. len of UTF-8 encoded unicode string.
+ * @errors: invalid-value when string is not utf-8 encoded.
  */
-size_t flisp_char_count(Interpreter *interp, char *string, size_t len)
+Object *flisp_char_count(Interpreter *interp, Object *string, size_t len)
 {
     size_t n = 0, i = 0, l = 0;
 
-    while (string[i] != '\0' && i < len) {
-        l = flisp_char_length(string[i]);
+    while (string->string[i] != '\0' && i < len) {
+        l = flisp_char_length(string->string[i]);
         if (l == 0)
-            flisp_exception(interp, newError(interp, invalid_value, nil, "flisp_char_count(): string not utf-8 encoded"));
+            return newError(interp, invalid_value, string, "flisp_char_count(): string not utf-8 encoded");
         i += l;
         n++;
     }
-    return n;
+    return newInteger(interp, n);
 }
 
 Object *stringLength(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
-    return newInteger(interp, flisp_char_count(interp, FLISP_ARG_ONE->string, SIZE_MAX));
+    return flisp_char_count(interp, FLISP_ARG_ONE, SIZE_MAX);
 }
 
 /** (string-search needle haystack)
@@ -2267,13 +2280,9 @@ Object *stringSearch(Interpreter *interp, Object **args, Object **env, size_t nA
     char *pos;
 
     pos = strstr(FLISP_ARG_TWO->string, FLISP_ARG_ONE->string);
-    if (pos == NULL)
-        return nil;
+    if (pos == NULL)  return nil;
 
-    return newInteger(
-        interp,
-        flisp_char_count(interp, FLISP_ARG_TWO->string, pos - FLISP_ARG_TWO->string)
-        );
+    return flisp_char_count(interp, FLISP_ARG_TWO, pos - FLISP_ARG_TWO->string);
 }
 
 /** (substring string [start [end]]) - return substring of string within range [start, end)

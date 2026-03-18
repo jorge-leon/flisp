@@ -219,7 +219,7 @@ Object *posixFgets(Interpreter *interp, Object** args, Object **env, size_t nArg
     }
     input = malloc(INPUT_FMT_BUFSIZ);
     if(input == NULL)
-        flisp_exception(interp, newError(interp, out_of_memory, stream, "fgets() failed, %s", strerror(errno)));
+        return newError(interp, out_of_memory, stream, "fgets() failed, %s", strerror(errno));
 
     *input = '\0';
 
@@ -486,7 +486,7 @@ Object *posixGetcwd(Interpreter *interp, Object **args, Object **env, size_t nAr
     char buf[PATH_MAX] = "";
 
     if (NULL == getcwd(buf, PATH_MAX))
-        flisp_exception(interp, newError(interp, io_error, nil, "getcwd() failed: %s", strerror(errno)));
+        return newError(interp, io_error, nil, "getcwd() failed: %s", strerror(errno));
     return newString(interp, buf);
 }
 
