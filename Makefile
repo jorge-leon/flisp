@@ -174,7 +174,7 @@ strip: $(BINARIES) $(LIBRARIES) FORCE
 	strip $(BINARIES) $(LIBRARIES)
 
 clean: FORCE
-	-$(RM) -f $(OBJ) $(OBJD) $(BINARIES) $(LIBRARIES) $(RC_FILES) flisp.o flispd.o flisp.pc flispd.pc
+	-$(RM) -f $(OBJ) $(OBJD) $(BINARIES) $(LIBRARIES) $(RC_FILES) fl.o flisp.o flispd.o flisp.pc flispd.pc
 	-$(RM) -rf doxygen
 	-$(RM) -f $(MOREDOCS)
 	-$(RM) -f f.log
