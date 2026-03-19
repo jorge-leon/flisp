@@ -1648,6 +1648,29 @@ Object *writeFmt(Interpreter *interp, FILE *fd, char *format, ...)
     return nil;
 }
 
+Object *writeCons(Interpreter *interp, FILE *fd, Object *cons, bool readably)
+{
+    Object *e;
+    
+    if ((e = writeChar(interp, fd, '(')) != nil ||
+        (e = flisp_write_object(interp, fd, cons->car, readably)) != nil)
+        return e;
+    
+    while (cons->cdr != nil) {
+        cons = cons->cdr;
+        if (cons->type == type_cons) {
+            if ((e = writeChar(interp, fd, ' ')) != nil ||
+                (e =  flisp_write_object(interp, fd, cons->car, readably)) !=nil)
+                return e;
+        } else {
+            if ((e = writeString(interp, fd, " . ")) !=nil || 
+                (e= flisp_write_object(interp, fd, cons, readably)) !=nil)
+                return e;
+            break;
+        }
+    }
+    return writeChar(interp, fd, ')');
+}
 
 // WRITING OBJECTS ////////////////////////////////////////////////////////////
 
@@ -1672,25 +1695,10 @@ Object *flisp_write_object(Interpreter *interp, FILE *fd, Object *object, bool r
         return writeFmt(interp, fd, "%g", object->number);
     if (object->type == type_primitive)
         return writeFmt(interp, fd, "#<Primitive %s>", object->primitive->name);
-
     if (object->type == type_vector)
         return writeFmt(interp, fd, "#<Vector %lu>", object->length);
-    if (object->type == type_cons) {
-        result = writeChar(interp, fd, '('); if (result != nil) return result;
-        result = flisp_write_object(interp, fd, object->car, readably); if (result !=nil) return result;
-        while (object->cdr != nil) {
-            object = object->cdr;
-            if (object->type == type_cons) {
-                result = writeChar(interp, fd, ' '); if (result !=nil) return result;
-                result = flisp_write_object(interp, fd, object->car, readably); if (result !=nil) return result;
-            } else {
-                result = writeString(interp, fd, " . "); if (result !=nil) return result;
-                result = flisp_write_object(interp, fd, object, readably); if (result !=nil) return result;
-                break;
-            }
-        }
-        return writeChar(interp, fd, ')');
-    }
+    if (object->type == type_cons)
+        return writeCons(interp, fd, object, readably);
     if (object->type == type_lambda) {
         result = writeFmt(interp, fd, "#<Lambda "); if (result != nil) return result;
         result = flisp_write_object(interp, fd, object->params, readably); if (result != nil) return result;
