@@ -2391,7 +2391,7 @@ Object *stringSubstring(Interpreter *interp, Object **args, Object **env, size_t
     j = flisp_char_index(interp, FLISP_ARG_ONE->string+(i->value), end-start);
     if (j->type == type_error)  return j;
 
-    return newStringWithLength(interp, FLISP_ARG_ONE->string+(i->value), j->value - i->value );
+    return newStringWithLength(interp, FLISP_ARG_ONE->string+(i->value), j->value - i->value +1);
 }
 
 // (string-compare s1 s2)
