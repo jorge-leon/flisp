@@ -214,15 +214,6 @@
 
 (setq not null)
 
-(defun length (o)
-  (cond
-    ((null o) 0)
-    ((stringp o) (string-length o))
-    ((consp o)
-     (fold-left (lambda (x y) (+ x 1)) 0 o))
-    (t (throw wrong-type-argument "(length object) - expected type-cons or type-string" o))))
-
-
 (defun memq (o l)
   ;; If object o in list l return sublist of l starting with o, else nil.
   ;; Elisp

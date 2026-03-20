@@ -493,9 +493,6 @@ Object *flisp_ext_obj(Interpreter *interp, Object *type, Object **list, size_t l
         object->objects[i++] = nil;
     return object;
 }
-/*
- * flisp_ext_obj(interp, type_vector, list, (length list), 0) creates a vector
- */
 Object *newCons(Interpreter *interp, Object ** car, Object ** cdr)
 {
     GC_CHECKPOINT;
@@ -1286,13 +1283,6 @@ enum {
  * evalExpr. Macros are expanded in-place the first time they are evaluated.
  */
 
-size_t flisp_list_length(Object *list)
-{
-    int l = 0;
-    for (Object *e = list; e != nil; e = e->cdr, l++);
-    return l;
-}
-
 /** (bind symbol object[ globalb]) - creates or finds symbol and set's its value
  *
  * @param symbol  ..  Symbol to find or create.
@@ -1653,11 +1643,11 @@ Object *writeFmt(Interpreter *interp, FILE *fd, char *format, ...)
 Object *writeCons(Interpreter *interp, FILE *fd, Object *cons, bool readably)
 {
     Object *e;
-    
+
     if ((e = writeChar(interp, fd, '(')) != nil ||
         (e = flisp_write_object(interp, fd, cons->car, readably)) != nil)
         return e;
-    
+
     while (cons->cdr != nil) {
         cons = cons->cdr;
         if (cons->type == type_cons) {
@@ -1665,7 +1655,7 @@ Object *writeCons(Interpreter *interp, FILE *fd, Object *cons, bool readably)
                 (e =  flisp_write_object(interp, fd, cons->car, readably)) !=nil)
                 return e;
         } else {
-            if ((e = writeString(interp, fd, " . ")) !=nil || 
+            if ((e = writeString(interp, fd, " . ")) !=nil ||
                 (e= flisp_write_object(interp, fd, cons, readably)) !=nil)
                 return e;
             break;
@@ -1770,7 +1760,7 @@ Object *writeError(Interpreter *interp, FILE *fd, Object *error, bool readably)
 Object *flisp_write_object(Interpreter *interp, FILE *fd, Object *object, bool readably)
 {
     if (fd == NULL) return nil;
-    
+
     if (object->type == type_integer)
         return writeFmt(interp, fd, "%"PRId64, object->value);
     if (object->type == type_double)
@@ -1900,7 +1890,7 @@ Object *primitiveObjectLength(Interpreter *interp, Object **args, Object **env, 
 {
     return newInteger(interp, FLISP_ARG_ONE->length);
 }
-/** (vector ..]) => v */
+/** (vector[ ..]) => v */
 Object *primitiveVector(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
     return flisp_ext_obj(interp, type_vector, args, nArgs, 0);
@@ -1911,14 +1901,14 @@ Object *firstConsElements(Interpreter *interp, size_t n, Object *cons)
     GC_CHECKPOINT;
     GC_TRACE(gcCons, cons);
     GC_TRACE(gcList, nil);
-    while (n-- && (*gcCons)->type == type_cons)
+    for (;n-- && (*gcCons)->type == type_cons; (*gcCons) = (*gcCons)->cdr)
         *gcList = newCons(interp, &(*gcCons)->car, gcList);
     GC_RETURN(reverseList(interp, *gcList));
 }
-/** (elements object[ start[ end]]) => list of contained objects, sub-array of string */
+/** (elements object[ start[ end]]) => list of contained objects, sub-array of string, string range */
 Object *primitiveElements(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
-    int64_t i = 0, end = FLISP_ARG_ONE->length, j = end;
+    int64_t i = 0, j = FLISP_ARG_ONE->length, end;
 
     if (FLISP_ARG_ONE->size == 0)  return nil;
 
@@ -1928,15 +1918,20 @@ Object *primitiveElements(Interpreter *interp, Object **args, Object **env, size
     if (nArgs > 1) {
         FLISP_ARG_TYPECHECK(FLISP_ARG_TWO, type_integer, "(elements object[ start[ end]]) - start");
         i = FLISP_ARG_TWO->value;
-        if (i< 0) i += end;
-        if (i < 0) i = 0;
-        if (i >= end) i = end;
+        if (FLISP_ARG_ONE->type != type_cons) {
+            if (i < 0) i += end;
+            if (i >= end) i = end;
+        }
     }
     if (nArgs > 2) {
         j = (FLISP_ARG_THREE->value);
-        if (j < 0) j += end;
-        if (j >= end) j = end;
+        if (FLISP_ARG_ONE->type != type_cons) {
+            if (j < 0) j += end;
+            if (j >= end) j = end;
+        }
     }
+    if (i < 0) i = 0;
+    if (j < 0) j = 0;
     if (i == end)  return nil;
     if (i > end)
         return newError(interp, range_error, FLISP_ARG_TWO, "(object-list object[ start[ end]]) - start > end: [%lu, %lu]", i, end);
@@ -1946,13 +1941,14 @@ Object *primitiveElements(Interpreter *interp, Object **args, Object **env, size
 
     if (FLISP_ARG_ONE->type == type_cons) {
         Object *e = FLISP_ARG_ONE;
-        end -= i;
-        while (i-- && e->cdr->type == type_cons)
+        j -= i;
+        while (i-- && e->type == type_cons)
             e = e->cdr;
-        if (j == end) return e;
-        return firstConsElements(interp, end, e);
+        fl_debug(interp, "firstConsElements(cons), rest: %lu, %lu\n", j, end);
+        if (nArgs <= 2) return e;
+        return firstConsElements(interp, j, e);
     }
-    
+
     GC_CHECKPOINT;
     GC_TRACE(gcObject, FLISP_ARG_ONE);
     GC_TRACE(gcList, nil);
@@ -2272,145 +2268,6 @@ Object *stringAppend(Interpreter *interp, Object **args, Object **env, size_t nA
     return str;
 }
 
-/// UTF-8 handling ////////////
-
-/* encoded character size */
-size_t flisp_char_length(char c)
-{
-    if ((c & 0x80) == 0) return 1;
-    if ((c & 0xC0) == 0xC0) return 2;
-    if ((c & 0xE0) == 0xE0) return 3;
-    if ((c & 0xF8) == 0xF8) return 4;
-    return 0;
-
-}
-
-/** flisp_char_index() - char offset of string index
- *
- * @param interp .. interpreter where to create the result
- * @param string .. string to index.
- * @param index  .. number of encoded characters for which to find offset.
- *
- * @returns: character offset into string corresponding to utf8
- *   encoded character at position index
- * @errors: invalid-value when string is not utf-8 encoded.
- */
-Object *flisp_char_index(Interpreter *interp, char *string, size_t index)
-{
-    size_t n = 0, i = 0, l = 0;
-
-    while (string[i] != '\0' && n < index) {
-        l = flisp_char_length(string[i]);
-        if (l == 0)
-            return newError(interp, invalid_value, nil, "flisp_char_index(): string not utf-8 encoded");
-        i += l;
-        n++;
-    }
-    return newInteger(interp, i);
-}
-
-/** flisp_char_count() - number of encoded characters in string
- *
- * @param interp .. interpreter where to create the result
- * @param string .. string in which to count encoded characters.
- * @param len    .. maximum number of char's to check.
- *
- * @returns: count of encoded characters, i.e. len of UTF-8 encoded unicode string.
- * @errors: invalid-value when string is not utf-8 encoded.
- */
-Object *flisp_char_count(Interpreter *interp, Object *string, size_t len)
-{
-    size_t n = 0, i = 0, l = 0;
-
-    while (string->string[i] != '\0' && i < len) {
-        l = flisp_char_length(string->string[i]);
-        if (l == 0)
-            return newError(interp, invalid_value, string, "flisp_char_count(): string not utf-8 encoded");
-        i += l;
-        n++;
-    }
-    return newInteger(interp, n);
-}
-
-Object *stringLength(Interpreter *interp, Object **args, Object **env, size_t nArgs)
-{
-    return flisp_char_count(interp, FLISP_ARG_ONE, SIZE_MAX);
-}
-
-/** (string-search needle haystack)
- *
- */
-Object *stringSearch(Interpreter *interp, Object **args, Object **env, size_t nArgs)
-{
-    char *pos;
-
-    pos = strstr(FLISP_ARG_TWO->string, FLISP_ARG_ONE->string);
-    if (pos == NULL)  return nil;
-
-    return flisp_char_count(interp, FLISP_ARG_TWO, pos - FLISP_ARG_TWO->string);
-}
-
-/** (substring string [start [end]]) - return substring of string within range [start, end)
- *
- * @param string   Input string
- * @param start    Start index, 0 based
- * @param end      End index, not included
- *
- * @return Substring of string starting from start until character
- * end-1. Length of string is default for *end*, 0 is default for
- * *start*.
- */
-Object *stringSubstring(Interpreter *interp, Object **args, Object **env, size_t nArgs)
-{
-    int64_t start = 0, end;
-    Object *len, *i, *j;
-
-    FLISP_ARG_TYPECHECK(FLISP_ARG_ONE, type_string, "(substring string [start [end]]) - string");
-
-    if (*(FLISP_ARG_ONE->string) == '\0') return flisp_empty_string;
-
-    len = flisp_char_count(interp, FLISP_ARG_ONE, SIZE_MAX);
-    if (len->type == type_error)  return len;
-    end = len->value;
-
-    if (nArgs > 1) {
-        FLISP_ARG_TYPECHECK(FLISP_ARG_TWO, type_integer, "(substring string [start [end]]) - start");
-        start = (FLISP_ARG_TWO->value);
-        if (start < 0)
-            start += end;
-    }
-    if (nArgs > 2) {
-        FLISP_ARG_TYPECHECK(FLISP_ARG_THREE, type_integer, "(substring string [start [end]]) - end");
-        if (FLISP_ARG_THREE->value < 0)
-            end += FLISP_ARG_THREE->value;
-        else
-            end = FLISP_ARG_THREE->value;
-    }
-
-    if (start < 0 || start > len->value)
-        return newError(interp, range_error, FLISP_ARG_TWO,
-                        "(substring string [start [end]]) - start out of range [0, %ld]: %ld",
-                        len->value, start);
-    if (end < 0 || end > len->value)
-        return newError(interp, range_error, FLISP_ARG_THREE,
-                        "(substring string [start [end]]) - end out of range [0, %ld]: %ld",
-                        len->value, end);
-
-    if (start > end)
-        return newError(interp, range_error, FLISP_ARG_TWO,
-                        "(substring string [start [end]]) - end > start");
-
-    if (start == end) return flisp_empty_string;
-
-    i = flisp_char_index(interp, FLISP_ARG_ONE->string, start);
-    if (i->type == type_error)  return i;
-
-    j = flisp_char_index(interp, FLISP_ARG_ONE->string+(i->value), end-start);
-    if (j->type == type_error)  return j;
-
-    return newStringWithLength(interp, FLISP_ARG_ONE->string+(i->value), j->value - i->value +1);
-}
-
 // (string-compare s1 s2)
 Object *stringCompare(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
@@ -2600,9 +2457,6 @@ bool flisp_primitives_register(Interpreter *interp)
         && flisp_register_primitive(interp, ">>",            2,  2, type_integer,   integerShiftRight)
         && flisp_register_primitive(interp, "~",             1,  1, type_integer,   integerNot)
         && flisp_register_primitive(interp, "string-append", 2,  2, type_string,    stringAppend)
-        && flisp_register_primitive(interp, "string-length", 1,  1, type_string,    stringLength)
-        && flisp_register_primitive(interp, "string-search", 2,  2, type_string,    stringSearch)
-        && flisp_register_primitive(interp, "substring",     1,  3, nil,            stringSubstring)
         && flisp_register_primitive(interp, "string-compare",2,  2, type_string,    stringCompare)
         && flisp_register_primitive(interp, "interp",        1, -1, nil,            primitiveInterp);
 }

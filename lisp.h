@@ -230,11 +230,6 @@ extern Primitive *flisp_register_primitive(Interpreter *, char *, int, int, Obje
 #define FLISP_ERROR_MESSAGE(INTERPRETER) INTERPRETER->result->message->string
 #define FLISP_ERROR_CULPRIT(INTERPRETER) INTERPRETER->result->culprit
 
-/* UTF-8 handling */
-extern size_t flisp_char_length(char);
-extern Object *flisp_char_index(Interpreter *, char *, size_t);
-extern Object *flisp_char_count(Interpreter *, Object *, size_t);
-
 #endif
 /*
  * Local Variables:
