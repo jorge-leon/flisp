@@ -47,12 +47,12 @@ int main(int argc, char **argv)
             fatal("invalid FLISP_SIZE");
     }
     
-    interp = flisp_new((size_t) size, argv, NULL, input_fd, debug_fd, debug_fd);
+    interp = (Interpreter *)flisp_new((size_t) size, argv, NULL, input_fd, debug_fd, debug_fd);
     if (interp == NULL)
         fatal("fLisp interpreter initialization failed");
 
-    if (flisp_error(interp)) {
-        flisp_write_error(interp, stderr);
+    if (interp->type == type_error) {
+        flisp_write_object(stderr, (Object *)interp, true);
         exit(1);
     }
 
@@ -68,7 +68,7 @@ int main(int argc, char **argv)
     if (debug_fd)
         fflush(debug_fd);
     if (result->type == type_error) {
-        flisp_write_object(interp, stderr, result, true);
+        flisp_write_object(stderr, result, true);
         fputs("", stderr);
         return 1;
     }

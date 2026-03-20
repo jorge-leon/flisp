@@ -64,32 +64,27 @@ typedef struct Primitive {
  * - objects.count .. number of Object * pointers at start of extension
  * - value(s) in extension union
  */
+#define FLISP_SIMPLE_OBJECT_STRUCT \
+    Object *type;                  \
+    size_t size;                   \
+    union {                        \
+    int64_t value;                 \
+    double number;                 \
+    Primitive *primitive;          \
+    size_t length;                 \
+    Object *forward;               \
+    }
+
 typedef struct SimpleObject {
-    Object *type;
-    size_t size; /*0*/
-    union {                   // Simple Objects, or helpers
-        int64_t value;        // Integer
-        double number;        // Double
-        Primitive *primitive; // Primitive
-        size_t length;        // unused
-        Object *forward;      // GC forwarding pointer to collected object in to-space
-    };
+    FLISP_SIMPLE_OBJECT_STRUCT;
 } SimpleObject;
 
 struct Object {
-    Object *type;
-    size_t size;
-    union {                   // Simple Objects, or helpers
-        int64_t value;        // unused
-        double number;        // unused
-        Primitive *primitive; // unused
-        size_t length;        // number of contained Lisp objects
-        Object *forward;      // GC forwarding pointer to collected object in to-space
-    };
+    FLISP_SIMPLE_OBJECT_STRUCT;
     union {
         Object *objects[1];                                               // Vector
         struct { Object *car;    Object *cdr; };                          // Cons
-        struct { Object *params; Object *body; Object *env; };            // Closure: Lambda, Macro 
+        struct { Object *params; Object *body; Object *env; };            // Closure: Lambda, Macro
         struct { Object *parent; Object *vars; Object *vals; };           // Environment
         char string[PATH_MAX];                                            // String, Symbol
         struct { Object *error; Object *message; Object *culprit; }; // Error
@@ -103,47 +98,48 @@ typedef struct Memory {
     void *fromSpace, *toSpace;
 } Memory;
 
-typedef struct Interpreter {
+#define FLISP_INTERPETER_OBJECTS \
+    Object *result;              \
+    Object *symbols;             \
+    Object *global;              \
+    Object *gcTop;               \
+    Object *exception
 
-    /* private */
-    Object *result;                  /* Result or error object */
+typedef struct InterpreterObjects {
+    FLISP_INTERPETER_OBJECTS;
+} InterpreterObjects;
+
+typedef struct Interpreter {
+    FLISP_SIMPLE_OBJECT_STRUCT;
+
+    FLISP_INTERPETER_OBJECTS;
+
     Object message;                  /* Error message buffer */
 
-    Object input;                    /* Default input stream object */
-    Object output;                   /* Output stream object */
-    Object debug;                    /* Debug output stream object */
+    Object input;                    /* default input stream object */
+    Object output;                   /* default output stream object */
+    Object debug;                    /* default debug output stream object */
 
-    /* globals */
-    Object *symbols;                 /* Symbols list */
-    Object *global;                  /* Global environment */
-    /* GC */
-    Object *gcTop;                   /* dynamic gc trace stack */
-    Memory *memory;                  /* memory available for object
-                                      * allocation, cleaned up by
-                                      * garbage collector */
+    Memory *memory;
+    
+    
+    /* reader / formatting pad */
+    struct { char *buf; size_t len; size_t capacity; };  /* read buffer */
     /* exeptions */
     jmp_buf exceptionEnv;           /* exception handling */
     jmp_buf *catch;
-    Object *exception;              /* most recent exception arguments: (tag value) */
-    /* reader */
-    struct { char *buf; size_t len; size_t capacity; };  /* read buffer */
-    /* interpreters */
-    struct Interpreter *next;    /* linked list of interpreters */
+
 } Interpreter;
 
 
 // PUBLIC INTERFACE ///////////////////////////////////////////////////////
-extern Interpreter *flisp_new(size_t size, char **, char*, FILE*, FILE*, FILE*);
+extern Object *flisp_new(size_t size, char **, char*, FILE*, FILE*, FILE*);
 extern void flisp_destroy(Interpreter *);
 extern Object *flisp_eval(Interpreter *, char *);
+extern Object *flisp_write_object(FILE *, Object *, bool);
+extern void flisp_write_error(Object *, FILE *);
 /* Note: experimental */
-extern bool flisp_error(Interpreter *);
 extern void flisp_expr(Interpreter *, Object *);
-extern Object *flisp_write_object(Interpreter *, FILE *, Object *, bool);
-extern void flisp_write_error(Interpreter *, FILE *);
-extern void flisp_exception(Interpreter *, Object *);
-
-/*@null@*/extern Interpreter *flisp_interpreters;
 
 // PROGRAMMING INTERFACE ////////////////////////////////////////////////
 
@@ -157,6 +153,7 @@ extern Object *type_double;
 extern Object *type_primitive;
 /* internal */
 extern Object *type_moved;
+extern Object *type_interpreter;
 
 extern Object *type_vector;
 extern Object *type_cons;
