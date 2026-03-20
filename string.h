@@ -13,8 +13,13 @@
 
 extern bool flisp_string_register(Interpreter *);
 
+extern size_t flisp_code_length(char);
+extern Object *flisp_char_offset(Interpreter *, char *, size_t);
+extern Object *flisp_string_length(Interpreter *, Object *, size_t);
 extern int64_t flisp_char_code(char *);
 extern size_t flisp_code_char(int64_t, char *);
+
+
 
 #endif
 /*

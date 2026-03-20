@@ -9,6 +9,14 @@
 ;;    (string-search haystack needle)
 ;;
 
+(defun length (o)
+  (cond
+    ((null o) 0)
+    ((stringp o) (string-length o))
+    ((consp o)
+     (fold-left (lambda (x y) (+ x 1)) 0 o))
+    (t (throw wrong-type-argument "(length object) - expected type-cons or type-string" o))))
+
 
 ;; trim all spaces from front of a string
 (defun string-trim-front(s)
