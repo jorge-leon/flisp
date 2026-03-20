@@ -128,14 +128,6 @@ void fl_debug(Interpreter *interp, char *format, ...)
 
 void resetBuf(Interpreter *);
 
-void flisp_exception(Interpreter *interp, Object *error)
-{
-    interp->result = error;
-    do {
-        longjmp(*interp->catch, 2);
-    } while(0);
-}
-
 
 // GARBAGE COLLECTION /////////////////////////////////////////////////////////
 
@@ -1439,23 +1431,41 @@ Object *evalList(Interpreter *interp, Object **args, Object **env)
     }
 }
 
+
+void x(Interpreter *interp, Object **args, Object **env)
+{
+    fl_debug(interp, "trying\n");
+    interp->result = evalExpr(interp, &FLISP_ARG_ONE, env);
+    flisp_write_object(interp, interp->debug.fd, interp->result, true);
+}
 Object *evalCatch(Interpreter *interp, Object **args, Object **env)
 {
     jmp_buf exceptionEnv, *prevEnv;
 
     prevEnv = interp->catch;
     interp->catch = &exceptionEnv;
-    interp->result = nil;
+    interp->exception = nil;
     GC_CHECKPOINT;
+    GC_TRACE(gcTag, FLISP_ARG_TWO);
     if (setjmp(exceptionEnv)) {
-        /* Note: we must protect against invalid values here */
-        fl_debug(interp, "catch:%s: '%s'\n", (FLISP_ERROR_TYPE(interp)), FLISP_ERROR_MESSAGE(interp));
+        fl_debug(interp, "catched\n");
     } else {
-        do {
-            interp->result = evalExpr(interp, &(*args)->car, env);
-        } while(0);
+        x(interp, args, env);
+        /* do { */
+        /*     interp->result = evalExpr(interp, &(*args)->car, env); */
+        /* } while(0); */
     }
     GC_RELEASE;
+    if (interp->exception->car == *gcTag)
+        interp->result = interp->exception->cdr->car;
+    else {
+        fl_debug(interp, "not matched\n");
+        /* do { */
+        /*     longjmp(*interp->catch, 2); */
+        /* } while(0); */
+    }
+    fl_debug(interp, "result: ");
+    flisp_write_object(interp, interp->debug.fd, interp->result, true);
     interp->catch = prevEnv;
     return interp->result;
 }
@@ -1972,10 +1982,13 @@ Object *primitiveError(Interpreter *interp, Object **args, Object **env, size_t 
     return flisp_ext_obj(interp, type_error, args, 3, 0);
 }
 
+__attribute__((noreturn))
 Object *primitiveThrow(Interpreter *interp, Object **args, Object **env, size_t nArgs)
 {
-    flisp_exception(interp, (*args)->car);
-    return NULL;
+    interp->exception = *args;
+    do {
+        longjmp(*interp->catch, 2);
+    } while(0);
 }
 
 // Integer Math //////
@@ -2406,7 +2419,7 @@ bool flisp_primitives_register(Interpreter *interp)
          && flisp_register_primitive(interp, "lambda",        1, -1, nil, (LispEval) PRIMITIVE_LAMBDA /* special form */ )
          && flisp_register_primitive(interp, "macro",         1, -1, nil, (LispEval) PRIMITIVE_MACRO  /* special form */ )
          && flisp_register_primitive(interp, "macroexpand-1", 1,  2, nil, (LispEval) PRIMITIVE_MACROEXPAND /* special form */ )
-         && flisp_register_primitive(interp, "catch",         1,  1, nil, (LispEval) PRIMITIVE_CATCH  /*special form */ )
+         && flisp_register_primitive(interp, "catch",         2,  2, nil, (LispEval) PRIMITIVE_CATCH  /*special form */ )
          && flisp_register_primitive(interp, "null",          1,  1, nil,            primitiveNullP)
          && flisp_register_primitive(interp, "type-of",       1,  1, nil,            primitiveTypeOf)
          && flisp_register_primitive(interp, "consp",         1,  1, nil,            primitiveConsP)
@@ -2439,7 +2452,7 @@ bool flisp_primitives_register(Interpreter *interp)
     return
         flisp_register_primitive(interp,    "write",         1,  3, nil,            primitiveWrite)
         && flisp_register_primitive(interp, "error",         2,  3, nil,            primitiveError)
-        && flisp_register_primitive(interp, "throw",         1,  1, type_error,     primitiveThrow)
+        && flisp_register_primitive(interp, "throw",         1,  2, nil,            primitiveThrow)
         && flisp_register_primitive(interp, "i+",            2,  2, type_integer,   integerAdd)
         && flisp_register_primitive(interp, "i-",            2,  2, type_integer,   integerSubtract)
         && flisp_register_primitive(interp, "i*",            2,  2, type_integer,   integerMultiply)
@@ -2526,14 +2539,13 @@ Object eval_input_open =  { .size = 35, .length = 0, .string = "fmemopen() for i
 
 Object init_error;
 
-Interpreter *interp_error(Interpreter *interp, Object *error, Object *message)
+Object *flisp_static_error(Object *error, Object *message)
 {
     init_error.type = type_error;
     init_error.error = error;
     init_error.message = message;
     init_error.culprit = nil;
-    interp->result = &init_error;
-    return interp;
+    return &init_error;
 }
 
 /** Initialize and return an fLisp interpreter.
@@ -2567,8 +2579,10 @@ Interpreter *flisp_new(
     interp->debug.fd = debug;
 
     Memory *memory = newMemory((size < FLISP_MEMORY_INC_SIZE) ? FLISP_MEMORY_INC_SIZE :size);
-    if (memory == NULL)
-        return interp_error(interp, out_of_memory, &init_oom_message);
+    if (memory == NULL) {
+        interp->result = flisp_static_error(out_of_memory, &init_oom_message);
+        return interp;
+    }
 
     interp->memory = memory;
 
@@ -2595,8 +2609,10 @@ Interpreter *flisp_new(
     interp->gcTop = nil;
     interp->symbols = newCons(interp, &nil, &nil);
     interp->global = newEnv(interp, &nil, &nil);
-    if (interp->global->type == type_error)
-        return interp_error(interp, invalid_value, &init_env_failed);
+    if (interp->global->type == type_error) {
+        interp->result = flisp_static_error(invalid_value, &init_env_failed);
+        return interp;
+    }
 
     initRootEnv(interp);
 
@@ -2713,104 +2729,61 @@ void flisp_write_error(Interpreter *interp, FILE *fd)
     fflush(fd);
 }
 
-/** (catch (eval (read f))) or (catch (eval (read)))
- *
- * (eval (read f)) or (eval (read))
- * (eval . (read . (f . nil)) or
- * (eval . (read . nil)
- */
-Object *cerf(Interpreter *interp, FILE *fd)
-{
-    /* Note: find a way to not construct this all the time anew, maybe along these lines: */
-#if 0
-    /* segfaults though */
-    Object stream = (Object) { type_stream,  .path = nil, .fd = fd};
-    Object list =   (Object) { type_cons,  .car = &stream, .cdr = nil};
-    Object *object = &list;
-    if (fd == NULL) object->car = nil;
-    object->car = primitiveRead(interp, &object, &interp->global);
-    return evalCatch(interp, &object, &interp->global);
-#else
-    Object f =         (Object) { type_stream, .path = nil, .fd = fd };
-    Object fCons =     (Object) { type_cons, .car = &f, .cdr = nil };
-    Object read =      (Object) { type_primitive, .primitive = readPrimitive };
-    Object readCons =  (Object) { type_cons, .car = &read, .cdr = &fCons };
-    if (fd == NULL)
-        readCons.cdr = nil;
-    Object readApply =  (Object) { type_cons, .car = &readCons, .cdr = nil };
-
-    Object eval =      (Object) { type_primitive, .primitive = evalPrimitive };
-    Object evalCons =  (Object) { type_cons, .car = &eval, .cdr = &readApply };
-    Object *evalApply = &(Object) { type_cons, .car = &evalCons, .cdr = nil };
-
-    return evalCatch(interp, &evalApply, &interp->global);
-#endif
-}
-
 /** flisp_eval() - interpret a string or file in Lisp
  *
  * @param interp  fLisp interpreter
  * @param input   string to evaluate
  *
+ * @returns result of last expression or error
+ *
  * If input is NULL, the interpreters input stream is evaluated
  * instead.
  *
- * After evaluation, the result of evaluation is available in
- * interp->object. It is a (catch) result which is a three element
- * list:
- *
- *   (code message result)
- *
- * If evaluation was successful, code is nil and message is an empty
- * string.  Otherwise, code is an error symbol, message is a human
- * readable error message and result the object causing the error.
- *
- * The following macros can be used to access the list elements:
- *
- * - FLISP_RESULT_CODE(INTERPRETER)
- * - FLISP_RESULT_MESSAGE(INTERPRETER)
- * - FLISP_RESULT_OBJECT(INTERPRETER)
- *
  */
-void flisp_eval(Interpreter *interp, char *input)
+Object *flisp_eval(Interpreter *interp, char *input)
 {
     FILE *fd = NULL;
 
     if (input == NULL) {
         fl_debug(interp, "flisp_eval()\n");
-        if (interp->input.fd  == NULL) {
-            (void) interp_error(interp, invalid_value, &eval_no_input);
-            return;
-        }
+        if (interp->input.fd  == NULL)
+            return flisp_static_error(invalid_value, &eval_no_input);
     } else {
         fl_debug(interp, "flisp_eval(\"%s\")\n", input);
-        if (NULL == (fd = fmemopen(input, strlen(input), "r")))  {
-            (void) interp_error(interp, io_error, &eval_input_open);
-            return;
-        }
+        if (NULL == (fd = fmemopen(input, strlen(input), "r")))
+            return flisp_static_error(io_error, &eval_input_open);
     }
     interp->gcTop = nil;
     GC_CHECKPOINT;
     GC_TRACE(gcResult, nil);
+    GC_TRACE(gcArgs, newCons(interp, &nil, &nil));
+    if (fd)
+        (*gcArgs)->car = newStreamObject(interp, fd, input);
+
     Object *object;
+    bool eof;
     for (;;) {
-        object = cerf(interp, fd);
+        object = primitiveRead(interp, gcArgs, &interp->global, (fd) ? 1 : 0);
         if (object->type == type_error) {
-            if (object->error == end_of_file) {
-                fl_debug(interp, "read: EOF\n");
-                interp->result = *gcResult;
-            }
+            eof = (object->error == end_of_file);
             break;
         }
+        (*gcArgs)->car = object;
+        object = primitiveEval(interp, gcArgs, &interp->global, 1);
+        if (object->type == type_error)
+            break;
+
         flisp_write_object(interp, interp->output.fd, object, true);
         writeChar(interp, interp->output.fd, '\n');
+        /* Note: we should do a smart decision on wether to flush or not if console flush, if file don't */
         fflush(interp->output.fd);
         *gcResult = object;
     }
     GC_RELEASE;
     if (interp->output.fd) fflush(interp->output.fd);
     if (fd) fclose(fd);
-    return;
+    if (eof)  return *gcResult;
+    return object;
 }
 
 /* Note: experimental */

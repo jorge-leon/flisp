@@ -62,9 +62,14 @@ int main(int argc, char **argv)
     flisp_posix_register(interp);
     flisp_string_register(interp);
 
-    flisp_eval(interp, NULL);
-    if (flisp_error(interp)) {
-        flisp_write_error(interp, stderr);
+    Object *result = flisp_eval(interp, NULL);
+    if (interp->output.fd && interp->output.fd != debug_fd)
+        fflush(interp->output.fd);
+    if (debug_fd)
+        fflush(debug_fd);
+    if (result->type == type_error) {
+        flisp_write_object(interp, stderr, result, true);
+        fputs("", stderr);
         return 1;
     }
     return 0;

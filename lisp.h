@@ -122,8 +122,9 @@ typedef struct Interpreter {
                                       * allocation, cleaned up by
                                       * garbage collector */
     /* exeptions */
-    jmp_buf exceptionEnv;  /* exception handling */
+    jmp_buf exceptionEnv;           /* exception handling */
     jmp_buf *catch;
+    Object *exception;              /* most recent exception arguments: (tag value) */
     /* reader */
     struct { char *buf; size_t len; size_t capacity; };  /* read buffer */
     /* interpreters */
@@ -134,7 +135,7 @@ typedef struct Interpreter {
 // PUBLIC INTERFACE ///////////////////////////////////////////////////////
 extern Interpreter *flisp_new(size_t size, char **, char*, FILE*, FILE*, FILE*);
 extern void flisp_destroy(Interpreter *);
-extern void flisp_eval(Interpreter *, char *);
+extern Object *flisp_eval(Interpreter *, char *);
 /* Note: experimental */
 extern bool flisp_error(Interpreter *);
 extern void flisp_expr(Interpreter *, Object *);

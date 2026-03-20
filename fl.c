@@ -24,13 +24,15 @@ int main(int argc, char **argv)
         flisp_write_error(interp, stderr);
         return 1;
     }
-    for (;;) {
-        flisp_eval(interp, NULL);
-        if (flisp_error(interp))
-            flisp_write_error(interp, stderr);
-        else
-            return 0;
-    }
+    Object *result;
+    do {
+        result = flisp_eval(interp, NULL);
+        if (interp->debug.fd)  fflush(interp->debug.fd);
+        if (result->type == type_error) {
+            flisp_write_object(interp, stderr, result, true);
+            fputs("", stderr);
+        }
+    } while (!feof(interp->input.fd));
 }
 
 /*
