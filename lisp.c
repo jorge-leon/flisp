@@ -1905,41 +1905,58 @@ Object *primitiveVector(Interpreter *interp, Object **args, Object **env, size_t
 {
     return flisp_ext_obj(interp, type_vector, args, nArgs, 0);
 }
-/** (object-elements object[ start[ end]]) => list of contained object */
-Object *primitiveObjects(Interpreter *interp, Object **args, Object **env, size_t nArgs)
-{
-    int64_t i = 0, end = FLISP_ARG_ONE->length;
 
-    if (end == 0) {
-        if (FLISP_ARG_ONE->size == 0)
-            return newError(interp, invalid_value, FLISP_ARG_ONE,
-                "(object-elements[ object[ start[ end]]]) - object is simple object, expected: extended");
-        else
-            return nil;
-    }
+Object *firstConsElements(Interpreter *interp, size_t n, Object *cons)
+{
+    GC_CHECKPOINT;
+    GC_TRACE(gcCons, cons);
+    GC_TRACE(gcList, nil);
+    while (n-- && (*gcCons)->type == type_cons)
+        *gcList = newCons(interp, &(*gcCons)->car, gcList);
+    GC_RETURN(reverseList(interp, *gcList));
+}
+/** (elements object[ start[ end]]) => list of contained objects, sub-array of string */
+Object *primitiveElements(Interpreter *interp, Object **args, Object **env, size_t nArgs)
+{
+    int64_t i = 0, end = FLISP_ARG_ONE->length, j = end;
+
+    if (FLISP_ARG_ONE->size == 0)  return nil;
+
+    if (FLISP_ARG_ONE->length == 0)
+        end = FLISP_ARG_ONE->size;
+
     if (nArgs > 1) {
-        FLISP_ARG_TYPECHECK(FLISP_ARG_TWO, type_integer, "(object-list object[ start[ end]]) - start");
-        i = (FLISP_ARG_TWO->value < 0) ? end + FLISP_ARG_TWO->value : FLISP_ARG_TWO->value;
-        if (i < 0 || i >= end)
-            return newError(interp, range_error, FLISP_ARG_TWO,
-                                  "(object-list object[ start[ end]]) - start out of range [0, %lu]: %ld", end-1, FLISP_ARG_TWO->value);
+        FLISP_ARG_TYPECHECK(FLISP_ARG_TWO, type_integer, "(elements object[ start[ end]]) - start");
+        i = FLISP_ARG_TWO->value;
+        if (i< 0) i += end;
+        if (i < 0) i = 0;
+        if (i >= end) i = end;
     }
     if (nArgs > 2) {
-        int64_t j = (FLISP_ARG_THREE->value < 0) ? end + FLISP_ARG_THREE->value : FLISP_ARG_THREE->value;
-        if (j < 0 || j >= end)
-            return newError(interp, range_error, FLISP_ARG_THREE,
-                            "(object-list object[ start[ end]]) - end out of range [0, %lu]: %ld", end-1, FLISP_ARG_THREE->value);
-        end = j;
+        j = (FLISP_ARG_THREE->value);
+        if (j < 0) j += end;
+        if (j >= end) j = end;
     }
-    if (i == end)
-        return nil;
+    if (i == end)  return nil;
     if (i > end)
-        return newError(interp, range_error, FLISP_ARG_TWO, "(object-list object[ start[ end]]) - start > end: [%lu, %lu]", i, end-1);
+        return newError(interp, range_error, FLISP_ARG_TWO, "(object-list object[ start[ end]]) - start > end: [%lu, %lu]", i, end);
 
+    if (FLISP_ARG_ONE->length == 0)
+        return newStringWithLength(interp, &FLISP_ARG_ONE->string[i], j-i);
+
+    if (FLISP_ARG_ONE->type == type_cons) {
+        Object *e = FLISP_ARG_ONE;
+        end -= i;
+        while (i-- && e->cdr->type == type_cons)
+            e = e->cdr;
+        if (j == end) return e;
+        return firstConsElements(interp, end, e);
+    }
+    
     GC_CHECKPOINT;
     GC_TRACE(gcObject, FLISP_ARG_ONE);
     GC_TRACE(gcList, nil);
-    while (i < end)
+    while (i < j)
         *gcList = newCons(interp, &(*gcObject)->objects[i++], gcList);
     GC_RETURN(reverseList(interp, *gcList));
 }
@@ -2545,7 +2562,7 @@ bool flisp_primitives_register(Interpreter *interp)
          && flisp_register_primitive(interp, "object-size",   1,  1, nil,            primitiveObjectSize)
          && flisp_register_primitive(interp, "object-length", 1,  1, nil,            primitiveObjectLength)
          && flisp_register_primitive(interp, "vector",        1, -1, nil,            primitiveVector)
-         && flisp_register_primitive(interp, "objects",       1,  3, nil,            primitiveObjects)
+         && flisp_register_primitive(interp, "elements",      1,  3, nil,            primitiveElements)
          && flisp_register_primitive(interp, "cons",          2,  2, nil,            primitiveCons)
          && flisp_register_primitive(interp, "open",          1,  2, type_string,    primitiveFopen)
          && flisp_register_primitive(interp, "close",         1,  1, type_stream,    primitiveFclose)
