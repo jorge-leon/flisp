@@ -39,15 +39,14 @@
 #define WRITE_FMT_BUFSIZ 2048
 
 /* Debugging */
-#define DEBUG_GC 0
+#define DEBUG_GC 1
 #define DEBUG_GC_ALWAYS 0
 #define FLISP_TRACE 0
 
 /* Lisp objects */
 
 typedef struct Object Object;
-typedef struct Interpreter Interpreter;
-typedef Object *(*LispEval) (Interpreter *, Object **, Object **, size_t);
+typedef Object *(*LispEval) (Object *, Object **, Object **, size_t);
 
 typedef struct Primitive {
     char *name;
@@ -75,9 +74,33 @@ typedef struct Primitive {
     Object *forward;               \
     }
 
-typedef struct SimpleObject {
+typedef struct ObjectHeader {
     FLISP_SIMPLE_OBJECT_STRUCT;
-} SimpleObject;
+} ObjectHeader;
+
+typedef struct streamObject {
+    Object *path;
+    FILE *fd;
+    char *buf;
+    size_t len;
+} StreamObject;
+
+/* Internal */
+typedef struct Memory {
+    size_t capacity, fromOffset, toOffset;
+    void *fromSpace, *toSpace;
+} Memory;
+
+typedef struct InterpreterObjects {
+    Object *result;
+    Object *symbols;
+    Object *global;
+    Object *gcTop;
+    Object *exception;
+    Object *debug;
+    Object *input;
+    Object *output;
+} InterpreterObjects;
 
 struct Object {
     FLISP_SIMPLE_OBJECT_STRUCT;
@@ -89,57 +112,36 @@ struct Object {
         char string[PATH_MAX];                                            // String, Symbol
         struct { Object *error; Object *message; Object *culprit; }; // Error
         struct { Object *path; FILE *fd; char *buf; size_t len; };        // Stream
+        StreamObject stream;
+        struct {
+            Object *result;
+            Object *symbols;
+            Object *global;
+            Object *gcTop;
+            Object *exception;
+            Object *debug;
+            Object *input;
+            Object *output;
+            
+            Memory *memory;
+            jmp_buf exceptionEnv;           /* exception handling */
+            jmp_buf *catch;
+        };
     };
 };
 
-/* Internal */
-typedef struct Memory {
-    size_t capacity, fromOffset, toOffset;
-    void *fromSpace, *toSpace;
-} Memory;
-
-#define FLISP_INTERPETER_OBJECTS \
-    Object *result;              \
-    Object *symbols;             \
-    Object *global;              \
-    Object *gcTop;               \
-    Object *exception
-
-typedef struct InterpreterObjects {
-    FLISP_INTERPETER_OBJECTS;
-} InterpreterObjects;
-
-typedef struct Interpreter {
-    FLISP_SIMPLE_OBJECT_STRUCT;
-
-    FLISP_INTERPETER_OBJECTS;
-
-    Object message;                  /* Error message buffer */
-
-    Object input;                    /* default input stream object */
-    Object output;                   /* default output stream object */
-    Object debug;                    /* default debug output stream object */
-
-    Memory *memory;
-    
-    
-    /* reader / formatting pad */
-    struct { char *buf; size_t len; size_t capacity; };  /* read buffer */
-    /* exeptions */
-    jmp_buf exceptionEnv;           /* exception handling */
-    jmp_buf *catch;
-
-} Interpreter;
-
+typedef struct Scratchpad {
+    char *string;
+    size_t size;
+    size_t capacity;
+} Scratchpad;
 
 // PUBLIC INTERFACE ///////////////////////////////////////////////////////
 extern Object *flisp_new(size_t size, char **, char*, FILE*, FILE*, FILE*);
-extern void flisp_destroy(Interpreter *);
-extern Object *flisp_eval(Interpreter *, char *);
+extern void flisp_destroy(Object *);
+extern Object *flisp_eval(Object *, char *);
+extern Object *flisp_expr(Object *, Object *);
 extern Object *flisp_write_object(FILE *, Object *, bool);
-extern void flisp_write_error(Object *, FILE *);
-/* Note: experimental */
-extern void flisp_expr(Interpreter *, Object *);
 
 // PROGRAMMING INTERFACE ////////////////////////////////////////////////
 
@@ -182,18 +184,18 @@ extern Object *is_directory;
 extern Object *flisp_empty_string;
 
 /* Note: flisp_' ify these names */
-extern Object *newObject(Interpreter *, Object *, size_t);
-extern Object *newInteger(Interpreter *, int64_t);
-extern Object *newDouble(Interpreter *, double);
-extern Object *newStringWithLength(Interpreter *, char *, size_t);
-extern Object *newString(Interpreter *, char *);
-extern Object *newCons(Interpreter *, Object **, Object **);
-extern Object *newSymbol(Interpreter *, char *);
-extern Object *newError(Interpreter *, Object *, Object *, char *, ...);
-extern Object *newStreamObject(Interpreter *, FILE *, char *);
+extern Object *newObject(Object *, Object *, size_t);
+extern Object *newInteger(Object *, int64_t);
+extern Object *newDouble(Object *, double);
+extern Object *newStringWithLength(Object *, char *, size_t);
+extern Object *newString(Object *, char *);
+extern Object *newCons(Object *, Object **, Object **);
+extern Object *newSymbol(Object *, char *);
+extern Object *newError(Object *, Object *, Object *, char *, ...);
+extern Object *newStreamObject(Object *, FILE *, char *);
 
-extern void resetBuf(Interpreter *);
-extern bool addCharToBuf(Interpreter *, int);
+extern void resetBuf(Object *);
+extern bool addCharToBuf(Object *, int);
 
 /* Garbage Collector */
 #define GC_PASTE1(name, id)  name ## id
@@ -202,15 +204,15 @@ extern bool addCharToBuf(Interpreter *, int);
 
 #define GC_CHECKPOINT Object *gcTop = interp->gcTop
 #define GC_RELEASE interp->gcTop = gcTop
-extern Object *gcReturn(Interpreter *, Object *, Object *);
+extern Object *gcReturn(Object *, Object *, Object *);
 #define GC_RETURN(expr)  return gcReturn(interp, gcTop, expr)
 
 #define GC_TRACE(name, init)                                            \
-    Object GC_UNIQUE(gcTrace) = { type_cons, .car = init, .cdr = interp->gcTop }; \
+    Object GC_UNIQUE(gcTrace) = { .type = type_cons, .car = init, .cdr = interp->gcTop }; \
     interp->gcTop = &GC_UNIQUE(gcTrace);                                \
     Object **name = &GC_UNIQUE(gcTrace).car;
 
-void fl_debug(Interpreter *, char *, ...);
+void fl_debug(Object *, char *, ...);
 
 #define FLISP_ARG_ONE (*args)->car
 #define FLISP_ARG_TWO (*args)->cdr->car
@@ -221,12 +223,8 @@ void fl_debug(Interpreter *, char *, ...);
         return newError(interp, wrong_type_argument, PARAM,     \
             SIGNATURE " expected %s, got: %s", TYPE->string, PARAM->type->string)
 
-extern void flisp_register_constant(Interpreter *, Object *, Object *);
-extern Primitive *flisp_register_primitive(Interpreter *, char *, int, int, Object *, LispEval);
-
-#define FLISP_ERROR_TYPE(INTERPRETER) INTERPRETER->result->error->string
-#define FLISP_ERROR_MESSAGE(INTERPRETER) INTERPRETER->result->message->string
-#define FLISP_ERROR_CULPRIT(INTERPRETER) INTERPRETER->result->culprit
+extern void flisp_register_constant(Object *, Object *, Object *);
+extern Primitive *flisp_register_primitive(Object *, char *, int, int, Object *, LispEval);
 
 #endif
 /*

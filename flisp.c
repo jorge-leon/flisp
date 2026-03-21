@@ -28,7 +28,7 @@ int main(int argc, char **argv)
     char *rcfile, *debug_file, *size_string;
     FILE *debug_fd = NULL, *input_fd = stdin;
     long long size = 0;
-    Interpreter *interp;
+    Object *interp;
 
     if ((rcfile = getenv("FLISPRC")) == NULL)
         rcfile = CPP_XSTR(FLISPRC);
@@ -47,7 +47,7 @@ int main(int argc, char **argv)
             fatal("invalid FLISP_SIZE");
     }
     
-    interp = (Interpreter *)flisp_new((size_t) size, argv, NULL, input_fd, debug_fd, debug_fd);
+    interp = (Object *)flisp_new((size_t) size, argv, NULL, input_fd, debug_fd, debug_fd);
     if (interp == NULL)
         fatal("fLisp interpreter initialization failed");
 
@@ -63,8 +63,8 @@ int main(int argc, char **argv)
     flisp_string_register(interp);
 
     Object *result = flisp_eval(interp, NULL);
-    if (interp->output.fd && interp->output.fd != debug_fd)
-        fflush(interp->output.fd);
+    if (interp->output->fd && interp->output->fd != debug_fd)
+        fflush(interp->output->fd);
     if (debug_fd)
         fflush(debug_fd);
     if (result->type == type_error) {

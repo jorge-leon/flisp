@@ -11,11 +11,11 @@
 
 #define FLISP_STRING_VERSION "0.1"
 
-extern bool flisp_string_register(Interpreter *);
+extern bool flisp_string_register(Object *);
 
 extern size_t flisp_code_length(char);
-extern Object *flisp_char_offset(Interpreter *, char *, size_t);
-extern Object *flisp_string_length(Interpreter *, Object *, size_t);
+extern Object *flisp_char_offset(Object *, char *, size_t);
+extern Object *flisp_string_length(Object *, Object *, size_t);
 extern int64_t flisp_char_code(char *);
 extern size_t flisp_code_char(int64_t, char *);
 

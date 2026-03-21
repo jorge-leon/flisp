@@ -11,11 +11,11 @@
 
 int main(int argc, char **argv)
 {
-    Interpreter *interp;
+    Object *interp;
 
     fputs("\n" FL_NAME " " FL_VERSION "\n", stderr);
 
-    interp = (Interpreter *)flisp_new((size_t) 0, argv, NULL, stdin, stdout, getenv("FLISP_DEBUG") ? stderr : NULL);
+    interp = (Object *)flisp_new((size_t) 0, argv, NULL, stdin, stdout, getenv("FLISP_DEBUG") ? stderr : NULL);
     if (interp == NULL) {
         fputs("fLisp interpreter initialization failed", stderr);
         return 1;
@@ -27,12 +27,12 @@ int main(int argc, char **argv)
     Object *result;
     do {
         result = flisp_eval(interp, NULL);
-        if (interp->debug.fd)  fflush(interp->debug.fd);
+        if (interp->debug->fd)  fflush(interp->debug->fd);
         if (result->type == type_error) {
             flisp_write_object(stderr, result, true);
             fputs("", stderr);
         }
-    } while (!feof(interp->input.fd));
+    } while (!feof(interp->input->fd));
 }
 
 /*

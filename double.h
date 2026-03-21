@@ -11,7 +11,7 @@
 
 #define FLISP_DOUBLE_VERSION "0.1"
 
-extern bool flisp_double_register(Interpreter *);
+extern bool flisp_double_register(Object *);
 
 #endif
 /*

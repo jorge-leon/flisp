@@ -26,7 +26,7 @@ size_t flisp_code_length(char c)
     return 0;
 
 }
-Object *stringCodeLength(Interpreter *interp, Object **args, Object **env, size_t nArgs)
+Object *stringCodeLength(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     size_t len;
 
@@ -50,7 +50,7 @@ Object *stringCodeLength(Interpreter *interp, Object **args, Object **env, size_
  *   encoded character at position index
  * @errors: invalid-value when string is not utf-8 encoded.
  */
-Object *flisp_char_offset(Interpreter *interp, char *string, size_t index)
+Object *flisp_char_offset(Object *interp, char *string, size_t index)
 {
     size_t n = 0, i = 0, l = 0;
 
@@ -67,7 +67,7 @@ Object *flisp_char_offset(Interpreter *interp, char *string, size_t index)
 /** (char-offset string index)
  *
  */
-Object *stringCharOffset(Interpreter *interp, Object **args, Object **env, size_t nArgs)
+Object *stringCharOffset(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     FLISP_ARG_TYPECHECK(FLISP_ARG_ONE, type_string, "(char-offset string index) - string");
     FLISP_ARG_TYPECHECK(FLISP_ARG_TWO, type_integer, "(char-offset string index) - index");
@@ -84,7 +84,7 @@ Object *stringCharOffset(Interpreter *interp, Object **args, Object **env, size_
  * @returns: count of encoded characters, i.e. len of UTF-8 encoded unicode string.
  * @errors: invalid-value when string is not utf-8 encoded.
  */
-Object *flisp_string_length(Interpreter *interp, Object *string, size_t len)
+Object *flisp_string_length(Object *interp, Object *string, size_t len)
 {
     size_t n = 0, i = 0, l = 0;
 
@@ -98,7 +98,7 @@ Object *flisp_string_length(Interpreter *interp, Object *string, size_t len)
     return newInteger(interp, n);
 }
 
-Object *stringLength(Interpreter *interp, Object **args, Object **env, size_t nArgs)
+Object *stringLength(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     return flisp_string_length(interp, FLISP_ARG_ONE, FLISP_ARG_ONE->size);
 }
@@ -145,7 +145,7 @@ size_t flisp_code_char(int64_t code, char *string)
     return len;
 }
 
-Object *stringCodeChar(Interpreter *interp, Object **args, Object **env, size_t nArgs)
+Object *stringCodeChar(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     size_t len = 0;
     char string[5] = { 0 };
@@ -191,7 +191,7 @@ int64_t flisp_char_code(char *string)
     return code;
 }
 
-Object *stringCharCode(Interpreter *interp, Object **args, Object **env, size_t nArgs)
+Object *stringCharCode(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     int64_t code;
 
@@ -208,7 +208,7 @@ Object *stringCharCode(Interpreter *interp, Object **args, Object **env, size_t 
 /** (string-search needle haystack)
  *
  */
-Object *stringSearch(Interpreter *interp, Object **args, Object **env, size_t nArgs)
+Object *stringSearch(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     char *pos;
 
@@ -219,7 +219,7 @@ Object *stringSearch(Interpreter *interp, Object **args, Object **env, size_t nA
 }
 
 /** strspn */
-Object *stringStrspn(Interpreter *interp, Object** args, Object **env, size_t nArgs)
+Object *stringStrspn(Object *interp, Object** args, Object **env, size_t nArgs)
 {
     int64_t i = strspn(FLISP_ARG_ONE->string, FLISP_ARG_TWO->string);
     return flisp_string_length(interp, FLISP_ARG_ONE, i);
@@ -227,7 +227,7 @@ Object *stringStrspn(Interpreter *interp, Object** args, Object **env, size_t nA
 
 
 /** strcspn */
-Object *stringStrcspn(Interpreter *interp, Object** args, Object **env, size_t nArgs)
+Object *stringStrcspn(Object *interp, Object** args, Object **env, size_t nArgs)
 {
     int64_t i = strcspn(FLISP_ARG_ONE->string, FLISP_ARG_TWO->string);
     return flisp_string_length(interp, FLISP_ARG_ONE, i);
@@ -235,7 +235,7 @@ Object *stringStrcspn(Interpreter *interp, Object** args, Object **env, size_t n
 
 Object *string_extension = &(Object) { .string = "extension-string" };
 
-bool flisp_string_register(Interpreter *interp)
+bool flisp_string_register(Object *interp)
 {
     flisp_register_constant(interp, string_extension, newString(interp, FLISP_STRING_VERSION));
 

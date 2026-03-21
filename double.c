@@ -9,18 +9,18 @@
 /* Types */
 
 // Number Type Conversion /////
-Object *integerFromDouble(Interpreter *interp, Object **args, Object **env, size_t nArgs)
+Object *integerFromDouble(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     return newInteger(interp, (int64_t) FLISP_ARG_ONE->number);
 }
 
-Object *doubleFromInteger(Interpreter *interp, Object **args, Object **env, size_t nArgs)
+Object *doubleFromInteger(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     return newDouble(interp, (double) FLISP_ARG_ONE->value);
 }
 // Double Math ///////
 #define FLISP_DOUBLE_MATHOP(name, op)                                        \
-Object *name(Interpreter *interp, Object **args, Object **env, size_t nArgs) \
+Object *name(Object *interp, Object **args, Object **env, size_t nArgs) \
 {                                                                            \
     return newDouble(interp, FLISP_ARG_ONE->number op FLISP_ARG_TWO->number);\
 }
@@ -34,14 +34,14 @@ FLISP_DOUBLE_MATHOP(doubleLessEqual, <=)
 FLISP_DOUBLE_MATHOP(doubleGreater, >)
 FLISP_DOUBLE_MATHOP(doubleGreaterEqual, >=)
 
-Object *doubleMod(Interpreter *interp, Object **args, Object **env, size_t nArgs)
+Object *doubleMod(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     return newDouble(interp, fmod(FLISP_ARG_ONE->number, FLISP_ARG_TWO->number));
 }
 
 Object *double_extension = &(Object) { .string = "extension-double" };
 
-bool flisp_double_register(Interpreter *interp)
+bool flisp_double_register(Object *interp)
 {
     flisp_register_constant(interp, double_extension, newString(interp, FLISP_DOUBLE_VERSION));
 
