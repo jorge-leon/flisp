@@ -71,8 +71,8 @@ Object *stringCharOffset(Object *interp, Object **args, Object **env, size_t nAr
 {
     FLISP_ARG_TYPECHECK(FLISP_ARG_ONE, type_string, "(char-offset string index) - string");
     FLISP_ARG_TYPECHECK(FLISP_ARG_TWO, type_integer, "(char-offset string index) - index");
-    
-    return flisp_char_offset(interp, FLISP_ARG_ONE->string, FLISP_ARG_TWO->value); 
+
+    return flisp_char_offset(interp, FLISP_ARG_ONE->string, FLISP_ARG_TWO->value);
 }
 
 /** flisp_string_length() - number of Unicode characters in string
@@ -235,19 +235,23 @@ Object *stringStrcspn(Object *interp, Object** args, Object **env, size_t nArgs)
 
 Object *string_extension = &(Object) { .string = "extension-string" };
 
-bool flisp_string_register(Object *interp)
+bool flisp_string_register(Object *interp, Object *extension)
 {
-    flisp_register_constant(interp, string_extension, newString(interp, FLISP_STRING_VERSION));
+    if (extension->extension.version != nil) return true;
 
-    return
-        flisp_register_primitive(   interp, "code-length",   1, 1, type_string,  stringCodeLength)
+    if (flisp_register_primitive(   interp, "code-length",   1, 1, type_string,  stringCodeLength)
         && flisp_register_primitive(interp, "char-offset",   2, 2, nil,          stringCharOffset)
         && flisp_register_primitive(interp, "string-length", 1, 1, type_string,  stringLength)
         && flisp_register_primitive(interp, "code-char",     1, 1, type_integer, stringCodeChar)
         && flisp_register_primitive(interp, "char-code",     1, 1, type_string,  stringCharCode)
         && flisp_register_primitive(interp, "string-search", 2, 2, type_string,  stringSearch)
         && flisp_register_primitive(interp, "strspn",        2, 2, type_string,  stringStrspn)
-        && flisp_register_primitive(interp, "strcspn",       2, 2, type_string,  stringStrcspn);
+        && flisp_register_primitive(interp, "strcspn",       2, 2, type_string,  stringStrcspn)) {
+
+        extension->extension.version = newString(interp, FLISP_STRING_VERSION);
+        return true;
+    }
+    return false;
 }
 
 

@@ -56,11 +56,11 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-#ifdef FLISP_DOUBLE_EXTENSION
-    flisp_double_register(interp);
-#endif
+//#ifdef FLISP_DOUBLE_EXTENSION
+//    flisp_double_register(interp);
+//#endif
     flisp_posix_register(interp);
-    flisp_string_register(interp);
+//    flisp_string_register(interp);
 
     Object *result = flisp_eval(interp, NULL);
     if (interp->output->fd && interp->output->fd != debug_fd)

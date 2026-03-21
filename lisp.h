@@ -39,14 +39,16 @@
 #define WRITE_FMT_BUFSIZ 2048
 
 /* Debugging */
-#define DEBUG_GC 1
+#define DEBUG_GC 0
 #define DEBUG_GC_ALWAYS 0
 #define FLISP_TRACE 0
+#define FLISP_TRACE_READ 0
 
 /* Lisp objects */
 
 typedef struct Object Object;
 typedef Object *(*LispEval) (Object *, Object **, Object **, size_t);
+typedef bool (*ExtensionInit) (Object *, Object *);
 
 typedef struct Primitive {
     char *name;
@@ -92,15 +94,20 @@ typedef struct Memory {
 } Memory;
 
 typedef struct InterpreterObjects {
-    Object *result;
     Object *symbols;
     Object *global;
     Object *gcTop;
-    Object *exception;
     Object *debug;
     Object *input;
     Object *output;
+    Object *extensions;
 } InterpreterObjects;
+
+typedef struct ExtensionObject {
+    Object *name;
+    Object *version;
+    ExtensionInit init;
+} ExtensionObject;
 
 struct Object {
     FLISP_SIMPLE_OBJECT_STRUCT;
@@ -114,19 +121,17 @@ struct Object {
         struct { Object *path; FILE *fd; char *buf; size_t len; };        // Stream
         StreamObject stream;
         struct {
-            Object *result;
             Object *symbols;
             Object *global;
             Object *gcTop;
-            Object *exception;
             Object *debug;
             Object *input;
             Object *output;
+            Object *extensions;
             
             Memory *memory;
-            jmp_buf exceptionEnv;           /* exception handling */
-            jmp_buf *catch;
         };
+        ExtensionObject extension;
     };
 };
 
@@ -156,6 +161,7 @@ extern Object *type_primitive;
 /* internal */
 extern Object *type_moved;
 extern Object *type_interpreter;
+extern Object *type_extension;
 
 extern Object *type_vector;
 extern Object *type_cons;

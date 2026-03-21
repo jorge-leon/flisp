@@ -19,9 +19,9 @@
 
 #include "lisp.h"
 
-#ifdef FLISP_DOUBLE_EXTENSION
 #include "double.h"
-#endif
+#include "posix.h"
+#include "string.h"
 
 #define EXCEPTION_MEM_RESERVE 4*sizeof(Object)
 //Note: debugging //#define EXCEPTION_MEM_RESERVE 8*sizeof(Object)
@@ -79,6 +79,8 @@ Object *standard_output =           &(Object) { .string = "*standard-output*" };
 Object *type_env =                  &(Object) { .size = 17, .length = 0, .string = "type-environment" };
 Object *type_moved =                &(Object) { .size = 11, .length = 0, .string = "type-moved" };
 Object *type_interpreter =          &(Object) { .size = 17, .length = 0, .string = "type-interpreter" };
+Object *type_extension =            &(Object) { .size = 15, .length = 0, .string = "type-extension" };
+
 /* Constant strings */
 Object *flisp_empty_string =        &(Object) { .size =  1, .length = 0, .string = "\0" };
 
@@ -744,6 +746,18 @@ Object *newStreamObject(Object *interp, FILE *fd, char *path)
     stream->path = *gcPath;
 
     return stream;
+}
+
+Object *newExtension(Object *interp, char *name, ExtensionInit init)
+{
+    GC_CHECKPOINT;
+    GC_TRACE(gcName, newString(interp, name));
+    Object *object = flisp_ext_obj(interp, type_extension, &nil, 2, sizeof(ExtensionInit));
+    GC_RELEASE;
+    object->extension.name = *gcName;
+    object->extension.version = nil;
+    object->extension.init = init;
+    return object;
 }
 
 // ENVIRONMENT ////////////////////////////////////////////////////////////////
@@ -1450,7 +1464,7 @@ Object *evalList(Object *interp, Object **args, Object **env)
     }
 }
 
-
+#if 0
 void x(Object *interp, Object **args, Object **env)
 {
     fl_debug(interp, "trying\n");
@@ -1488,7 +1502,7 @@ Object *evalCatch(Object *interp, Object **args, Object **env)
     interp->catch = prevEnv;
     return interp->result;
 }
-
+#endif
 
 //Primitive primitives[];
 
@@ -1567,8 +1581,10 @@ Object *evalExpr(Object *interp, Object ** object, Object **env)
                 GC_RETURN(newClosure(interp, type_macro, gcArgs, gcEnv));
             case PRIMITIVE_MACROEXPAND:
                 GC_RETURN(evalMacroExpand(interp, gcArgs, gcEnv));
+#if 0
             case PRIMITIVE_CATCH:
                 GC_RETURN(evalCatch(interp, gcArgs, gcEnv));
+#endif
             default:
                 *gcArgs = evalList(interp, gcArgs, gcEnv);
                 size_t i = 1;
@@ -1775,6 +1791,26 @@ Object *writeError(FILE *fd, Object *error, bool readably)
          (e = writeChar(fd, '>')) != nil );
         return e;
 }
+Object *writeInterpreter(FILE *fd, Object *interp, bool readably)
+{
+    Object *e;
+    (void)
+        ((e = writeString(fd, "#<Interpreter ")) != nil ||
+         (e = writeFmt(fd, "%"PRIXPTR, (uintptr_t) interp)) != nil ||
+         (e = writeChar(fd, '>')) != nil );
+        return e;
+}
+Object *writeExtension(FILE *fd, Object *o,  bool readably)
+{
+    Object *e;
+    (void)
+        ((e = writeString(fd, "#<Extension ")) != nil ||
+         (e = flisp_write_object(fd, o->extension.name, readably)) != nil ||
+         (e = writeString(fd, ", ")) != nil ||
+         (e = flisp_write_object(fd, o->extension.version, readably)) != nil ||
+         (e = writeChar(fd, '>')) != nil );
+        return e;
+}
 
 /** flisp_write_object - format and write object to file descriptor
  *
@@ -1818,6 +1854,10 @@ Object *flisp_write_object(FILE *fd, Object *object, bool readably)
         return writeStream(fd, object);
     if (object->type == type_error)
         return writeError(fd, object, readably);
+    if (object->type == type_interpreter)
+        return writeInterpreter(fd, object, readably);
+    if (object->type == type_extension)
+        return writeExtension(fd, object, readably);
     if (object->type == type_moved) {
         return flisp_write_object(fd, object->forward, readably);
     }
@@ -2000,6 +2040,7 @@ Object *primitiveError(Object *interp, Object **args, Object **env, size_t nArgs
     return flisp_ext_obj(interp, type_error, args, 3, 0);
 }
 
+#if 0
 __attribute__((noreturn))
 Object *primitiveThrow(Object *interp, Object **args, Object **env, size_t nArgs)
 {
@@ -2008,6 +2049,7 @@ Object *primitiveThrow(Object *interp, Object **args, Object **env, size_t nArgs
         longjmp(*interp->catch, 2);
     } while(0);
 }
+#endif
 
 // Integer Math //////
 
@@ -2305,6 +2347,22 @@ Object *stringCompare(Object *interp, Object **args, Object **env, size_t nArgs)
     return newInteger(interp, strcmp(FLISP_ARG_ONE->string, FLISP_ARG_TWO->string));
 }
 
+Object *primitiveLoadExtension(Object *interp, Object **args, Object **env, size_t nArgs)
+{
+    Object *extensions, *name = FLISP_ARG_ONE;
+
+    for (extensions = interp->extensions; extensions != nil; extensions = extensions->cdr) {
+        if (extensions->car->type == type_extension
+            && strcmp(extensions->car->extension.name->string, name->string) == 0) {
+            if (extensions->car->extension.version != nil)
+                return extensions->car->extension.version;
+            if (!extensions->car->extension.init(interp, extensions->car))
+                return newError(interp, invalid_value, extensions->car, "(extension name) - failed to load");
+            return extensions->car->extension.version;
+        }
+    }
+    return newError(interp, not_found, name, "(extension name) - extension does not exist");
+}
 // Interpreter introspection and configuration
 /* Note:
  * - Maybe move this to an extension, where each sub command cmd is
@@ -2373,6 +2431,13 @@ Object *primitiveInterp(Object *interp, Object **args, Object **env, size_t nArg
         gc(interp);
         return nil;
     }
+    if (!strcmp(FLISP_ARG_ONE->string, "self")) {
+        return interp;
+    }
+
+    if (!strcmp(FLISP_ARG_ONE->string, "extensions")) {
+        return interp->extensions;
+    }
 
     return newError(interp, invalid_value, FLISP_ARG_ONE,
                             "(flisp cmd[ arg..]) - unknown command");
@@ -2418,10 +2483,11 @@ Primitive *readPrimitive = NULL;
 Primitive *evalPrimitive = NULL;
 //Object *readCons = NULL;
 //Object *evalApply = NULL;
-bool flisp_primitives_register(Object *interp)
+bool flisp_primitives_register(Object *interp, Object *extension)
 {
-    if (readPrimitive != NULL)         /* Already loaded */
-        return true;
+    if (extension->extension.version != nil)  return true;
+    extension->extension.version = newString(interp, FL_VERSION);
+
     if (!
         (flisp_register_primitive(   interp, "quote",         1,  1, nil, (LispEval) PRIMITIVE_QUOTE)
          && flisp_register_primitive(interp, "bind",          2,  3, nil, (LispEval) PRIMITIVE_BIND  /* special form */ )
@@ -2430,7 +2496,9 @@ bool flisp_primitives_register(Object *interp)
          && flisp_register_primitive(interp, "lambda",        1, -1, nil, (LispEval) PRIMITIVE_LAMBDA /* special form */ )
          && flisp_register_primitive(interp, "macro",         1, -1, nil, (LispEval) PRIMITIVE_MACRO  /* special form */ )
          && flisp_register_primitive(interp, "macroexpand-1", 1,  2, nil, (LispEval) PRIMITIVE_MACROEXPAND /* special form */ )
+#if 0
          && flisp_register_primitive(interp, "catch",         2,  2, nil, (LispEval) PRIMITIVE_CATCH  /*special form */ )
+#endif
          && flisp_register_primitive(interp, "null",          1,  1, nil,            primitiveNullP)
          && flisp_register_primitive(interp, "type-of",       1,  1, nil,            primitiveTypeOf)
          && flisp_register_primitive(interp, "consp",         1,  1, nil,            primitiveConsP)
@@ -2463,7 +2531,9 @@ bool flisp_primitives_register(Object *interp)
     return
         flisp_register_primitive(interp,    "write",         1,  3, nil,            primitiveWrite)
         && flisp_register_primitive(interp, "error",         2,  3, nil,            primitiveError)
+#if 0
         && flisp_register_primitive(interp, "throw",         1,  2, nil,            primitiveThrow)
+#endif
         && flisp_register_primitive(interp, "i+",            2,  2, type_integer,   integerAdd)
         && flisp_register_primitive(interp, "i-",            2,  2, type_integer,   integerSubtract)
         && flisp_register_primitive(interp, "i*",            2,  2, type_integer,   integerMultiply)
@@ -2482,6 +2552,7 @@ bool flisp_primitives_register(Object *interp)
         && flisp_register_primitive(interp, "~",             1,  1, type_integer,   integerNot)
         && flisp_register_primitive(interp, "string-append", 2,  2, type_string,    stringAppend)
         && flisp_register_primitive(interp, "string-compare",2,  2, type_string,    stringCompare)
+        && flisp_register_primitive(interp, "extension",     1,  1, type_symbol,    primitiveLoadExtension)
         && flisp_register_primitive(interp, "interp",        1, -1, nil,            primitiveInterp);
 }
 
@@ -2491,6 +2562,7 @@ void initRootEnv(Object *interp)
     type_env->type = type_symbol;
     type_moved->type = type_symbol;
     type_interpreter->type = type_symbol;
+    type_extension->type = type_symbol;
     flisp_empty_string->type = type_string;
 
     flisp_register_constant(interp, t, NULL);
@@ -2575,8 +2647,6 @@ Object *flisp_new(
     flisp_debug->path = debug_output;
     interp->debug = flisp_debug;
 
-    interp->result = nil;
-
     Memory *memory = newMemory((size < FLISP_MEMORY_INC_SIZE) ? FLISP_MEMORY_INC_SIZE :size);
     if (memory == NULL)
         return flisp_static_error(out_of_memory, &init_oom_message);
@@ -2584,7 +2654,7 @@ Object *flisp_new(
     interp->type = type_interpreter;
     interp->size = sizeof(InterpreterObjects);
     interp->length = sizeof(InterpreterObjects)/sizeof(Object *);
-    
+
     interp->memory = memory;
 
     /* scratchpad */
@@ -2592,7 +2662,9 @@ Object *flisp_new(
     scratchpad->capacity = 0;
     scratchpad->size = 0;
 
+#if 0
     interp->catch = &interp->exceptionEnv;
+#endif
 
 #if DEBUG_GC_ALWAYS
     gc_always = true;
@@ -2607,25 +2679,45 @@ Object *flisp_new(
     if (interp->global->type == type_error)
         return flisp_static_error(invalid_value, &init_env_failed);
 
+    fl_debug(interp, "nil: %s\n", nil->string);
+    flisp_write_object(interp->debug->fd, flisp_find_symbol(interp, "nil", 3), true);
+    fl_debug(interp, "\n");
+
+    initRootEnv(interp);
     /* debug stream */
     flisp_register_constant(interp, debug_output, interp->debug);
 
+//    if (!flisp_primitives_register(interp)) {
+//        flisp_destroy(interp);
+//        return NULL;
+//    }
+
     /* input stream */
     interp->input = newStreamObject(interp, input, "*standard-input*");
-    flisp_register_constant(interp, standard_input, interp->input);
+    var = newSymbol(interp, "*standard-input*");
+    (void)envSet(interp, &var, &interp->input, &interp->global, true);
 
     /* output stream */
     interp->output = newStreamObject(interp, output, "*standard-output*");
-    flisp_register_constant(interp, standard_output, interp->output);
-    initRootEnv(interp);
-
-    if (!flisp_primitives_register(interp)) {
-        flisp_destroy(interp);
-        return NULL;
-    }
+    var = newSymbol(interp, "*standard-output*");
+    (void)envSet(interp, &var, &interp->input, &interp->global, true);
 
     GC_CHECKPOINT;
     GC_TRACE(gcVal, nil);
+
+    *gcVal = newExtension(interp, "core", flisp_primitives_register);
+    interp->extensions = newCons(interp, gcVal, &nil);
+
+    flisp_primitives_register(interp, interp->extensions->car);
+
+    *gcVal = newExtension(interp, "double", flisp_double_register);
+    interp->extensions = newCons(interp, gcVal, &interp->extensions);
+
+    *gcVal = newExtension(interp, "string", flisp_string_register);
+    interp->extensions = newCons(interp, gcVal, &interp->extensions);
+
+    *gcVal = newExtension(interp, "posix", flisp_double_register);
+    interp->extensions = newCons(interp, gcVal, &interp->extensions);
 
     if (argv != NULL) {
         /* Add argv0 to the environment */
@@ -2712,7 +2804,7 @@ Object *flisp_eval(Object *interp, char *input)
     Object *object;
     for (;;) {
         object = primitiveRead(interp, gcArgs, &interp->global, (fd) ? 1 : 0);
-#ifdef FLISP_TRACE_READ
+#if FLISP_TRACE_READ
         fl_debug(interp, "trace read: ");
         flisp_write_object(interp->debug->fd, object, true);
         fl_debug(interp, "\n");

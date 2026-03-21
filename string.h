@@ -11,7 +11,7 @@
 
 #define FLISP_STRING_VERSION "0.1"
 
-extern bool flisp_string_register(Object *);
+extern bool flisp_string_register(Object *, Object *);
 
 extern size_t flisp_code_length(char);
 extern Object *flisp_char_offset(Object *, char *, size_t);

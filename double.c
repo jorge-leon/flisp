@@ -39,14 +39,12 @@ Object *doubleMod(Object *interp, Object **args, Object **env, size_t nArgs)
     return newDouble(interp, fmod(FLISP_ARG_ONE->number, FLISP_ARG_TWO->number));
 }
 
-Object *double_extension = &(Object) { .string = "extension-double" };
-
-bool flisp_double_register(Object *interp)
+bool flisp_double_register(Object *interp, Object *extension)
 {
-    flisp_register_constant(interp, double_extension, newString(interp, FLISP_DOUBLE_VERSION));
 
-    return
-        flisp_register_primitive(   interp, "integer", 1,  1, type_double,  integerFromDouble)
+    if (extension->extension.version != nil) return true;
+
+    if (flisp_register_primitive(   interp, "integer", 1,  1, type_double,  integerFromDouble)
         && flisp_register_primitive(interp, "double",  1,  1, type_integer, doubleFromInteger)
         && flisp_register_primitive(interp, "d+",      2,  2, type_double, doubleAdd)
         && flisp_register_primitive(interp, "d-",      2,  2, type_double, doubleSubtract)
@@ -57,7 +55,12 @@ bool flisp_double_register(Object *interp)
         && flisp_register_primitive(interp, "d<",      2,  2, type_double, doubleLess)
         && flisp_register_primitive(interp, "d<=",     2,  2, type_double, doubleLessEqual)
         && flisp_register_primitive(interp, "d>",      2,  2, type_double, doubleGreater)
-        && flisp_register_primitive(interp, "d>=",     2,  2, type_double, doubleGreaterEqual);
+        && flisp_register_primitive(interp, "d>=",     2,  2, type_double, doubleGreaterEqual)) {
+
+        extension->extension.version = newString(interp, FLISP_DOUBLE_VERSION);
+        return true;
+    }
+    return false;
 }
 
 
