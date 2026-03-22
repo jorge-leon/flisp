@@ -81,8 +81,9 @@ Object *type_moved =                &(Object) { .size = 11, .length = 0, .string
 Object *type_interpreter =          &(Object) { .size = 17, .length = 0, .string = "type-interpreter" };
 Object *type_extension =            &(Object) { .size = 15, .length = 0, .string = "type-extension" };
 
-/* Constant strings */
+/* Constant Objects */
 Object *flisp_empty_string =        &(Object) { .size =  1, .length = 0, .string = "\0" };
+Object *flisp_empty_vector =        &(Object) { .size =  0, .length = 0  };
 
 Object *flisp_debug =  &(Object) {
     .size = sizeof(ObjectHeader) + sizeof(StreamObject),
@@ -96,6 +97,8 @@ bool gc_always = false;
 
 Object init_env_failed =  { .size = 56, .length = 0, .string = "failed to create global environment for the interpreter" };
 Object init_oom_message = { .size = 46, .length = 0, .string = "failed to allocate memory for the interpreter" };
+Object fmt_oom_message = { .size = 41, .length = 0, .string = "failed to allocate memory for the writer" };
+Object fmt_invalid_base= { .size = 20, .length = 0, .string = "invalid number base" };
 
 Object eval_no_input =    { .size = 27, .length = 0, .string = "no input stream configured" };
 Object eval_input_open =  { .size = 35, .length = 0, .string = "fmemopen() for input string failed" };
@@ -154,7 +157,44 @@ bool addCharToPad(Scratchpad *pad, int c)
     pad->string[pad->size++] = c;
     return true;
 }
+bool assurePad(Scratchpad *pad, size_t size)
+{
+    if (!pad->capacity || pad->size < size) {
+        pad->capacity = size + BUFSIZ;
+        if ((pad->string = realloc(pad->string, pad->capacity)) == NULL)
+            return false;
+    }
+    return true;
+}    
+/** fmtInteger() - encode 64 bit integer as ascii string with base 2 to 36
+ *
+ * @param pad     .. The pad to use for the conversion
+ * @param integer .. The integer to convert
+ * @param base    .. The number base to use
+ * @param padding .. The character to use for left-padding the integer string: eq.: ' ', 0, x, X, b, B
+ * @param start   .. The start character to use for encoding digits > 9, eq.: a, A
+ *
+ * @return: index to first digit within pad or error: NULL = OOM, -1 range error for base
+ */
 
+char *fmtInteger(Scratchpad *pad, int64_t integer, int64_t base, char padding, char start)
+{
+    /* in binary we need 64 characters plus an optional "0b" prefix and "-" sign*/
+    int64_t t = 67;
+
+    if (base < 2 || base > 36)  return (char *)-1; /* range_error */
+    if (!assurePad(pad, t+1))   return NULL; /* out_of_memory */
+
+    char *i = pad->string;
+
+    while (t--)  *i++ = padding;
+    *i = '\0';
+    do {
+        t = integer % base;
+        *--i = (t < 10) ? '0'+t : start+t-10;
+    } while ((integer = integer / base));
+    return i;
+}
 
 // DEBUG LOG ///////////////////////////////////////////////////////////////////
 
@@ -523,6 +563,9 @@ Object *newPrimitive(Object *interp, Primitive* primitive)
  */
 Object *flisp_ext_obj(Object *interp, Object *type, Object **list, size_t length, size_t extra)
 {
+    if (type == type_vector && length == 0 && extra == 0)
+        return flisp_empty_vector;
+        
     GC_CHECKPOINT;
     GC_TRACE(gcType, type);
     GC_TRACE(gcObjs, *list);
@@ -1767,13 +1810,17 @@ Object *writeStringReadably(FILE *fd, char *string)
 }
 Object *writeStream(FILE *fd, Object *stream)
 {
-    /* Note: only place where we use writeFmt(): replace with dietlibc
-     * like function.
-     */
     Object *e;
+    char *i = fmtInteger(scratchpad, (uintptr_t) stream->fd, 16, 'X', 'A');
+    if (i == NULL)
+        return flisp_static_error(out_of_memory, &fmt_oom_message);
+    if (i == (char *)-1)
+        return flisp_static_error(range_error, &fmt_invalid_base);
+    i-=2;
+    *i = '0';
     (void)
         ((e = writeString(fd, "#<Stream ")) != nil ||
-         (e = writeFmt(fd, "%"PRIXPTR, (uintptr_t) stream->fd)) != nil ||
+         (e = writeString(fd, i)) != nil ||
          (e = writeChar(fd, ' ')) != nil ||
          (e = writeString(fd, stream->path->string)) != nil ||
          (e = writeChar(fd, '>')) != nil );
@@ -2142,7 +2189,58 @@ Object *integerNot(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     return newInteger(interp, ~FLISP_ARG_ONE->value);
 }
+/** (ifmt i [b [u [p [l]]]]) - format integer as ascii string.
+ *
+ * @param i .. Integer
+ * @param b .. Conversion base, default 10.
+ * @param u .. Uppercase predicate: if missing or nil, use lowercase for digits > 9.
+ * @param p .. Left padding character, first character of given string, default space.
+ * @param l .. Padding length/prefix specifier, if 0 a single '0' is put before the
+ *             first padding character.
+ *
+ * To achieve 0x1a: (ifmt 26 16 nil "x" 0)
+ */
+Object *integerFmt(Object *interp, Object **args, Object **env, size_t nArgs)
+{
+    int64_t base = 10;
+    char start = 'a', padding = ' ', *i;
+    Object *arg;
 
+    FLISP_ARG_TYPECHECK(FLISP_ARG_ONE, type_integer, "(ifmt i [b [u [p [l]]]]) - i");
+    if (nArgs > 1) {
+        FLISP_ARG_TYPECHECK(FLISP_ARG_TWO, type_integer, "(ifmt i [b [u [p [l]]]]) - b");
+        base = FLISP_ARG_TWO->value;
+    }
+    if (nArgs > 2 && FLISP_ARG_THREE != nil)  start = 'A';
+
+    arg = (*args)->cdr->cdr->cdr;
+    if (nArgs > 3) {
+        FLISP_ARG_TYPECHECK(arg->car , type_string, "(ifmt i [b [u [p [l]]]]) - p");
+        padding = arg->car->string[0];
+    }
+    i = fmtInteger(scratchpad, FLISP_ARG_ONE->value, base, padding, start);
+
+    if (i == NULL)
+        return newError(interp, out_of_memory, nil, "(ifmt ..) - failed to allocate format pad");
+    if (i == (char *) -1)
+        return newError(interp, range_error, FLISP_ARG_TWO, "(ifmt i [b [u [p [l]]]]) - b must be within [2, 36]: %ld");
+
+    if (FLISP_ARG_ONE->value < 0)
+        *--i = '-';
+    
+    if (nArgs > 4) {
+        arg = arg->cdr;
+        FLISP_ARG_TYPECHECK(arg->car , type_integer, "(ifmt i [b [u [p [l]]]]) - l");
+        size_t l = arg->car->value;
+        if (l < 0 || l > 67)
+            return newError(interp, range_error, arg->cdr, "(ifmt i [b [u [p [l]]]]) - l must be within [0, 67]: %ld");
+
+        if (l)  return newString(interp, scratchpad->string+67 - l);
+        i-=2;
+        *i = '0';
+    }
+    return newString(interp, i);
+}
 
 // STREAMS //////////////////////////////////////////////////
 
@@ -2551,6 +2649,7 @@ bool flisp_primitives_register(Object *interp, Object *extension)
         && flisp_register_primitive(interp, "<<",            2,  2, type_integer,   integerShiftLeft)
         && flisp_register_primitive(interp, ">>",            2,  2, type_integer,   integerShiftRight)
         && flisp_register_primitive(interp, "~",             1,  1, type_integer,   integerNot)
+        && flisp_register_primitive(interp, "ifmt",          1,  5, nil,             integerFmt)
         && flisp_register_primitive(interp, "string-append", 2,  2, type_string,    stringAppend)
         && flisp_register_primitive(interp, "string-compare",2,  2, type_string,    stringCompare)
         && flisp_register_primitive(interp, "extension",     1,  1, type_symbol,    primitiveLoadExtension)

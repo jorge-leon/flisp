@@ -66,7 +66,7 @@ flisp.pc: flisp.pc.sht
 init.lsp: init.sht core.lsp
 
 lisp.o: lisp.c lisp.h
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@ -lc
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 libflisp.a: $(OBJ)
 	$(AR) rcs $@ $^
