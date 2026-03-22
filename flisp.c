@@ -26,28 +26,40 @@ void fatal(char *msg)
 int main(int argc, char **argv)
 {
     char *rcfile, *debug_file, *size_string;
-    FILE *debug_fd = NULL, *input_fd = stdin;
+    FILE *debug_fd = NULL, *input_fd = stdin, *output_fd = NULL;
     long long size = 0;
     Object *interp;
 
+    if ((debug_file=getenv("FLISP_DEBUG")) != NULL && debug_file[0] != '\0') {
+        if (debug_file[0] == '-')
+            debug_fd = stdout;
+        else if (debug_file[0] == '=')
+            debug_fd = stderr;
+        else if ((debug_fd = fopen(debug_file, "w")) == NULL) {
+            fputs("failed to open debug file", stderr);
+            output_fd = stdout;
+        }
+    }
     if ((rcfile = getenv("FLISPRC")) == NULL)
         rcfile = CPP_XSTR(FLISPRC);
 
     if (*rcfile != '\0')
-        if (!(input_fd = fopen(rcfile, "r")))
-            fatal("failed to open rcfile, FLISPRC or: " CPP_XSTR(FLISPRC));
-
-    if ((debug_file=getenv("FLISP_DEBUG")) != NULL)
-        if ((debug_fd = fopen(debug_file, "w")) == NULL)
-            fatal("failed to open debug file");
+        if (!(input_fd = fopen(rcfile, "r"))) {
+            fputs("failed to open rcfile, FLISPRC or: " CPP_XSTR(FLISPRC) "\n", stderr);
+            input_fd = stdin;
+            output_fd = stdout;
+        }
 
     if ((size_string=getenv("FLISP_SIZE")) != NULL) {
         size = strtoll(size_string, NULL, 16);
         if (errno == ERANGE || errno == EINVAL)
-            fatal("invalid FLISP_SIZE");
+            fputs("invalid FLISP_SIZE", stderr);
     }
-    
-    interp = (Object *)flisp_new((size_t) size, argv, NULL, input_fd, debug_fd, debug_fd);
+
+    bool interactive = (getenv("FLISP_INTERACTIVE") != NULL);
+    if (interactive && output_fd == NULL) output_fd = stdout;
+
+    interp = (Object *)flisp_new((size_t) size, argv, NULL, input_fd, output_fd, debug_fd);
     if (interp == NULL)
         fatal("fLisp interpreter initialization failed");
 
@@ -56,23 +68,29 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-//#ifdef FLISP_DOUBLE_EXTENSION
-//    flisp_double_register(interp);
-//#endif
-    flisp_posix_register(interp);
-//    flisp_string_register(interp);
+    if (interactive)  puts(FL_NAME " " FL_VERSION);
 
-    Object *result = flisp_eval(interp, NULL);
-    if (interp->output->fd && interp->output->fd != debug_fd)
-        fflush(interp->output->fd);
-    if (debug_fd)
-        fflush(debug_fd);
-    if (result->type == type_error) {
-        flisp_write_object(stderr, result, true);
-        fputs("", stderr);
-        return 1;
+
+    Object *result = nil;
+
+    for (;;) {
+        if (interactive)   fputs( "\n> ", stdout);
+        result = flisp_eval(interp, NULL);
+        if (interp->output->fd && interp->output->fd != debug_fd)
+            fflush(interp->output->fd);
+        if (debug_fd)
+            fflush(debug_fd);
+        if (result->type == type_error) {
+            flisp_write_object(stderr, result, true);
+            if (result->error == end_of_file || feof(input_fd)) exit(0);
+            fputs("", stderr);
+            if (interactive)  continue;
+            exit(1);
+        }
+        if (result == end_of_file || feof(input_fd)) exit(0);
+        if (interactive)  continue;
+        exit(0);
     }
-    return 0;
 }
 
 /*

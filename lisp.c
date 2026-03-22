@@ -2361,7 +2361,7 @@ Object *primitiveLoadExtension(Object *interp, Object **args, Object **env, size
             return extensions->car->extension.version;
         }
     }
-    return newError(interp, not_found, name, "(extension name) - extension does not exist");
+    return nil;
 }
 // Interpreter introspection and configuration
 /* Note:
@@ -2679,18 +2679,9 @@ Object *flisp_new(
     if (interp->global->type == type_error)
         return flisp_static_error(invalid_value, &init_env_failed);
 
-    fl_debug(interp, "nil: %s\n", nil->string);
-    flisp_write_object(interp->debug->fd, flisp_find_symbol(interp, "nil", 3), true);
-    fl_debug(interp, "\n");
-
     initRootEnv(interp);
     /* debug stream */
     flisp_register_constant(interp, debug_output, interp->debug);
-
-//    if (!flisp_primitives_register(interp)) {
-//        flisp_destroy(interp);
-//        return NULL;
-//    }
 
     /* input stream */
     interp->input = newStreamObject(interp, input, "*standard-input*");
@@ -2708,7 +2699,10 @@ Object *flisp_new(
     *gcVal = newExtension(interp, "core", flisp_primitives_register);
     interp->extensions = newCons(interp, gcVal, &nil);
 
-    flisp_primitives_register(interp, interp->extensions->car);
+    if (!flisp_primitives_register(interp, interp->extensions->car)) {
+       flisp_destroy(interp);
+       return NULL;
+   }
 
     *gcVal = newExtension(interp, "double", flisp_double_register);
     interp->extensions = newCons(interp, gcVal, &interp->extensions);
@@ -2801,6 +2795,7 @@ Object *flisp_eval(Object *interp, char *input)
     *gcArgs = newCons(interp, &nil, gcArgs);
     if (fd)
         (*gcArgs)->car = newStreamObject(interp, fd, input);
+
     Object *object;
     for (;;) {
         object = primitiveRead(interp, gcArgs, &interp->global, (fd) ? 1 : 0);
