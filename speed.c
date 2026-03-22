@@ -18,15 +18,15 @@ Object *speedCons(Interpreter *interp, Object **args, Object **env)
 }
 Object *speedErrorType(Interpreter *interp, Object **args, Object **env)
 {
-    return FLISP_ARG_ONE->error_type;
+    return FLISP_ARG1->error_type;
 }
 Object *speedErrorMessage(Interpreter *interp, Object **args, Object **env)
 {
-    return FLISP_ARG_ONE->message;
+    return FLISP_ARG1->message;
 }
 Object *speedErrorCulprit(Interpreter *interp, Object **args, Object **env)
 {
-    return FLISP_ARG_ONE->culprit;
+    return FLISP_ARG1->culprit;
 }
 
 size_t flisp_list_length(Object *list)

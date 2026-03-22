@@ -30,12 +30,12 @@ Object *stringCodeLength(Object *interp, Object **args, Object **env, size_t nAr
 {
     size_t len;
 
-    if (FLISP_ARG_ONE->size < 2)
-        return newError(interp, invalid_value, FLISP_ARG_ONE,
+    if (FLISP_ARG1->size < 2)
+        return newError(interp, invalid_value, FLISP_ARG1,
                             "(code-length string) - string is empty");
-    len = flisp_code_length(*(FLISP_ARG_ONE->string));
+    len = flisp_code_length(*(FLISP_ARG1->string));
     if (len == 0)
-        return newError(interp, range_error, FLISP_ARG_ONE,
+        return newError(interp, range_error, FLISP_ARG1,
                             "code-length string) - invalid UTF-8 encoding");
     return newInteger(interp, len);
 }
@@ -69,10 +69,10 @@ Object *flisp_char_offset(Object *interp, char *string, size_t index)
  */
 Object *stringCharOffset(Object *interp, Object **args, Object **env, size_t nArgs)
 {
-    FLISP_ARG_TYPECHECK(FLISP_ARG_ONE, type_string, "(char-offset string index) - string");
-    FLISP_ARG_TYPECHECK(FLISP_ARG_TWO, type_integer, "(char-offset string index) - index");
+    FLISP_ASSERT(FLISP_ARG1, type_string, "(char-offset string index) - string");
+    FLISP_ASSERT(FLISP_ARG2, type_integer, "(char-offset string index) - index");
 
-    return flisp_char_offset(interp, FLISP_ARG_ONE->string, FLISP_ARG_TWO->value);
+    return flisp_char_offset(interp, FLISP_ARG1->string, FLISP_ARG2->value);
 }
 
 /** flisp_string_length() - number of Unicode characters in string
@@ -100,7 +100,7 @@ Object *flisp_string_length(Object *interp, Object *string, size_t len)
 
 Object *stringLength(Object *interp, Object **args, Object **env, size_t nArgs)
 {
-    return flisp_string_length(interp, FLISP_ARG_ONE, FLISP_ARG_ONE->size);
+    return flisp_string_length(interp, FLISP_ARG1, FLISP_ARG1->size);
 }
 
 /** flisp_code_char() - convert Unicode code point to character.
@@ -150,9 +150,9 @@ Object *stringCodeChar(Object *interp, Object **args, Object **env, size_t nArgs
     size_t len = 0;
     char string[5] = { 0 };
 
-    len = flisp_code_char(FLISP_ARG_ONE->value, string);
+    len = flisp_code_char(FLISP_ARG1->value, string);
     if (len == -1)
-        return newError(interp, FLISP_ARG_ONE, range_error,
+        return newError(interp, FLISP_ARG1, range_error,
                             "(code-char n) - n out of Unicode range");
     fl_debug(interp, "%d: %hhX %hhX %hhX %hhX %hhX\n",
              len, string[0], string[1], string[2], string[3], string[4]
@@ -195,12 +195,12 @@ Object *stringCharCode(Object *interp, Object **args, Object **env, size_t nArgs
 {
     int64_t code;
 
-    if (*(FLISP_ARG_ONE->string) == '\0')
-        return newError(interp, FLISP_ARG_ONE, invalid_value,
+    if (*(FLISP_ARG1->string) == '\0')
+        return newError(interp, FLISP_ARG1, invalid_value,
                             "(char-code string) - string is empty");
-    code = flisp_char_code(FLISP_ARG_ONE->string);
+    code = flisp_char_code(FLISP_ARG1->string);
     if (code == -1)
-        return newError(interp, FLISP_ARG_ONE, invalid_value,
+        return newError(interp, FLISP_ARG1, invalid_value,
                             "(char-code string) - string invalid UTF-8 encoding");
     return newInteger(interp, code);
 }
@@ -212,25 +212,25 @@ Object *stringSearch(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     char *pos;
 
-    pos = strstr(FLISP_ARG_TWO->string, FLISP_ARG_ONE->string);
+    pos = strstr(FLISP_ARG2->string, FLISP_ARG1->string);
     if (pos == NULL)  return nil;
 
-    return flisp_string_length(interp, FLISP_ARG_TWO, pos - FLISP_ARG_TWO->string);
+    return flisp_string_length(interp, FLISP_ARG2, pos - FLISP_ARG2->string);
 }
 
 /** strspn */
 Object *stringStrspn(Object *interp, Object** args, Object **env, size_t nArgs)
 {
-    int64_t i = strspn(FLISP_ARG_ONE->string, FLISP_ARG_TWO->string);
-    return flisp_string_length(interp, FLISP_ARG_ONE, i);
+    int64_t i = strspn(FLISP_ARG1->string, FLISP_ARG2->string);
+    return flisp_string_length(interp, FLISP_ARG1, i);
 }
 
 
 /** strcspn */
 Object *stringStrcspn(Object *interp, Object** args, Object **env, size_t nArgs)
 {
-    int64_t i = strcspn(FLISP_ARG_ONE->string, FLISP_ARG_TWO->string);
-    return flisp_string_length(interp, FLISP_ARG_ONE, i);
+    int64_t i = strcspn(FLISP_ARG1->string, FLISP_ARG2->string);
+    return flisp_string_length(interp, FLISP_ARG1, i);
 }
 
 Object *string_extension = &(Object) { .string = "extension-string" };

@@ -11,18 +11,18 @@
 // Number Type Conversion /////
 Object *integerFromDouble(Object *interp, Object **args, Object **env, size_t nArgs)
 {
-    return newInteger(interp, (int64_t) FLISP_ARG_ONE->number);
+    return newInteger(interp, (int64_t) FLISP_ARG1->number);
 }
 
 Object *doubleFromInteger(Object *interp, Object **args, Object **env, size_t nArgs)
 {
-    return newDouble(interp, (double) FLISP_ARG_ONE->value);
+    return newDouble(interp, (double) FLISP_ARG1->value);
 }
 // Double Math ///////
 #define FLISP_DOUBLE_MATHOP(name, op)                                        \
 Object *name(Object *interp, Object **args, Object **env, size_t nArgs) \
 {                                                                            \
-    return newDouble(interp, FLISP_ARG_ONE->number op FLISP_ARG_TWO->number);\
+    return newDouble(interp, FLISP_ARG1->number op FLISP_ARG2->number);\
 }
 FLISP_DOUBLE_MATHOP(doubleAdd, +)
 FLISP_DOUBLE_MATHOP(doubleSubtract, -)
@@ -36,7 +36,7 @@ FLISP_DOUBLE_MATHOP(doubleGreaterEqual, >=)
 
 Object *doubleMod(Object *interp, Object **args, Object **env, size_t nArgs)
 {
-    return newDouble(interp, fmod(FLISP_ARG_ONE->number, FLISP_ARG_TWO->number));
+    return newDouble(interp, fmod(FLISP_ARG1->number, FLISP_ARG2->number));
 }
 
 bool flisp_double_register(Object *interp, Object *extension)

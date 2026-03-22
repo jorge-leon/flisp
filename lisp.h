@@ -220,11 +220,13 @@ extern Object *gcReturn(Object *, Object *, Object *);
 
 void fl_debug(Object *, char *, ...);
 
-#define FLISP_ARG_ONE (*args)->car
-#define FLISP_ARG_TWO (*args)->cdr->car
-#define FLISP_ARG_THREE (*args)->cdr->cdr->car
+#define FLISP_ARG1 (*args)->car
+#define FLISP_ARG2 (*args)->cdr->car
+#define FLISP_ARG3 (*args)->cdr->cdr->car
+#define FLISP_ARG4 (*args)->cdr->cdr->cdr->car
+#define FLISP_ARG5 (*args)->cdr->cdr->cdr->cdr->car
 
-#define FLISP_ARG_TYPECHECK(PARAM, TYPE, SIGNATURE)                     \
+#define FLISP_ASSERT(PARAM, TYPE, SIGNATURE)                     \
     if (PARAM->type != TYPE)                                            \
         return newError(interp, wrong_type_argument, PARAM,     \
             SIGNATURE " expected %s, got: %s", TYPE->string, PARAM->type->string)
