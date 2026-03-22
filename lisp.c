@@ -1300,7 +1300,7 @@ enum {
     PRIMITIVE_LAMBDA,
     PRIMITIVE_MACRO,
     PRIMITIVE_MACROEXPAND,
-    PRIMITIVE_CATCH
+    PRIMITIVE_CATCH,
 };
 
 /* Scheme-style tail recursive evaluation. evalProgn and evalCond
@@ -1308,33 +1308,34 @@ enum {
  * evalExpr. Macros are expanded in-place the first time they are evaluated.
  */
 
-/** (bind symbol object[ globalb]) - creates or finds symbol and set's its value
+/** (bind p s[[ o] ..) - creates or finds symbols and set's their value
  *
- * @param symbol  ..  Symbol to find or create.
- * @param object  ..  Value to bind to symbol.
- * @param globalp ..  If not nil create new objects in the root
- *                    environment, else in the current environment.
+ * @param p ..   If p evaluates to nil objects are created in the current environment
+ *               otherwise in the global environment.
  *
- * @returns value
- * @errors: wrong-type-argument
+ * @param s  ..  Symbol to find or create.
+ * @param o  ..  Value to bind to symbol.
+ *
+ * @returns last value bound
+ * @errors: wrong-type-argument, errors from evaluating p or v
  */
 Object *evalBind(Object *interp, Object **args, Object **env, size_t nArgs)
 {
-    bool globalp = false;
-
-    FLISP_ARG_TYPECHECK(FLISP_ARG_ONE, type_symbol, "(bind symbol object[ globalp]) - symbol");
-    if (!gcCollectableObject(interp, FLISP_ARG_ONE))
-        return newError(interp, wrong_type_argument, FLISP_ARG_ONE,
-                            "(bind symbol object[ globalp] - symbol: is a constant and cannot be redefined");
-    if (nArgs == 3)
-        globalp = (FLISP_ARG_THREE != nil);
+    bool globalp = evalExpr(interp, &FLISP_ARG_ONE, env) != nil;
 
     GC_CHECKPOINT;
     GC_TRACE(gcEnv, *env);
-    GC_TRACE(gcVar, FLISP_ARG_ONE);
-    GC_TRACE(gcVal, FLISP_ARG_TWO);
-    *gcVal = evalExpr(interp, gcVal, gcEnv);
-    envSet(interp, gcVar, gcVal, gcEnv, globalp);
+    GC_TRACE(gcArg, (*args)->cdr);
+    GC_TRACE(gcVal, nil);
+    for (int64_t i = 1; i < nArgs; i+=2) {
+        FLISP_ARG_TYPECHECK((*gcArg)->car, type_symbol, "(bind p s [o[ s[ ..]]]) - s");
+        if (!gcCollectableObject(interp, (*gcArg)->car))
+            return newError(interp, wrong_type_argument, (*gcArg)->car,
+                            "(bind p s[ o[ s[ ..]]]) - s is a constant and cannot be redefined");
+        *gcVal = evalExpr(interp, ((*gcArg)->cdr == nil) ? &nil : &(*gcArg)->cdr->car, gcEnv);
+        envSet(interp, &(*gcArg)->car, gcVal, gcEnv, globalp);
+        *gcArg = (*gcArg)->cdr->cdr;
+    }
     GC_RETURN(*gcVal);
 }
 
@@ -2490,7 +2491,7 @@ bool flisp_primitives_register(Object *interp, Object *extension)
 
     if (!
         (flisp_register_primitive(   interp, "quote",         1,  1, nil, (LispEval) PRIMITIVE_QUOTE)
-         && flisp_register_primitive(interp, "bind",          2,  3, nil, (LispEval) PRIMITIVE_BIND  /* special form */ )
+         && flisp_register_primitive(interp, "bind",          2, -1, nil, (LispEval) PRIMITIVE_BIND  /* special form */ )
          && flisp_register_primitive(interp, "progn",         0, -1, nil, (LispEval) PRIMITIVE_PROGN /* special form */ )
          && flisp_register_primitive(interp, "cond",          0, -1, nil, (LispEval) PRIMITIVE_COND  /* special form */ )
          && flisp_register_primitive(interp, "lambda",        1, -1, nil, (LispEval) PRIMITIVE_LAMBDA /* special form */ )
