@@ -497,11 +497,11 @@ Object *memoryAllocObject(Object *interp, Object *type, size_t size)
     if (new == (void *) -1) {
         /* Note: fake that we have more memory return an error and then hope the best. */
         interp->memory->capacity+= EXCEPTION_MEM_RESERVE;
-        return newError(interp, out_of_memory, nil, "OOM reallocating toSpace: %s", strerror(errno));
+        return newError(interp, gc_error, out_of_memory, "OOM reallocating toSpace: %s", strerror(errno));
     }
     if (munmap(interp->memory->toSpace, interp->memory->capacity) == -1) {
         interp->memory->capacity+= EXCEPTION_MEM_RESERVE;
-        return newError(interp, out_of_memory, nil, "munmap(toSpace) failed: %s", strerror(errno));
+        return newError(interp, gc_error, out_of_memory, "munmap(toSpace) failed: %s", strerror(errno));
     }
     interp->memory->toSpace = new;
     interp->memory->capacity += memory;
@@ -509,7 +509,7 @@ Object *memoryAllocObject(Object *interp, Object *type, size_t size)
     gc(interp);
     if (munmap(interp->memory->toSpace, interp->memory->capacity - memory) == -1) {
         interp->memory->capacity+= EXCEPTION_MEM_RESERVE;
-        return newError(interp, out_of_memory, nil, "munmap(fromSpace) failed: %s", strerror(errno));
+        return newError(interp, gc_error, out_of_memory, "munmap(fromSpace) failed: %s", strerror(errno));
     }
     interp->memory->toSpace = NULL;
 
@@ -538,7 +538,7 @@ allocateObject:
 Object *newObject(Object *interp, Object *type, size_t size)
 {
     Object *object = memoryAllocObject(interp, type, sizeof(ObjectHeader)+size);
-    if (object->type == type_error) return object;
+    if (object->type == gc_error) return object;
     object->size = size;
     return object;
 }
@@ -553,21 +553,21 @@ Object *newObject(Object *interp, Object *type, size_t size)
 Object *newInteger(Object *interp, int64_t value)
 {
     Object *object = newObject(interp, type_integer, 0);
-    if (object->type == type_error) return object;
+    if (object->type == gc_error) return object;
     object->value = value;
     return object;
 }
 Object *newDouble(Object *interp, double number)
 {
     Object *object = newObject(interp, type_double, 0);
-    if (object->type == type_error) return object;
+    if (object->type == gc_error) return object;
     object->number = number;
     return object;
 }
 Object *newPrimitive(Object *interp, Primitive* primitive)
 {
     Object *object = newObject(interp, type_primitive, 0);
-    if (object->type == type_error) return object;
+    if (object->type == gc_error) return object;
     object->primitive = primitive;
     return object;
 }
@@ -597,7 +597,7 @@ Object *flisp_ext_obj(Object *interp, Object *type, Object **list, size_t length
     GC_TRACE(gcType, type);
     GC_TRACE(gcObjs, *list);
     Object *object = newObject(interp, *gcType, (sizeof(Object *) * length) + extra);
-    if (object->type == type_error) return object;
+    if (object->type == gc_error) return object;
     GC_RELEASE;
     object->length = length;
     size_t i;
@@ -614,7 +614,7 @@ Object *newCons(Object *interp, Object ** car, Object ** cdr)
     GC_TRACE(gcCdr, *cdr);
     Object *cons = newObject(interp, type_cons, sizeof(Object *[2]));
     GC_RELEASE;
-    if (cons->type == type_error) return cons;
+    if (cons->type == gc_error) return cons;
     cons->length = 2;
     cons->car = *gcCar;
     cons->cdr = *gcCdr;
@@ -640,6 +640,7 @@ Object *newClosure(Object *interp, Object *type, Object ** args, Object **env)
 
     /* Note: check with GC_ALWAYS */
     o = flisp_ext_obj(interp, type, &nil, 3, 0);
+    if (o->type == gc_error)  return 0;
     o->objects[0] = (*args)->car;
     o->objects[1] = (*args)->cdr;
     o->objects[2] = *env;
@@ -648,7 +649,7 @@ Object *newClosure(Object *interp, Object *type, Object ** args, Object **env)
 Object *newEnv(Object *interp, Object ** func, Object ** vals)
 {
     Object *environment = newObject(interp, type_env, sizeof(Object*[3]));
-    if (environment->type == type_error) return environment;
+    if (environment->type == gc_error) return environment;
     environment->length = 3;
     if ((*func) == nil) {
         environment->parent = environment->vars = environment->vals = nil;
@@ -731,7 +732,7 @@ Object *newStringWithLength(Object *interp, char *string, size_t length)
      *   next GC cycle will discard the extra bytes.
      */
     Object *object = newObject(interp, type_string, length + 1);
-    if (object->type == type_error) return object;
+    if (object->type == gc_error) return object;
     object->length = 0;
     object->size = unescapeString(object->string, string, length) + 1;
     return object;
@@ -755,7 +756,7 @@ Object *newSymbolWithLength(Object *interp, char *string, size_t length)
 
     GC_CHECKPOINT;
     GC_TRACE(gcSymbol, newObject(interp, type_symbol, length + 1));
-    if ((*gcSymbol)->type != type_error) {
+    if ((*gcSymbol)->type != gc_error) {
         (*gcSymbol)->length = 0;
         strncpy((*gcSymbol)->string, string, length);
         (*gcSymbol)->string[length] = '\0';
@@ -782,24 +783,26 @@ Object *newError(Object *interp, Object *error, Object *culprit, char *format, .
     GC_TRACE(gcCulprit, culprit);
     GC_TRACE(gcMessage, flisp_empty_string);
     GC_TRACE(gcError, flisp_ext_obj(interp, type_error, &nil, 3, 0));
-
-    if (format != NULL && format[0] != '\0') {
-        va_list(args);
-        va_start(args, format);
-        written = vsnprintf(message, len, format, args);
-        va_end(args);
-        if (written > len) {
-            strcpy(message+len-4, "...");
-            written = len;
-        } else if (written < 0) {
-            message = FLISP_FORMAT_ERROR_MESSAGE;
-            len = sizeof(FLISP_FORMAT_ERROR_MESSAGE);
+    if ((*gcError)->type != gc_error) {
+                                         
+        if (format != NULL && format[0] != '\0') {
+            va_list(args);
+            va_start(args, format);
+            written = vsnprintf(message, len, format, args);
+            va_end(args);
+            if (written > len) {
+                strcpy(message+len-4, "...");
+                written = len;
+            } else if (written < 0) {
+                message = FLISP_FORMAT_ERROR_MESSAGE;
+                len = sizeof(FLISP_FORMAT_ERROR_MESSAGE);
+            }
+            *gcMessage = newStringWithLength(interp, message, len);
         }
-        *gcMessage = newStringWithLength(interp, message, len);
+        (*gcError)->error = *gcErrorType;
+        (*gcError)->message = *gcMessage;
+        (*gcError)->culprit = *gcCulprit;
     }
-    (*gcError)->error = *gcErrorType;
-    (*gcError)->message = *gcMessage;
-    (*gcError)->culprit = *gcCulprit;
     GC_RETURN(*gcError);
 }
 /** newStreamObject - create stream object from file descriptor and path
@@ -817,6 +820,7 @@ Object *newStreamObject(Object *interp, FILE *fd, char *path)
                                    sizeof(char*) +
                                    sizeof(size_t));
     GC_RELEASE;
+    if (stream->type == gc_error) return stream;
     stream->fd = fd;
     stream->buf = NULL;
     stream->len = 0;
@@ -831,6 +835,7 @@ Object *newExtension(Object *interp, char *name, ExtensionInit init)
     GC_TRACE(gcName, newString(interp, name));
     Object *object = flisp_ext_obj(interp, type_extension, &nil, 2, sizeof(ExtensionInit));
     GC_RELEASE;
+    if ((*gcName)->type == gc_error) return *gcName;
     object->extension.name = *gcName;
     object->extension.version = nil;
     object->extension.init = init;
@@ -877,7 +882,7 @@ Object *envLookup(Object *interp, Object *var, Object *env)
 {
     Object *value = flisp_find_value(interp, env, var);
     if (value == NULL)
-        return newError(interp, invalid_value, var, "has no value");
+        return newError(interp, invalid_value, var, "unbound symbol");
     return value;
 }
 Object *envAdd(Object *interp, Object ** var, Object ** val, Object **env)
@@ -889,7 +894,7 @@ Object *envAdd(Object *interp, Object ** var, Object ** val, Object **env)
     GC_TRACE(gcVars, newCons(interp, gcVar, &nil));
     Object *vals = newCons(interp, gcVal, &nil);
     GC_RELEASE;
-
+    /* Note: tbd check for gc_error */
     (*gcVars)->cdr = (*gcEnv)->vars, (*gcEnv)->vars = *gcVars;
     vals->cdr = (*gcEnv)->vals, (*gcEnv)->vals = vals;
 
@@ -1887,14 +1892,28 @@ Object *writeStream(FILE *fd, Object *stream)
 Object *writeError(FILE *fd, Object *error, bool readably)
 {
     Object *e;
-    (void)
-        ((e = writeString(fd, "#<Error ")) != nil ||
-         (e = flisp_write_object(fd, error->error, readably)) != nil ||
-         (e = writeString(fd, ": ")) != nil ||
-         (e = flisp_write_object(fd, error->message, readably)) != nil ||
-         (e = writeString(fd, ", ")) != nil ||
-         (e = flisp_write_object(fd, error->culprit, readably)) != nil ||
-         (e = writeChar(fd, '>')) != nil );
+    if (readably) {
+        (void)
+            ((e = writeString(fd, "#<Error ")) != nil ||
+             (e = flisp_write_object(fd, error->error, readably)) != nil ||
+             (e = writeString(fd, ": ")) != nil ||
+             (e = flisp_write_object(fd, error->message, readably)) != nil ||
+             (e = writeString(fd, ", ")) != nil ||
+             (e = flisp_write_object(fd, error->culprit, readably)) != nil ||
+             (e = writeChar(fd, '>')) != nil );
+        return e;
+    }
+    if ((e = writeString(fd, "error:")) != nil ||
+        (e = flisp_write_object(fd, error->error, false)) != nil ||
+        (e = writeString(fd, ": ")) != nil ||
+        (e = flisp_write_object(fd, error->message, false)) != nil)
+        return e;
+    if (error->culprit != nil) {
+        (void)
+            ((e = writeString(fd, ": '")) != nil ||
+             (e = flisp_write_object(fd, error->culprit, true)) != nil ||
+             (e = writeString(fd, "'")) );
+    }
     return e;
 }
 Object *writeInterpreter(FILE *fd, Object *interp, bool readably)

@@ -10,7 +10,8 @@ CPPFLAGS += -D_DEFAULT_SOURCE -D_BSD_SOURCE
 #CFLAGS += -O2 -std=c11 -Wall -pedantic -pedantic-errors
 CFLAGS += -O0 -std=c11 -Wall -pedantic -pedantic-errors -Werror=format-security -Wformat -g
 LD      = cc
-LDFLAGS =
+#LDFLAGS = --static
+LDFLAGS = --static
 LIBS    =
 CP      = cp
 MV      = mv
@@ -138,11 +139,11 @@ TAGS: FORCE
 	ctags -e *.c *.h *.lsp
 
 test: fl flisp test/test.lsp FORCE
-	@(cd test && ./test -as)
+	@(cd test && ./test.sh -as)
 
 # Exit 1 if any testsuite fails
 check: flisp test/test.lsp FORCE
-	@(cd test && ./test -sa | grep tests, | \
+	@(cd test && ./test.sh -sa | grep tests, | \
 	while read RESULT; do \
 	   RESULT=$${RESULT#* tests, }; \
 	   RESULT=$${RESULT% failures*}; \

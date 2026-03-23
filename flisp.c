@@ -64,7 +64,7 @@ int main(int argc, char **argv)
         fatal("fLisp interpreter initialization failed");
 
     if (interp->type == type_error) {
-        flisp_write_object(stderr, (Object *)interp, true);
+        flisp_write_object(stderr, (Object *)interp, false);
         exit(1);
     }
 
@@ -81,7 +81,7 @@ int main(int argc, char **argv)
         if (debug_fd)
             fflush(debug_fd);
         if (result->type == type_error) {
-            flisp_write_object(stderr, result, true);
+            flisp_write_object(stderr, result, false);
             if (result->error == end_of_file || feof(input_fd)) exit(0);
             fputs("", stderr);
             if (interactive)  continue;

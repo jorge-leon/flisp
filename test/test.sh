@@ -73,21 +73,22 @@ EOF
     exit
 }
 
-while getopts adsv? OPT; do
+while getopts adsvxb:? OPT; do
     case $OPT in
 	a) TEST_ALL=1;;
 	d)
 	  export FLISP_DEBUG=debug.out
-	  export FEMTO_DEBUG=debug.out
 	  ;;
 	s) export SUMMARY=1;;
 	v) export VERBOSE=1;;
+	x) export DEBUG=1;;
+	b) export BREAK="$OPTARG";;
 	?) usage;;
     esac
 done
 shift $((OPTIND-1))	
 
-[ "$VERBOSE" -a "$SUMMARY" ] && usage
+[ "$DEBUG" -o "$VERBOSE" ] && [ "$SUMMARY" ] && usage
 
 # print tap header line
 tap() {
@@ -101,21 +102,59 @@ tap() {
 
 # create tap output line. Check $? for success
 ok () {
-    [ $? != 0 ] && printf "not " && OK=1 || OK=0
-    TEST=$((TEST+1)); echo ok $TEST - $@; return $OK
+    if [ $? != 0 ]; then
+	printf "not "
+	OK=1
+    else 
+	OK=0
+    fi
+    TEST=$((TEST+1))
+    echo ok $TEST - $@
+
+    if [ "$OK" = 1 -a "$VERBOSE" ]; then
+	echo "expected: " "$OUT"
+	echo "got     : " "$F_OUT"
+	echo "raw:"
+	echo "$T_OUT" 
+    fi
+    
+    [ "$TEST" = "$BREAK" ] && {
+	echo BREAK: $BREAK >&2
+	exit
+    }
+    return $OK
 }
 
 # - - -
 
+# Filter line range: start end
+range () {
+    local START=$1
+    local END=$2
+    local LN=0
+    while read LINE; do
+	LN=$((LN+1))
+	if [ $LN -ge $START ] && [ $LN -le $END ]; then
+	    echo "$LINE"
+	fi
+    done
+}
 
 # pipe expr $PREPARE, then $IN to fLisp, extract $1 last values of
 # output, default 1. Filters trailing 't.  Compare output with $OUT
 flisp_expr () {
-    [ "$(echo -n "$PREPARE $IN" | $FLISP 2>&1 | tail -n ${1:-1})" = "$OUT" ]
+    local T_OUT T_RC F_OUT
+    T_OUT=$(echo -n "$PREPARE $IN" | $FLISP 2>&1)
+    T_RC=$?
+    F_OUT=$(echo "$T_OUT" | range ${1:-2} ${2:-10})
+    [ "$F_OUT" = "$OUT" ]
 }
 flisp_err () {
-    echo -n "$PREPARE $IN" | $FLISP 2>&1 >/dev/null \
-    | tail -n ${1:-2} | head -n ${2:-1} |{
+    local T_OUT T_RC F_OUT
+    T_OUT=$(echo -n "$PREPARE $IN" | $FLISP 2>&1)
+    T_RC=$?
+    F_OUT=$(echo "$T_OUT" | range ${1:-2} ${2:-10})
+    echo -n "$F_OUT" | {
 	IFS=: read PRE ECODE MSG EOBJ
 	: $PRE
 	: $ECODE
@@ -150,12 +189,12 @@ for test; do  (
     TEST_TYPE=${TEST_TYPE% -\*-*}
     case  "$TEST_TYPE" in
 	lisp)
-	    [ "$VERBOSE" ] && set -x
+	    [ "$DEBUG" ] && set -x
 	    FLISPLIB=.. FLISPRC=test.lsp ../flispd $test 3>&1 | $SUMMARY
 	    ;;
 	sh)
 	    export FLISPLIB=..
-	    [ "$VERBOSE" ] && set -x
+	    [ "$DEBUG" ] && set -x
 	    . ./${test} | $SUMMARY
 	    ;;
 	*)
