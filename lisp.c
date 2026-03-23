@@ -84,6 +84,7 @@ Object *type_interpreter =          &(Object) { .size = 17, .length = 0, .string
 Object *type_extension =            &(Object) { .size = 15, .length = 0, .string = "type-extension" };
 
 /* Constant Objects */
+Object *flisp_integer_zero =        &(Object) { .size =  0, .value = 0 };
 Object *flisp_empty_string =        &(Object) { .size =  1, .length = 0, .string = "\0" };
 Object *flisp_empty_vector =        &(Object) { .size =  0, .length = 0  };
 
@@ -110,6 +111,8 @@ Object write_invalid_object = { .length = 0, .string = "invalid object" };
 
 Object init_error;
 
+char *flisp_integer_char_map = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
 Object *flisp_static_error(Object *error, Object *message)
 {
     init_error.type = type_error;
@@ -128,6 +131,7 @@ void fl_fatal(char *message, int code)
 
 /* Note: to be replaced by scratchpad */
 static char error_message[PATH_MAX]; /* error message format area */
+
 
 // Scratchpad ////
 
@@ -164,41 +168,52 @@ bool assurePad(Scratchpad *pad, size_t size)
             return false;
     }
     return true;
-}    
+}
+bool addStringToPad(Scratchpad *pad, char *string)
+{
+    size_t size = strlen(string);
+    if (!assurePad(pad, size+1))  return false;
+    (void)strcpy(pad->string, string);
+    pad->size +=size;
+    return true;
+}
 /** fmtInteger() - encode 64 bit integer as ascii string with base 2 to 36
  *
  * @param pad      .. Pad to use for the conversion
  * @param integer  .. Integer to convert
  * @param base     .. Number base to use
+ * @param map      .. Conversion map to use
  * @param pad_char .. Character to use for left-padding the integer string: eq.: ' ', 0, x, X, b, B
  * @param length   .. Max length of output string, -1 for no padding, 0 to add a '0' before first pad char.
- * @param ten_char .. Start character to use for encoding digits > 9, eq.: a, A
  *
  * @return: index to first digit within pad or error: NULL = OOM, -1, -2  range error for base or length.
  */
 
-char *fmtInteger(Scratchpad *pad, int64_t integer, int64_t base, char pad_char, size_t length, char ten_char)
+char *fmtInteger(Scratchpad *pad, int64_t integer, int64_t base, char *map, char pad_char, size_t length)
 {
+#define INTEGER_PAD_SIZE 67
     /* in binary we need 64 characters plus an optional "0b" prefix and "-" sign*/
-    int64_t t = 67;
     bool negative;
-
-    if (base < 2 || base > 36)  return (char *)-1; /* range_error */
-    if (!assurePad(pad, t+1))   return NULL; /* out_of_memory */
-
-    if ((negative = integer < 0))  integer = -integer;
-    
+    int64_t d = INTEGER_PAD_SIZE;
     char *i = pad->string;
 
-    while (t--)  *i++ = pad_char;
-    *i = '\0';
+    if (base < 2 || base > 36)  return (char *)-1; /* range_error */
+    if (!assurePad(pad, INTEGER_PAD_SIZE+1))  return NULL; /* out_of_memory */
+
+    if ((negative = integer < 0))  integer = -integer;
+
+
+    /* Note: reuse digit as counter for padding */
+    while (d--)  *i++ = pad_char;
+        *i = '\0';
+
     do {
-        t = integer % base;
-        *--i = (t < 10) ? '0'+t : ten_char+t-10;
+        d = integer % base;
+        *--i = map[d];
     } while ((integer = integer / base));
 
     if (negative)  *--i = '-';
-    
+
     if (length == -1)  return i;
     if (length == 0) { i-=2; *i = '0'; return i; }
     if (length <= 67)  return &pad->string[67-length];
@@ -236,10 +251,11 @@ void fl_debug(Object *interp, char *format, ...)
 }
 
 
+#if 0
 // EXCEPTION HANDLING /////////////////////////////////////////////////////////
 
 void resetBuf(Object *);
-
+#endif
 
 // GARBAGE COLLECTION /////////////////////////////////////////////////////////
 
@@ -522,11 +538,11 @@ allocateObject:
 Object *newObject(Object *interp, Object *type, size_t size)
 {
     Object *object = memoryAllocObject(interp, type, sizeof(ObjectHeader)+size);
+    if (object->type == type_error) return object;
     object->size = size;
     return object;
 }
-
-/// Simple objects
+// Simple objects //
 /** newInteger - allocate a new Integer object in the Lisp object store and set it's value
  *
  * @param interp  fLisp Interpreter
@@ -537,23 +553,25 @@ Object *newObject(Object *interp, Object *type, size_t size)
 Object *newInteger(Object *interp, int64_t value)
 {
     Object *object = newObject(interp, type_integer, 0);
+    if (object->type == type_error) return object;
     object->value = value;
     return object;
 }
 Object *newDouble(Object *interp, double number)
 {
     Object *object = newObject(interp, type_double, 0);
+    if (object->type == type_error) return object;
     object->number = number;
     return object;
 }
 Object *newPrimitive(Object *interp, Primitive* primitive)
 {
     Object *object = newObject(interp, type_primitive, 0);
+    if (object->type == type_error) return object;
     object->primitive = primitive;
     return object;
 }
-
-/// Extended objects
+// Extended objects //
 
 /** flisp_ext_obj(interp, type, list, length, extra) - create and initialize an extended object.
  *
@@ -574,11 +592,12 @@ Object *flisp_ext_obj(Object *interp, Object *type, Object **list, size_t length
 {
     if (type == type_vector && length == 0 && extra == 0)
         return flisp_empty_vector;
-        
+
     GC_CHECKPOINT;
     GC_TRACE(gcType, type);
     GC_TRACE(gcObjs, *list);
     Object *object = newObject(interp, *gcType, (sizeof(Object *) * length) + extra);
+    if (object->type == type_error) return object;
     GC_RELEASE;
     object->length = length;
     size_t i;
@@ -595,6 +614,7 @@ Object *newCons(Object *interp, Object ** car, Object ** cdr)
     GC_TRACE(gcCdr, *cdr);
     Object *cons = newObject(interp, type_cons, sizeof(Object *[2]));
     GC_RELEASE;
+    if (cons->type == type_error) return cons;
     cons->length = 2;
     cons->car = *gcCar;
     cons->cdr = *gcCdr;
@@ -628,6 +648,7 @@ Object *newClosure(Object *interp, Object *type, Object ** args, Object **env)
 Object *newEnv(Object *interp, Object ** func, Object ** vals)
 {
     Object *environment = newObject(interp, type_env, sizeof(Object*[3]));
+    if (environment->type == type_error) return environment;
     environment->length = 3;
     if ((*func) == nil) {
         environment->parent = environment->vars = environment->vals = nil;
@@ -710,6 +731,7 @@ Object *newStringWithLength(Object *interp, char *string, size_t length)
      *   next GC cycle will discard the extra bytes.
      */
     Object *object = newObject(interp, type_string, length + 1);
+    if (object->type == type_error) return object;
     object->length = 0;
     object->size = unescapeString(object->string, string, length) + 1;
     return object;
@@ -733,10 +755,12 @@ Object *newSymbolWithLength(Object *interp, char *string, size_t length)
 
     GC_CHECKPOINT;
     GC_TRACE(gcSymbol, newObject(interp, type_symbol, length + 1));
-    (*gcSymbol)->length = 0;
-    strncpy((*gcSymbol)->string, string, length);
-    (*gcSymbol)->string[length] = '\0';
+    if ((*gcSymbol)->type != type_error) {
+        (*gcSymbol)->length = 0;
+        strncpy((*gcSymbol)->string, string, length);
+        (*gcSymbol)->string[length] = '\0';
     interp->symbols = newCons(interp, gcSymbol, &interp->symbols);
+    }
     GC_RELEASE;
     return *gcSymbol;
 }
@@ -745,6 +769,7 @@ Object *newSymbol(Object *interp, char *string)
     return newSymbolWithLength(interp, string, strlen(string));
 }
 
+/* Note: replace vsnprintf() with scratchpad */
 #define FLISP_FORMAT_ERROR_MESSAGE "failed to format error message"
 Object *newError(Object *interp, Object *error, Object *culprit, char *format, ...)
 {
@@ -834,8 +859,8 @@ Object *newExtension(Object *interp, char *name, ExtensionInit init)
  *   vars: nil, vals: nil
  */
 
-Object *envLookup(Object *interp, Object *var, Object *env)
-{
+Object *flisp_find_value(Object *interp, Object *env, Object *var) {
+
     for (; env != nil; env = env->parent) {
         Object *vars = env->vars, *vals = env->vals;
 
@@ -846,8 +871,14 @@ Object *envLookup(Object *interp, Object *var, Object *env)
         if (vars == var)
             return vals;
     }
-
-    return newError(interp, invalid_value, var, "has no value");
+    return NULL;
+}
+Object *envLookup(Object *interp, Object *var, Object *env)
+{
+    Object *value = flisp_find_value(interp, env, var);
+    if (value == NULL)
+        return newError(interp, invalid_value, var, "has no value");
+    return value;
 }
 Object *envAdd(Object *interp, Object ** var, Object ** val, Object **env)
 {
@@ -877,14 +908,8 @@ Object *envAdd(Object *interp, Object ** var, Object ** val, Object **env)
 Object *envSet(Object *interp, Object ** var, Object ** val, Object **env, bool top)
 {
     for (;;) {
-        Object *vars = (*env)->vars, *vals = (*env)->vals;
-
-        for (; vars->type == type_cons; vars = vars->cdr, vals = vals->cdr) {
-            if (vars->car == *var)
-                return vals->car = *val;
-            if (vars->cdr == *var)
-                return vals->cdr = *val;
-        }
+        Object *value = flisp_find_value(interp, *env, *var);
+        if (value != NULL)  return value;
 
         if ((*env)->parent == nil || !top) {
             GC_CHECKPOINT;
@@ -895,15 +920,24 @@ Object *envSet(Object *interp, Object ** var, Object ** val, Object **env, bool 
     }
 }
 
-
 // READING S-EXPRESSIONS //////////////////////////////////////////////////////
 
 Object *evalExpr(Object *, Object **, Object **);
 
-int isSymbolChar(int ch)
+int isSymbolChar(int ch, size_t dummy)
 {
     static const char *valid = "!#$%&*+-./:<=>?@^_|~";
     return isalnum(ch) || strchr(valid, ch);
+}
+int isDigitChar(int ch, size_t base)
+{
+    char *found = strchr(flisp_integer_char_map, toupper(ch));
+    return (found != NULL && (found - flisp_integer_char_map) < base);
+}
+int isDoubleChar(int ch, size_t dummy)
+{
+    static const char *valid = "-.e";
+    return isdigit(ch) || strchr(valid, ch);
 }
 
 Object *reverseList(Object *interp, Object *list)
@@ -968,49 +1002,40 @@ int peekNext(Object *interp, FILE *fd)
  * @param predicate  function returning 0 if a character matches *predicate*
  * @returns: next character not fullfilling *predicate* or EOF
  */
-int readWhile(Object *interp, FILE *fd, int (*predicate) (int ch))
+int readWhile(Object *interp, FILE *fd, int (*predicate) (int, size_t), size_t base)
 {
     for (;;) {
         int ch = streamPeek(fd);
         if (ch == EOF)  return ch;
-        if (!predicate(ch))  return ch;
+        if (!predicate(ch, base))  return ch;
         if (!addCharToPad(scratchpad, fgetc(fd)))  return EOF;
     }
 }
 
 /* Object readers */
 
-/** readInteger - add an integer from the read buffer to the  interpreter
- * @param interp fLisp interpreter
- * @returns: Integer object or error
- * @errors: range-error, out-of-memory
- */
-Object *readInteger(Object *interp)
-{
-    if (!addCharToPad(scratchpad, '\0'))
-        return newError(interp, out_of_memory, nil, "OOM while reading integer literal");
+#define READER_OOM(WHEN) return newError(interp, out_of_memory, nil, "OOM " WHEN)
+#define READER_IO(WHEN)  return newError(interp, out_of_memory, nil, "I/O error %s" WHEN, strerror(errno))
+#define READER_EOF(WHEN) return newError(interp, read_incomplete, nil,"unexpected end of stream "  WHEN)
 
+Object *readInteger(Object *interp, Scratchpad *pad)
+{
+    if (!addCharToPad(pad, '\0')) READER_OOM("while reading integer literal");
     /* Note: strtoimax might actually use a different size then
      *   int64_t. So this approach should be revised.  We want to
      *   provide int64_t on any platform.
      */
     errno = 0;
-    int64_t n = strtoimax(scratchpad->string, NULL, 0);
+    int64_t n = strtoimax(pad->string, NULL, 0);
     if (errno == ERANGE)
-        return newError(interp, range_error, nil, "integer out of range,: %"PRId64, n);
+        return newError(interp, range_error, nil, "while reading integer literal");
     return newInteger(interp, n);
 }
-/** readDouble - add a float from the read buffer to the interpreter
- * @param interp  fLisp interpreter
- * @returns: double object
- * @errors: range-error, out-of-memory
- */
-Object *readDouble(Object *interp)
+Object *readDouble(Object *interp, Scratchpad *pad)
 {
-    if (!addCharToPad(scratchpad, '\0'))
-        return newError(interp, out_of_memory, nil, "OOM while reading double literal");
+    if (!addCharToPad(pad, '\0')) READER_OOM("while reading double literal");
     errno = 0;
-    double d = strtod(scratchpad->string, NULL);
+    double d = strtod(pad->string, NULL);
     if (errno == ERANGE)
         return newError(interp, range_error, nil, "double out of range,: %f", d);
     // Note: purposely not dealing with NaN
@@ -1024,28 +1049,35 @@ Object *readDouble(Object *interp)
  * @errors: read-incomplete, io_error
  * @trows: out-of-memory
  */
-Object *readString(Object *interp, FILE *fd)
+Object *readString(Object *interp, FILE *fd, Scratchpad *pad)
 {
     bool isEscaped = false;
     int ch;
 
-    initPad(scratchpad);
+    initPad(pad);
 
     for (;;) {
         ch = fgetc(fd);
         if (ch == EOF) {
-            if (ferror(fd))
-                return newError(interp, io_error, nil, "I/O error while reading string literal");
-            return newError(interp, read_incomplete, nil, "unexpected end of stream in string literal");
+            if (ferror(fd)) READER_IO("while reading string literal");
+            READER_EOF("while reading string literal");
         }
         if (ch == '"' && !isEscaped)
-            return newStringWithLength(interp, scratchpad->string, scratchpad->size);
+            return newStringWithLength(interp, pad->string, pad->size);
 
         isEscaped = (ch == '\\' && !isEscaped);
-        if (!addCharToPad(scratchpad, ch))
-            return newError(interp, out_of_memory, nil, "OOM while reading string literal");
+        if (!addCharToPad(pad, ch)) READER_OOM("OOM while reading string literal");
     }
 }
+Object *readSymbol(Object *interp, FILE *fd, Scratchpad *pad)
+{
+    if (EOF == readWhile(interp, fd, isSymbolChar, 10)) {
+        if (ferror(fd))  READER_IO("while reading symbol");
+        if (pad->string == NULL) READER_OOM("while reading symbol");
+    }
+    return newSymbolWithLength(interp, pad->string, pad->size);
+}
+
 /** readNumberOrSymbol - return integer, double or symbol from input file
  *
  * @param interp  fLisp interpreter
@@ -1057,72 +1089,48 @@ Object *readString(Object *interp, FILE *fd)
  */
 Object *readNumberOrSymbol(Object *interp, FILE *fd)
 {
+#define WHILE_NOS "while reading number or symbol"
+
+    size_t base = 10;
+
     initPad(scratchpad);
 
     int ch = streamPeek(fd);
-    if (ch == EOF)  { if (ferror(fd)) goto io_error; else goto eof_error; }
-
+    if (ch == EOF) {
+        if (ferror(fd)) READER_IO(WHILE_NOS); else READER_EOF(WHILE_NOS);
+    }
     /* skip optional leading sign */
     if (ch == '+' || ch == '-') {
-        if (!addCharToPad(scratchpad, fgetc(fd)))  goto oom_error;
+        if (!addCharToPad(scratchpad, fgetc(fd)))  READER_OOM(WHILE_NOS);
         ch = streamPeek(fd);
-        if (ch == EOF && ferror(fd))  goto io_error;
+        if (ch == EOF && ferror(fd))  READER_IO(WHILE_NOS);
     }
-    /* Try to read a number in integer or decimal (float) format.
-     * C notation applies: 010 = 8, 0x10 = 16
-     */
-    if (ch == '.' || isdigit(ch)) {
-        if (ch == '0') {
-            if (!addCharToPad(scratchpad, fgetc(fd)))
-                return newError(interp, out_of_memory, nil, "OOM reading number or symbol");
-            ch = streamPeek(fd);
-            if ((ch == EOF) && ferror(fd))  goto io_error;
-            if (ch == 'x') {
-                if (!addCharToPad(scratchpad, fgetc(fd)))  goto oom_error;
-                ch = streamPeek(fd);
-                if (ch == EOF) { if (ferror(fd)) goto io_error; else goto eof_error; }
-            }
+    /* Try to read a number in integer format. C notation for hex and octal applies. */
+    if (ch == '0') {
+        if (!addCharToPad(scratchpad, fgetc(fd)))  READER_OOM(WHILE_NOS);
+        ch = streamPeek(fd);
+        if (ch == EOF) {
+            if (ferror(fd))  READER_IO(WHILE_NOS);
+            return flisp_integer_zero;
         }
-        if (isdigit(ch)) {
-            ch = readWhile(interp, fd, isdigit);
-            if (ch == EOF) { if (ferror(fd)) goto io_error; else if (scratchpad->string == NULL)  goto oom_error; }
-            if (scratchpad->size == 0) goto eof_error;
-        }
-        if (!isSymbolChar(ch))
-            return readInteger(interp);
-        if (ch == '.') {
-            if (!addCharToPad(scratchpad, ch))  goto oom_error;
-            (void)fgetc(fd);
-            ch = streamPeek(fd);
+        base = (ch == 'x' || ch == 'X') ? 16 : 8;
+        if (ch == 'x' || ch == 'X' || isDigitChar(ch, base)) {
+            if (!addCharToPad(scratchpad, fgetc(fd)))  READER_OOM(WHILE_NOS);
+            ch = readWhile(interp, fd, isDigitChar, base);
             if (ch == EOF) {
-                if (ferror(fd))  goto io_error;
-                if (scratchpad->size > 1)
-                    return readDouble(interp);
-            }
-            if (isdigit(ch)) {
-                ch = readWhile(interp, fd, isdigit);
-                if (ch == EOF) { if (ferror(fd)) goto io_error; else if (scratchpad->string == NULL)  goto oom_error; }
-                if (scratchpad->size == 0) goto eof_error;
-                if (!isSymbolChar(ch))
-                    return readDouble(interp);
-            }
-            if (!isSymbolChar(ch))
-                return readDouble(interp);
-        }
+                if (ferror(fd)) READER_IO(WHILE_NOS);
+                else if (scratchpad->string == NULL)  READER_OOM(WHILE_NOS); }
+            if (scratchpad->size == 0) READER_EOF(WHILE_NOS);
+            return readInteger(interp, scratchpad);
+        } else
+            return flisp_integer_zero;
+    }
+    if (isDigitChar(ch, base)) {
+        if (!addCharToPad(scratchpad, fgetc(fd)))  READER_OOM(WHILE_NOS);
+        return readInteger(interp, scratchpad);
     }
     /* non-numeric character encountered, read a symbol */
-    if (EOF == readWhile(interp, fd, isSymbolChar)) {
-        if (ferror(fd))  goto io_error;
-        if (scratchpad->string == NULL) goto oom_error;
-    }
-    return newSymbolWithLength(interp, scratchpad->string, scratchpad->size);
-
-oom_error:
-    return newError(interp, out_of_memory, nil, "OOM while reading number or symbol");
-io_error:
-    return newError(interp, io_error, nil, "I/O error while reading number or symbol");
-eof_error:
-    return newError(interp, read_incomplete, nil, "EOF while reading number or symbol");
+    return readSymbol(interp, fd, scratchpad);
 }
 
 /* Composed object readers */
@@ -1147,15 +1155,13 @@ Object *readList(Object *interp, FILE *fd)
         initPad(scratchpad);
 
         int ch = skipToNext(interp, fd);
-        if (ch == EOF) { if (ferror(fd)) goto io_error; else
-                return newError(interp, read_incomplete, nil, "unexpected end of stream in list"); }
+        if (ch == EOF) { if (ferror(fd)) READER_IO("while reading list"); else READER_EOF("while reading list"); }
         if (ch == ')')
             return (list == nil) ? nil : reverseList(interp, list);
         if (ch == '.') {
             ch = streamPeek(fd);
-            if (!isSymbolChar(ch)) {
-                if (ch == EOF) { if (ferror(fd)) goto dotted_io_error; else
-                        return newError(interp, read_incomplete, nil, "unexpected end of stream in dotted list"); }
+            if (!isSymbolChar(ch, 10)) {
+                if (ch == EOF) { if (ferror(fd))  READER_IO("while reading dotted list");  else READER_EOF("while reading dotted list"); }
                 if (last == nil)
                     return newError(interp, invalid_read_syntax, nil, "unexpected dot at start of list");
                 if ((ch = peekNext(interp, fd)) == ')')
@@ -1164,12 +1170,11 @@ Object *readList(Object *interp, FILE *fd)
                 GC_TRACE(gcList, list);
                 last = readExpr(interp, fd);
                 GC_RELEASE;
-                if (!last)
-                    return newError(interp, read_incomplete, nil, "unexpected end of stream in dotted list");
+                if (!last) READER_EOF("while reading dotted list");
                 if (last->type == type_error)
                     return newError(interp, invalid_value, last, "read error while reading expression in dotted list");
                 ch = peekNext(interp, fd);
-                if (ch == EOF && ferror(fd))  goto dotted_io_error;
+                if (ch == EOF && ferror(fd))  READER_IO("while reading dotted list");
                 if (ch != ')')
                     return newError(interp, invalid_read_syntax, nil, "unexpected object at end of dotted list");
                 (void)skipToNext(interp, fd);
@@ -1178,8 +1183,7 @@ Object *readList(Object *interp, FILE *fd)
                 return list;
             }
         } else {
-            if (ungetc(ch, fd) == EOF)
-                return newError(interp, io_error, nil, "readList: failed to ungetc, errno: %s", strerror(errno));
+            if (ungetc(ch, fd) == EOF) READER_IO("while reading list");
             GC_CHECKPOINT;
             GC_TRACE(gcList, list);
             GC_TRACE(gcLast, last);
@@ -1191,10 +1195,6 @@ Object *readList(Object *interp, FILE *fd)
             last = *gcLast;
         }
     }
-io_error:
-    return newError(interp, io_error, nil, "I/O error while reading list");
-dotted_io_error:
-    return newError(interp, io_error, nil, "I/O error while reading dotted list");
 }
 /** readUnary - return an unary operator together with the next
  *     expression from input file
@@ -1212,9 +1212,9 @@ Object *readUnary(Object *interp, FILE *fd, char *symbol)
 {
     if (peekNext(interp, fd) == EOF) {
         if (ferror(fd))
-            return newError(interp, io_error, nil, "I/O error while reading list");
+           return newError(interp, io_error, nil, "I/O error while reading unary %s", symbol);
         else
-            return newError(interp, read_incomplete, nil, "unexpected end of stream in readUnary(%s)", symbol);
+            return newError(interp, read_incomplete, nil, "unexpected end of stream while reading unary %s", symbol);
     }
     GC_CHECKPOINT;
     GC_TRACE(gcSymbol, newSymbol(interp, symbol));
@@ -1231,18 +1231,52 @@ Object *doReaderMacro(Object *interp, FILE *fd)
 {
     int ch = streamPeek(fd);
     if (ch == EOF) {
-        if (ferror(fd))
-            return newError(interp, io_error, nil, "I/O error while reading macro");
-        return newError(interp, read_incomplete, nil, "unexpected end of stream while reading macro");
-    } else if (ch == '!') {
+        if (ferror(fd)) READER_IO("while reading reader macro");
+        READER_EOF("while reading reader macro");
+    }
+    fgetc(fd);
+    if (ch == '!') {
         while ((ch = fgetc(fd)) != EOF && ch != '\n');
         return NULL;
     }
+    if (ch == '\'') {
+        initPad(scratchpad);
+        ch = readWhile(interp, fd, isSymbolChar, 10);
+        if (ch == EOF) {
+            if (ferror(fd)) READER_IO("while reading symbol");
+            else if (scratchpad->string == NULL)  READER_OOM("while reading symbol");
+            if (scratchpad->size == 0) READER_EOF("while reading symbol");
+        }
+        return newSymbolWithLength(interp, scratchpad->string, scratchpad->size);
+    }
+    if (ch == 'd') {
+        initPad(scratchpad);
+        ch = readWhile(interp, fd, isDoubleChar, 0);
+        if (ch == EOF) {
+            if (ferror(fd)) READER_IO("while reading double literal");
+            else if (scratchpad->string == NULL)  READER_OOM("while reading double literal");
+            if (scratchpad->size == 0) READER_EOF("while reading double literal");
+        }
+        return readDouble(interp, scratchpad);
+    }
+    if (ch == 'D') {
+        initPad(scratchpad);
+        if (!addStringToPad(scratchpad, "0x")) READER_OOM("while reading double hex literal");
+        ch = readWhile(interp, fd, isDigitChar, 16);
+        if (ch == EOF) {
+            if (ferror(fd)) READER_IO("while reading double hex literal");
+            else if (scratchpad->string == NULL)  READER_OOM("while reading double hex literal");
+            if (scratchpad->size == 0) READER_EOF("while reading double hex literal");
+        }
+        Object *number = readInteger(interp, scratchpad);
+        if (number->type != type_error)
+            number->type = type_double;
+        return number;
+    }
+    if (ch & 0x80)
+        return newError(interp, invalid_read_syntax, nil, "unknown read macro: #0x%02X", ch);
     else
-        if (ch & 0x80)
-            return newError(interp, invalid_read_syntax, nil, "unknown read macro: #0x%02X", ch);
-        else
-            return newError(interp, invalid_read_syntax, nil, "unknown read macro: #%c", ch);
+        return newError(interp, invalid_read_syntax, nil, "unknown read macro: #%c", ch);
 }
 
 /** readExpr - return next lisp sexp object from stream or from interpreter input file
@@ -1257,13 +1291,14 @@ Object *doReaderMacro(Object *interp, FILE *fd)
  */
 Object *readExpr(Object *interp, FILE *fd)
 {
+#define WHILE_EXPR "while reading expression"
     Object *object;
     for (;;) {
         initPad(scratchpad);
 
         int ch = skipToNext(interp, fd);
 
-        if (ch == EOF) { if (ferror(fd)) goto io_error; else return NULL; }
+        if (ch == EOF) { if (ferror(fd)) READER_IO(WHILE_EXPR); else return NULL; }
         if (ch == '#') {
             object = doReaderMacro(interp, fd);
             if (object == NULL) continue;
@@ -1275,22 +1310,22 @@ Object *readExpr(Object *interp, FILE *fd)
             return readUnary(interp, fd, "quasiquote");
         if (ch == ',') {
             ch = streamPeek(fd);
-            if (ch == EOF) { if (ferror(fd)) goto io_error; else return NULL; }
+            if (ch == EOF) { if (ferror(fd)) READER_IO(WHILE_EXPR); else return NULL; }
             if (ch == '@') {
-                if (!addCharToPad(scratchpad, fgetc(fd))) { if (ferror(fd)) goto io_error; else
-                        return newError(interp, out_of_memory, nil, "OOM while reading expression"); }
+                if (!addCharToPad(scratchpad, fgetc(fd))) {
+                    if (ferror(fd)) READER_IO(WHILE_EXPR);  else READER_OOM(WHILE_EXPR);
+                }
                 return readUnary(interp, fd, "splice-unquote");
             }
             else
                 return readUnary(interp, fd, "unquote");
         }
         if (ch == '"')
-            return readString(interp, fd);
+            return readString(interp, fd, scratchpad);
         if (ch == '(')
             return readList(interp, fd);
-        if (isSymbolChar(ch) && (ch != '.' || isSymbolChar(streamPeek(fd)))) {
-            if (ungetc(ch, fd) == EOF)
-                return newError(interp, io_error, nil, "I/O error while reading expression, ungetc(), errno: %s", strerror(errno));
+        if (isSymbolChar(ch, 10) && (ch != '.' || isSymbolChar(streamPeek(fd), 10))) {
+            if (ungetc(ch, fd) == EOF) READER_IO(WHILE_EXPR);
             return readNumberOrSymbol(interp, fd);
         }
         else
@@ -1299,8 +1334,6 @@ Object *readExpr(Object *interp, FILE *fd)
             else
                 return newError(interp, invalid_read_syntax, nil, "unexpected character: '%c'", ch);
     }
-io_error:
-    return newError(interp, io_error, nil, "I/O error while reading expression");
 }
 
 /** (read [stream [eofv]]) - read one object from input stream
@@ -1342,18 +1375,6 @@ Object *primitiveRead(Object *interp, Object **args, Object **env, size_t nArgs)
 
 
 // EVALUATION /////////////////////////////////////////////////////////////////
-
-// Special forms handled by evalExpr. Must be in the same order as above.
-enum {
-    PRIMITIVE_QUOTE,
-    PRIMITIVE_BIND,
-    PRIMITIVE_PROGN,
-    PRIMITIVE_COND,
-    PRIMITIVE_LAMBDA,
-    PRIMITIVE_MACRO,
-    PRIMITIVE_MACROEXPAND,
-    PRIMITIVE_CATCH,
-};
 
 /* Scheme-style tail recursive evaluation. evalProgn and evalCond
  * return the object in the tail recursive position to be evaluated by
@@ -1518,6 +1539,7 @@ Object *evalList(Object *interp, Object **args, Object **env)
 }
 
 #if 0
+/* Note: Exceptions are temporary parked */
 void x(Object *interp, Object **args, Object **env)
 {
     fl_debug(interp, "trying\n");
@@ -1557,7 +1579,17 @@ Object *evalCatch(Object *interp, Object **args, Object **env)
 }
 #endif
 
-//Primitive primitives[];
+// Special forms handled by evalExpr.
+enum {
+    PRIMITIVE_QUOTE,
+    PRIMITIVE_BIND,
+    PRIMITIVE_PROGN,
+    PRIMITIVE_COND,
+    PRIMITIVE_LAMBDA,
+    PRIMITIVE_MACRO,
+    PRIMITIVE_MACROEXPAND,
+    PRIMITIVE_CATCH,
+};
 
 Object *evalExpr(Object *interp, Object ** object, Object **env)
 {
@@ -1670,7 +1702,6 @@ Object *primitiveEval(Object *interp, Object **args, Object **env, size_t nArgs)
     return evalExpr(interp, &(*args)->car, env);
 }
 
-
 // Write /////////////////////////////////////////////////////////////////////////////////
 
 // Output ////////
@@ -1713,55 +1744,27 @@ Object *writeInteger(FILE *fd, int64_t value)
 {
     if (fd == NULL) return nil;
 
-    char *i = fmtInteger(scratchpad, value, 10, 'd', -1, 'a');
+    char *i = fmtInteger(scratchpad, value, 10, flisp_integer_char_map, 'd', -1);
     if (i == NULL)
         return flisp_static_error(out_of_memory, &fmt_oom_message);
     return writeString(fd, i);
 }
-Object *writeHex(FILE *fd, int64_t value)
+Object *writeHex(FILE *fd, int64_t value, size_t length)
 {
     if (fd == NULL) return nil;
 
-    char *i = fmtInteger(scratchpad, value, 16, 'X', 0, 'A');
+    char *i = fmtInteger(scratchpad, value, 16, flisp_integer_char_map, 'X', length);
     if (i == NULL)
         return flisp_static_error(out_of_memory, &fmt_oom_message);
     return writeString(fd, i);
 }
-/* Note: completely b0rked, endianness ?*/
-Object *writeDouble(FILE *fd, double number)
+Object *writeDouble(FILE *fd, uint64_t number)
 {
     if (fd == NULL) return nil;
 
-    bool sign = (uint64_t)number & 0x8000000000000000;
-    int64_t exponent = (((uint64_t)number & 0x7ff0000000000000) >> 52) - 1023;
-    int64_t fraction = (uint64_t)number   & 0x000fffffffffffff;
-    char *prefix = "1.";
-    Object *e = nil;
-    
-    if (exponent == 0) {
-        if (fraction)
-            prefix = "0.";
-        else {
-            e = writeString(fd, "-0");
-            return e;
-        }
-    }
-    if (exponent == -1) {
-        if (fraction)
-            e = writeString(fd, "NaN");
-        else {
-            if (sign && ((e = writeChar(fd, '-')) != nil)) return e;
-            e = writeString(fd, "∞");
-        }
-        return e;
-    }
-    if (sign && ((e = writeChar(fd, '-')) != nil)) return e;
-    if ((e = writeString(fd, prefix)) != nil ||
-        (e = writeInteger(fd, fraction)) != nil) return e;
-    if (exponent &&
-        ((e = writeChar(fd, 'e')) != nil ||
-         (e = writeInteger(fd, exponent)) != nil)) return e;
-    return e;
+    Object *e;
+    if ((e = writeString(fd, "#D")) != nil) return e;
+    return writeHex(fd, number, -1);
 }
 Object *writePrimitive(FILE *fd, Object *p)
 {
@@ -1873,7 +1876,7 @@ Object *writeStream(FILE *fd, Object *stream)
     Object *e;
     (void)
         ((e = writeString(fd, "#<Stream ")) != nil ||
-         (e = writeHex(fd, (uintptr_t) stream->fd)) != nil ||
+         (e = writeHex(fd, (uintptr_t) stream->fd, 0)) != nil ||
          (e = writeChar(fd, ' ')) != nil ||
          (e = writeString(fd, stream->path->string)) != nil ||
          (e = writeChar(fd, '>')) != nil );
@@ -1897,7 +1900,7 @@ Object *writeInterpreter(FILE *fd, Object *interp, bool readably)
     Object *e;
     (void)
         ((e = writeString(fd, "#<Interpreter ")) != nil ||
-         (e = writeHex(fd, (uintptr_t) interp)) != nil ||
+         (e = writeHex(fd, (uintptr_t) interp, 0)) != nil ||
          (e = writeChar(fd, '>')) != nil );
     return e;
 }
@@ -1930,7 +1933,7 @@ Object *flisp_write_object(FILE *fd, Object *object, bool readably)
     if (object->type == type_integer)
         return writeInteger(fd, object->value);
     if (object->type == type_double)
-        return writeDouble(fd, object->number);
+        return writeDouble(fd, object->value);
     if (object->type == type_primitive)
         return writePrimitive(fd, object);
     if (object->type == type_vector)
@@ -2003,7 +2006,6 @@ Object *primitiveNullP(Object *interp, Object **args, Object **env, size_t nArgs
 {
     return (FLISP_ARG1 == nil) ? t : nil;
 }
-
 Object *primitiveTypeOf(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     return (FLISP_ARG1->type);
@@ -2012,12 +2014,10 @@ Object *primitiveConsP(Object *interp, Object **args, Object **env, size_t nArgs
 {
     return (FLISP_ARG1->type == type_cons) ? t : nil;
 }
-
 Object *primitiveIntern(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     return newSymbol(interp, FLISP_ARG1->string);
 }
-
 Object *primitiveSymbolName(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     GC_CHECKPOINT;
@@ -2162,12 +2162,10 @@ Object *integerSubtract(Object *interp, Object **args, Object **env, size_t nArg
 {
     return newInteger(interp, FLISP_ARG1->value - FLISP_ARG2->value);
 }
-
 Object *integerMultiply(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     return newInteger(interp, FLISP_ARG1->value * FLISP_ARG2->value);
 }
-
 Object *integerDivide(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     if (FLISP_ARG2->value == 0)
@@ -2175,7 +2173,6 @@ Object *integerDivide(Object *interp, Object **args, Object **env, size_t nArgs)
 
     return newInteger(interp, FLISP_ARG1->value / FLISP_ARG2->value);
 }
-
 Object *integerMod(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     if (FLISP_ARG2->value == 0)
@@ -2191,31 +2188,30 @@ Object *integerMod(Object *interp, Object **args, Object **env, size_t nArgs)
  * a <= b .. (not (b > a))
  * ...
  */
+Object *integerZerop(Object *interp, Object **args, Object **env, size_t nArgs)
+{
+    return (FLISP_ARG1->value) ? nil : t;
+}
 Object *integerEqual(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     return (FLISP_ARG1->value == FLISP_ARG2->value) ? t : nil;
 }
-
 Object *integerLess(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     return (FLISP_ARG1->value < FLISP_ARG2->value) ? t : nil;
 }
-
 Object *integerLessEqual(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     return (FLISP_ARG1->value <= FLISP_ARG2->value) ? t : nil;
 }
-
 Object *integerGreater(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     return (FLISP_ARG1->value > FLISP_ARG2->value) ? t : nil;
 }
-
 Object *integerGreaterEqual(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     return (FLISP_ARG1->value >= FLISP_ARG2->value) ? t : nil;
 }
-
 // Integer bit operations //////
 /* Note: only Xor and Not are needed, see De morgan */
 Object *integerAnd(Object *interp, Object **args, Object **env, size_t nArgs)
@@ -2242,30 +2238,34 @@ Object *integerNot(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     return newInteger(interp, ~FLISP_ARG1->value);
 }
-/** (ifmt i [b [u [p [l]]]]) - format integer as ascii string.
+/** (ifmt i [b [m [p [l]]]]) - format integer as ascii string.
  *
  * @param i .. Integer
  * @param b .. Conversion base, default 10.
- * @param u .. Uppercase predicate: if missing or nil, use lowercase for digits > 9.
+ * @param m .. Character map to use, if missing or nil, use uppercase for digits > 9.
  * @param p .. Left padding character, first character of given string, default space.
  * @param l .. Padding length/prefix specifier, if 0 a single '0' is put before the
  *             first padding character.
  *
- * To achieve 0x1a: (ifmt 26 16 nil "x" 0)
+ * To achieve 0x1A: (ifmt 26 16 nil "x" 0)
  */
 Object *integerFmt(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     int64_t base = 10;
-    char ten_char = 'a', pad_char = ' ', *i;
+    char *map = flisp_integer_char_map, pad_char = ' ', *i;
     size_t length = -1;
 
-    FLISP_ASSERT(FLISP_ARG1, type_integer, "(ifmt i [b [u [p [l]]]]) - i");
+    FLISP_ASSERT(FLISP_ARG1, type_integer, "(ifmt i [b [m [p [l]]]]) - i");
     if (nArgs > 1) {
-        FLISP_ASSERT(FLISP_ARG2, type_integer, "(ifmt i [b [u [p [l]]]]) - b");
+        FLISP_ASSERT(FLISP_ARG2, type_integer, "(ifmt i [b [m [p [l]]]]) - b");
         base = FLISP_ARG2->value;
     }
-    if (nArgs > 2 && FLISP_ARG3 != nil)  ten_char = 'A';
-
+    if (nArgs > 2 && FLISP_ARG3 != nil) {
+        FLISP_ASSERT(FLISP_ARG3 , type_string, "(ifmt i [b [u [p [l]]]]) - m");
+        if ((FLISP_ARG3->size - 1) < base)
+            return newError(interp, invalid_value, FLISP_ARG3, "(ifmt i [b [u [p [l]]]]) - m, map has less characters then base");
+        map = FLISP_ARG3->string;
+    }
     if (nArgs > 3) {
         FLISP_ASSERT(FLISP_ARG4 , type_string, "(ifmt i [b [u [p [l]]]]) - p");
         pad_char = FLISP_ARG4->string[0];
@@ -2274,7 +2274,7 @@ Object *integerFmt(Object *interp, Object **args, Object **env, size_t nArgs)
         FLISP_ASSERT(FLISP_ARG5, type_integer, "(ifmt i [b [u [p [l]]]]) - l");
         length = FLISP_ARG5->value;
     }
-    i = fmtInteger(scratchpad, FLISP_ARG1->value, base, pad_char, length, ten_char);
+    i = fmtInteger(scratchpad, FLISP_ARG1->value, base, map, pad_char, length);
 
     if (i == NULL)
         return newError(interp, out_of_memory, nil, "(ifmt ..) - failed to allocate format pad");
@@ -2623,57 +2623,41 @@ Primitive *flisp_register_primitive(Object *interp, char *name,
     return primitive;
 }
 
-Primitive *readPrimitive = NULL;
-Primitive *evalPrimitive = NULL;
-//Object *readCons = NULL;
-//Object *evalApply = NULL;
 bool flisp_primitives_register(Object *interp, Object *extension)
 {
     if (extension->extension.version != nil)  return true;
     extension->extension.version = newString(interp, FL_VERSION);
 
-    if (!
-        (flisp_register_primitive(   interp, "quote",         1,  1, nil, (LispEval) PRIMITIVE_QUOTE)
-         && flisp_register_primitive(interp, "bind",          2, -1, nil, (LispEval) PRIMITIVE_BIND  /* special form */ )
-         && flisp_register_primitive(interp, "progn",         0, -1, nil, (LispEval) PRIMITIVE_PROGN /* special form */ )
-         && flisp_register_primitive(interp, "cond",          0, -1, nil, (LispEval) PRIMITIVE_COND  /* special form */ )
-         && flisp_register_primitive(interp, "lambda",        1, -1, nil, (LispEval) PRIMITIVE_LAMBDA /* special form */ )
-         && flisp_register_primitive(interp, "macro",         1, -1, nil, (LispEval) PRIMITIVE_MACRO  /* special form */ )
-         && flisp_register_primitive(interp, "macroexpand-1", 1,  2, nil, (LispEval) PRIMITIVE_MACROEXPAND /* special form */ )
+    if (flisp_register_primitive(   interp, "quote",         1,  1, nil, (LispEval) PRIMITIVE_QUOTE)
+        && flisp_register_primitive(interp, "bind",          2, -1, nil, (LispEval) PRIMITIVE_BIND  /* special form */ )
+        && flisp_register_primitive(interp, "progn",         0, -1, nil, (LispEval) PRIMITIVE_PROGN /* special form */ )
+        && flisp_register_primitive(interp, "cond",          0, -1, nil, (LispEval) PRIMITIVE_COND  /* special form */ )
+        && flisp_register_primitive(interp, "lambda",        1, -1, nil, (LispEval) PRIMITIVE_LAMBDA /* special form */ )
+        && flisp_register_primitive(interp, "macro",         1, -1, nil, (LispEval) PRIMITIVE_MACRO  /* special form */ )
+        && flisp_register_primitive(interp, "macroexpand-1", 1,  2, nil, (LispEval) PRIMITIVE_MACROEXPAND /* special form */ )
 #if 0
-         && flisp_register_primitive(interp, "catch",         2,  2, nil, (LispEval) PRIMITIVE_CATCH  /*special form */ )
+        && flisp_register_primitive(interp, "catch",         2,  2, nil, (LispEval) PRIMITIVE_CATCH  /*special form */ )
 #endif
-         && flisp_register_primitive(interp, "null",          1,  1, nil,            primitiveNullP)
-         && flisp_register_primitive(interp, "type-of",       1,  1, nil,            primitiveTypeOf)
-         && flisp_register_primitive(interp, "consp",         1,  1, nil,            primitiveConsP)
-         && flisp_register_primitive(interp, "nreverse",      1,  1, nil,            primitiveNreverse)
-         && flisp_register_primitive(interp, "intern",        1,  1, type_string,    primitiveIntern)
-         && flisp_register_primitive(interp, "symbol-name",   1,  1, type_symbol,    primitiveSymbolName)
-         && flisp_register_primitive(interp, "same",          2,  2, nil,            primitiveSame)
-         && flisp_register_primitive(interp, "car",           1,  1, nil,            primitiveCar) /* Note: nil|cons */
-         && flisp_register_primitive(interp, "cdr",           1,  1, nil,            primitiveCdr) /* Note: nil|cons */
-         && flisp_register_primitive(interp, "object-size",   1,  1, nil,            primitiveObjectSize)
-         && flisp_register_primitive(interp, "object-length", 1,  1, nil,            primitiveObjectLength)
-         && flisp_register_primitive(interp, "vector",        1, -1, nil,            primitiveVector)
-         && flisp_register_primitive(interp, "elements",      1,  3, nil,            primitiveElements)
-         && flisp_register_primitive(interp, "cons",          2,  2, nil,            primitiveCons)
-         && flisp_register_primitive(interp, "open",          1,  2, type_string,    primitiveFopen)
-         && flisp_register_primitive(interp, "close",         1,  1, type_stream,    primitiveFclose)
-         && flisp_register_primitive(interp, "file-info",     1,  1, type_stream,    primitiveFinfo))
-        )
-        return false;
-    /* Note: make the following two local then .. */
-    readPrimitive = flisp_register_primitive(interp, "read", 0,  2, nil,            primitiveRead);
-    evalPrimitive = flisp_register_primitive(interp, "eval", 1,  1, nil,            primitiveEval);
-    /* .. call here evalApply = createEvalApply(readPrimitive, evalPrimitive); and
-     * readCons = createReadCons();
-     * createReadCons() and createEvalApply() would allocate Objects with malloc.
-     * cerf() would then just fix readCons with the fd and return evalCatch(interp, evalApply, &interp->global);
-     */
-    if (readPrimitive == NULL || evalPrimitive == NULL)
-        return false;
-    return
-        flisp_register_primitive(interp,    "write",         1,  3, nil,            primitiveWrite)
+        && flisp_register_primitive(interp, "null",          1,  1, nil,            primitiveNullP)
+        && flisp_register_primitive(interp, "type-of",       1,  1, nil,            primitiveTypeOf)
+        && flisp_register_primitive(interp, "consp",         1,  1, nil,            primitiveConsP)
+        && flisp_register_primitive(interp, "nreverse",      1,  1, nil,            primitiveNreverse)
+        && flisp_register_primitive(interp, "intern",        1,  1, type_string,    primitiveIntern)
+        && flisp_register_primitive(interp, "symbol-name",   1,  1, type_symbol,    primitiveSymbolName)
+        && flisp_register_primitive(interp, "same",          2,  2, nil,            primitiveSame)
+        && flisp_register_primitive(interp, "car",           1,  1, nil,            primitiveCar) /* Note: nil|cons */
+        && flisp_register_primitive(interp, "cdr",           1,  1, nil,            primitiveCdr) /* Note: nil|cons */
+        && flisp_register_primitive(interp, "object-size",   1,  1, nil,            primitiveObjectSize)
+        && flisp_register_primitive(interp, "object-length", 1,  1, nil,            primitiveObjectLength)
+        && flisp_register_primitive(interp, "vector",        1, -1, nil,            primitiveVector)
+        && flisp_register_primitive(interp, "elements",      1,  3, nil,            primitiveElements)
+        && flisp_register_primitive(interp, "cons",          2,  2, nil,            primitiveCons)
+        && flisp_register_primitive(interp, "open",          1,  2, type_string,    primitiveFopen)
+        && flisp_register_primitive(interp, "close",         1,  1, type_stream,    primitiveFclose)
+        && flisp_register_primitive(interp, "file-info",     1,  1, type_stream,    primitiveFinfo)
+        && flisp_register_primitive(interp, "read",          0,  2, nil,            primitiveRead)
+        && flisp_register_primitive(interp, "eval",          1,  1, nil,            primitiveEval)
+        && flisp_register_primitive(interp, "write",         1,  3, nil,            primitiveWrite)
         && flisp_register_primitive(interp, "error",         2,  3, nil,            primitiveError)
 #if 0
         && flisp_register_primitive(interp, "throw",         1,  2, nil,            primitiveThrow)
@@ -2683,6 +2667,7 @@ bool flisp_primitives_register(Object *interp, Object *extension)
         && flisp_register_primitive(interp, "i*",            2,  2, type_integer,   integerMultiply)
         && flisp_register_primitive(interp, "i/",            2,  2, type_integer,   integerDivide)
         && flisp_register_primitive(interp, "i%",            2,  2, type_integer,   integerMod)
+        && flisp_register_primitive(interp, "i=0",           1,  1, type_integer,   integerZerop)
         && flisp_register_primitive(interp, "i=",            2,  2, type_integer,   integerEqual)
         && flisp_register_primitive(interp, "i<",            2,  2, type_integer,   integerLess)
         && flisp_register_primitive(interp, "i<=",           2,  2, type_integer,   integerLessEqual)
@@ -2698,7 +2683,12 @@ bool flisp_primitives_register(Object *interp, Object *extension)
         && flisp_register_primitive(interp, "string-append", 2,  2, type_string,    stringAppend)
         && flisp_register_primitive(interp, "string-compare",2,  2, type_string,    stringCompare)
         && flisp_register_primitive(interp, "extension",     1,  1, type_symbol,    primitiveLoadExtension)
-        && flisp_register_primitive(interp, "interp",        1, -1, nil,            primitiveInterp);
+        && flisp_register_primitive(interp, "interp",        1, -1, nil,            primitiveInterp)) {
+
+        //extension->extension.version = newString(interp, FL_VERSION);
+        return true;
+    }
+    return false;
 }
 
 void initRootEnv(Object *interp)
@@ -2708,7 +2698,9 @@ void initRootEnv(Object *interp)
     type_moved->type = type_symbol;
     type_interpreter->type = type_symbol;
     type_extension->type = type_symbol;
+    flisp_integer_zero->type = type_integer;
     flisp_empty_string->type = type_string;
+    flisp_empty_vector->type = type_vector;
 
     flisp_register_constant(interp, t, NULL);
 

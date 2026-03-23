@@ -147,6 +147,8 @@ extern void flisp_destroy(Object *);
 extern Object *flisp_eval(Object *, char *);
 extern Object *flisp_expr(Object *, Object *);
 extern Object *flisp_write_object(FILE *, Object *, bool);
+/* Note: to be documented */
+extern Object *flisp_find_symbol(Object *, char*, size_t);
 
 // PROGRAMMING INTERFACE ////////////////////////////////////////////////
 
