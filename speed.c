@@ -10,6 +10,8 @@
 /*
  * Candidates:
  *
+ * string-equal - optimize by search from back to avoid prefix matches
+ *
  */
 
 Object *speedCons(Interpreter *interp, Object **args, Object **env)

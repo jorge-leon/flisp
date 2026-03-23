@@ -42,6 +42,7 @@
 	     (list 'bind t name (list (quote lambda) params . body)) ))
 
 ;;; Accessors
+;; Note: replace c*ddr with (elements n) where n = number of 'd's
 (defun cadr (l) (car (cdr l)))
 (defun cddr (l) (cdr (cdr l)))
 (defun caddr (l) (car (cdr (cdr l))))
@@ -50,26 +51,22 @@
 (defun caaar (l) (car (car (car l))))
 (defun cdaar (l) (cdr (car (car l))))
 
-;; Note: use new bind syntax to simplify this (bind t a 1 b 2 ..) == (setq ...)
+;; Note on setq
+;; officially
 ;; (setq) => nil
-;; (setq a): error
-;; (setq a b) => (bind a b t)
-;; (setq a b ...) => (progn (setq a b) (setq ...))
+;; (setq a) => error
+;; but with bind:
+;; (bind t x) => nil, x = nil
 (defmacro setq args
   (when args
-    (unless (cdr args)
-      (throw wrong-number-of-arguments "(setq [s v ..]) expects a multiple of 2 arguments") )
-    (if (null (cddr args))  (list 'bind t (car args) (cadr args))
-	(list 'progn
-	      (list 'setq (car args) (cadr args))
-	      (cons 'setq (cddr args)) ))))
+    (cons 'bind (cons t args)) ))
 
 (defun curry (func arg1)
   (lambda (arg2) (func arg1 arg2)))
 
 (defun typep (type object)  (same type (type-of object)))
 
-(setq
+(bind t
  integerp (curry typep type-integer)
  doublep (curry typep type-double)
  stringp (curry typep type-string)
@@ -194,6 +191,7 @@
 
 (defun string-to-number (string)
   (let ((f (open string "<")) (result nil))
+    ;; Note: setq not acceptable here
     (setq  result (catch (read f)))
     (close f)
     (if (car result)  0
@@ -211,7 +209,7 @@
        ((integerp o1) (i= o1 o2))
        ((doublep o1) (d= o1 o2))))))
 
-(setq not null)
+(bind t not null)
 
 (defun memq (o l)
   ;; If object o in list l return sublist of l starting with o, else nil.
@@ -223,9 +221,10 @@
 
 (defun map (f . lists)
   (let loop ((result  nil) (lists lists))
-    (if (memq nil lists) (nreverse result)
-	(setq result (cons (apply f (mapcar car lists)) result))
-	(loop result (mapcar cdr lists) ))))
+       (if (memq nil lists) (nreverse result)
+	   ;; Note: setq is a no go here!
+	   (setq result (cons (apply f (mapcar car lists)) result))
+	   (loop result (mapcar cdr lists) ))))
 
 ;;; Wrap all math to Integer operations
 (defun nfold (f i l);  (3)  (1 2 3)
@@ -298,6 +297,7 @@
 	 (t  (loop (concat s (car l) f) (cdr l))) )))
 
 ;; load
+;; Note: setq has to be removed here
 (defun fload (f)
   (let loop ((o  nil) (r nil))
        (setq o (read f :eof))
@@ -312,11 +312,12 @@
 	  (close f) ))))
 
 ;; Features
-(setq features nil)
+(bind t features nil)
 
 (defun provide args
   ;; args: (feature [subfeature ..])
   ;; Elisp, subfeatures not implemented
+  ;; Note: setq must be replaced here
   (if (memq (car args) features)  (car args)
       (setq features (cons (car args) features)) ))
 

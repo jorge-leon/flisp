@@ -1394,6 +1394,8 @@ Object *primitiveRead(Object *interp, Object **args, Object **env, size_t nArgs)
  */
 Object *evalBind(Object *interp, Object **args, Object **env, size_t nArgs)
 {
+    if (nArgs < 2)  return nil;
+    
     bool globalp = evalExpr(interp, &FLISP_ARG1, env) != nil;
 
     GC_CHECKPOINT;
@@ -2629,7 +2631,7 @@ bool flisp_primitives_register(Object *interp, Object *extension)
     extension->extension.version = newString(interp, FL_VERSION);
 
     if (flisp_register_primitive(   interp, "quote",         1,  1, nil, (LispEval) PRIMITIVE_QUOTE)
-        && flisp_register_primitive(interp, "bind",          2, -1, nil, (LispEval) PRIMITIVE_BIND  /* special form */ )
+        && flisp_register_primitive(interp, "bind",          0, -1, nil, (LispEval) PRIMITIVE_BIND  /* special form */ )
         && flisp_register_primitive(interp, "progn",         0, -1, nil, (LispEval) PRIMITIVE_PROGN /* special form */ )
         && flisp_register_primitive(interp, "cond",          0, -1, nil, (LispEval) PRIMITIVE_COND  /* special form */ )
         && flisp_register_primitive(interp, "lambda",        1, -1, nil, (LispEval) PRIMITIVE_LAMBDA /* special form */ )
