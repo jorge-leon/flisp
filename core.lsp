@@ -3,12 +3,11 @@
 ;; Core fLisp extensions
 ;;
 
-(bind list (lambda args args) t)
+(bind t list (lambda args args))
 
-(bind defmacro
+(bind t defmacro
       (macro (name params . body)
-	     (list 'bind name (list (quote macro) params . body) 't) )
-      t )
+	     (list 'bind t name (list (quote macro) params . body)) ))
 
 ;;; conditionals
 
@@ -33,15 +32,14 @@
 (defmacro on-error (form handler)
   (list
    'progn
-   (list 'bind 'value form)
+   (list 'bind nil 'value form)
    (list 'cond
 	 (list (list 'eq 'type-error (list 'type-of 'value)) (list handler 'value))
 	 (list 'value) )))
 
-(bind defun
+(bind t defun
       (macro (name params . body)
-	     (list 'bind name (list (quote lambda) params . body) t))
-      t )
+	     (list 'bind t name (list (quote lambda) params . body)) ))
 
 ;;; Accessors
 (defun cadr (l) (car (cdr l)))
@@ -52,6 +50,7 @@
 (defun caaar (l) (car (car (car l))))
 (defun cdaar (l) (cdr (car (car l))))
 
+;; Note: use new bind syntax to simplify this (bind t a 1 b 2 ..) == (setq ...)
 ;; (setq) => nil
 ;; (setq a): error
 ;; (setq a b) => (bind a b t)
@@ -60,7 +59,7 @@
   (when args
     (unless (cdr args)
       (throw wrong-number-of-arguments "(setq [s v ..]) expects a multiple of 2 arguments") )
-    (if (null (cddr args))  (list 'bind (car args) (cadr args) t)
+    (if (null (cddr args))  (list 'bind t (car args) (cadr args))
 	(list 'progn
 	      (list 'setq (car args) (cadr args))
 	      (cons 'setq (cddr args)) ))))
@@ -101,7 +100,7 @@
      (list
       (list 'lambda ()
 ;;;	    (list 'define (car args)
-	    (list 'bind b-or-l
+	    (list 'bind nil b-or-l
 		  (cons 'lambda (cons (mapcar car (car args)) (cdr args))))
 	    (cons b-or-l (mapcar cadr (car args))) )))
     (t (throw wrong-type-argument "(let bindings body) - bindings expected type-consp or type-symbol, got: " (type-of (car args)))) ))
@@ -201,7 +200,7 @@
 	(if (numberp (caddr result))  (caddr result)
 	    0 ))))
 
-(defun string-equal (s1 s2)  (i= 0 (string-compare s1 s2)))
+(defun string-equal (s1 s2)  (i=0 (string-compare s1 s2)))
 
 (defun eq (o1 o2)
   (cond
