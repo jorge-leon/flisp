@@ -524,6 +524,8 @@ allocateObject:
     return object;
 }
 
+#define IS_OOM(OBJECT) ((OBJECT)->type == gc_error)
+#define CHECK_OOM(OBJECT) if IS_OOM(OBJECT) return OBJECT
 
 // CONSTRUCTING OBJECTS ///////////////////////////////////////////////////////
 
@@ -538,7 +540,7 @@ allocateObject:
 Object *newObject(Object *interp, Object *type, size_t size)
 {
     Object *object = memoryAllocObject(interp, type, sizeof(ObjectHeader)+size);
-    if (object->type == gc_error) return object;
+    CHECK_OOM(object);
     object->size = size;
     return object;
 }
@@ -553,21 +555,21 @@ Object *newObject(Object *interp, Object *type, size_t size)
 Object *newInteger(Object *interp, int64_t value)
 {
     Object *object = newObject(interp, type_integer, 0);
-    if (object->type == gc_error) return object;
+    CHECK_OOM(object);
     object->value = value;
     return object;
 }
 Object *newDouble(Object *interp, double number)
 {
     Object *object = newObject(interp, type_double, 0);
-    if (object->type == gc_error) return object;
+    CHECK_OOM(object);
     object->number = number;
     return object;
 }
 Object *newPrimitive(Object *interp, Primitive* primitive)
 {
     Object *object = newObject(interp, type_primitive, 0);
-    if (object->type == gc_error) return object;
+    CHECK_OOM(object);
     object->primitive = primitive;
     return object;
 }
@@ -597,8 +599,8 @@ Object *flisp_ext_obj(Object *interp, Object *type, Object **list, size_t length
     GC_TRACE(gcType, type);
     GC_TRACE(gcObjs, *list);
     Object *object = newObject(interp, *gcType, (sizeof(Object *) * length) + extra);
-    if (object->type == gc_error) return object;
     GC_RELEASE;
+    CHECK_OOM(object);
     object->length = length;
     size_t i;
     for(i = 0; i < length && (*gcObjs) != nil; (*gcObjs) = (*gcObjs)->cdr)
@@ -614,7 +616,7 @@ Object *newCons(Object *interp, Object ** car, Object ** cdr)
     GC_TRACE(gcCdr, *cdr);
     Object *cons = newObject(interp, type_cons, sizeof(Object *[2]));
     GC_RELEASE;
-    if (cons->type == gc_error) return cons;
+    CHECK_OOM(cons);
     cons->length = 2;
     cons->car = *gcCar;
     cons->cdr = *gcCdr;
@@ -640,7 +642,7 @@ Object *newClosure(Object *interp, Object *type, Object ** args, Object **env)
 
     /* Note: check with GC_ALWAYS */
     o = flisp_ext_obj(interp, type, &nil, 3, 0);
-    if (o->type == gc_error)  return 0;
+    CHECK_OOM(o);
     o->objects[0] = (*args)->car;
     o->objects[1] = (*args)->cdr;
     o->objects[2] = *env;
@@ -649,7 +651,7 @@ Object *newClosure(Object *interp, Object *type, Object ** args, Object **env)
 Object *newEnv(Object *interp, Object ** func, Object ** vals)
 {
     Object *environment = newObject(interp, type_env, sizeof(Object*[3]));
-    if (environment->type == gc_error) return environment;
+    CHECK_OOM(environment);
     environment->length = 3;
     if ((*func) == nil) {
         environment->parent = environment->vars = environment->vals = nil;
@@ -732,7 +734,7 @@ Object *newStringWithLength(Object *interp, char *string, size_t length)
      *   next GC cycle will discard the extra bytes.
      */
     Object *object = newObject(interp, type_string, length + 1);
-    if (object->type == gc_error) return object;
+    CHECK_OOM(object);
     object->length = 0;
     object->size = unescapeString(object->string, string, length) + 1;
     return object;
@@ -756,12 +758,11 @@ Object *newSymbolWithLength(Object *interp, char *string, size_t length)
 
     GC_CHECKPOINT;
     GC_TRACE(gcSymbol, newObject(interp, type_symbol, length + 1));
-    if ((*gcSymbol)->type != gc_error) {
-        (*gcSymbol)->length = 0;
-        strncpy((*gcSymbol)->string, string, length);
-        (*gcSymbol)->string[length] = '\0';
+    if IS_OOM(*gcSymbol) GC_RETURN(*gcSymbol);
+    (*gcSymbol)->length = 0;
+    strncpy((*gcSymbol)->string, string, length);
+    (*gcSymbol)->string[length] = '\0';
     interp->symbols = newCons(interp, gcSymbol, &interp->symbols);
-    }
     GC_RELEASE;
     return *gcSymbol;
 }
@@ -783,11 +784,11 @@ Object *newError(Object *interp, Object *error, Object *culprit, char *format, .
     GC_TRACE(gcCulprit, culprit);
     GC_TRACE(gcMessage, flisp_empty_string);
     GC_TRACE(gcError, flisp_ext_obj(interp, type_error, &nil, 3, 0));
-    if ((*gcError)->type != gc_error) {
-                                         
-        if (format != NULL && format[0] != '\0') {
-            va_list(args);
-            va_start(args, format);
+    if IS_OOM(*gcError) GC_RETURN(*gcError);
+
+    if (format != NULL && format[0] != '\0') {
+        va_list(args);
+        va_start(args, format);
             written = vsnprintf(message, len, format, args);
             va_end(args);
             if (written > len) {
@@ -798,11 +799,10 @@ Object *newError(Object *interp, Object *error, Object *culprit, char *format, .
                 len = sizeof(FLISP_FORMAT_ERROR_MESSAGE);
             }
             *gcMessage = newStringWithLength(interp, message, len);
-        }
-        (*gcError)->error = *gcErrorType;
-        (*gcError)->message = *gcMessage;
-        (*gcError)->culprit = *gcCulprit;
     }
+    (*gcError)->error = *gcErrorType;
+    (*gcError)->message = *gcMessage;
+    (*gcError)->culprit = *gcCulprit;
     GC_RETURN(*gcError);
 }
 /** newStreamObject - create stream object from file descriptor and path
@@ -820,7 +820,7 @@ Object *newStreamObject(Object *interp, FILE *fd, char *path)
                                    sizeof(char*) +
                                    sizeof(size_t));
     GC_RELEASE;
-    if (stream->type == gc_error) return stream;
+    CHECK_OOM(stream);
     stream->fd = fd;
     stream->buf = NULL;
     stream->len = 0;
@@ -835,7 +835,7 @@ Object *newExtension(Object *interp, char *name, ExtensionInit init)
     GC_TRACE(gcName, newString(interp, name));
     Object *object = flisp_ext_obj(interp, type_extension, &nil, 2, sizeof(ExtensionInit));
     GC_RELEASE;
-    if ((*gcName)->type == gc_error) return *gcName;
+    CHECK_OOM(object);
     object->extension.name = *gcName;
     object->extension.version = nil;
     object->extension.init = init;
@@ -892,9 +892,10 @@ Object *envAdd(Object *interp, Object ** var, Object ** val, Object **env)
     GC_TRACE(gcVar, *var);
     GC_TRACE(gcVal, *val);
     GC_TRACE(gcVars, newCons(interp, gcVar, &nil));
+    if IS_OOM(*gcVars) GC_RETURN(*gcVars);
     Object *vals = newCons(interp, gcVal, &nil);
     GC_RELEASE;
-    /* Note: tbd check for gc_error */
+    CHECK_OOM(vals);
     (*gcVars)->cdr = (*gcEnv)->vars, (*gcEnv)->vars = *gcVars;
     vals->cdr = (*gcEnv)->vals, (*gcEnv)->vals = vals;
 
@@ -913,9 +914,15 @@ Object *envAdd(Object *interp, Object ** var, Object ** val, Object **env)
 Object *envSet(Object *interp, Object ** var, Object ** val, Object **env, bool top)
 {
     for (;;) {
-        Object *value = flisp_find_value(interp, *env, *var);
-        if (value != NULL)  return value;
+        Object *vars = (*env)->vars, *vals = (*env)->vals;
 
+        for (; vars->type == type_cons; vars = vars->cdr, vals = vals->cdr) {
+            if (vars->car == *var)
+                return vals->car = *val;
+            if (vars->cdr == *var)
+                return vals->cdr = *val;
+        }
+        
         if ((*env)->parent == nil || !top) {
             GC_CHECKPOINT;
             GC_TRACE(gcEnv, *env);
@@ -1119,23 +1126,23 @@ Object *readNumberOrSymbol(Object *interp, FILE *fd)
             return flisp_integer_zero;
         }
         base = (ch == 'x' || ch == 'X') ? 16 : 8;
-        if (ch == 'x' || ch == 'X' || isDigitChar(ch, base)) {
-            if (!addCharToPad(scratchpad, fgetc(fd)))  READER_OOM(WHILE_NOS);
-            ch = readWhile(interp, fd, isDigitChar, base);
-            if (ch == EOF) {
-                if (ferror(fd)) READER_IO(WHILE_NOS);
-                else if (scratchpad->string == NULL)  READER_OOM(WHILE_NOS); }
-            if (scratchpad->size == 0) READER_EOF(WHILE_NOS);
-            return readInteger(interp, scratchpad);
-        } else
+        if (ch == 'x' || ch == 'X' || isDigitChar(ch, base))
+            goto read_integer;
+        else
             return flisp_integer_zero;
     }
-    if (isDigitChar(ch, base)) {
-        if (!addCharToPad(scratchpad, fgetc(fd)))  READER_OOM(WHILE_NOS);
-        return readInteger(interp, scratchpad);
-    }
+    if (isDigitChar(ch, base))  goto read_integer;
     /* non-numeric character encountered, read a symbol */
     return readSymbol(interp, fd, scratchpad);
+
+read_integer:
+    if (!addCharToPad(scratchpad, fgetc(fd)))  READER_OOM(WHILE_NOS);
+    ch = readWhile(interp, fd, isDigitChar, base);
+    if (ch == EOF) {
+        if (ferror(fd)) READER_IO(WHILE_NOS);
+        else if (scratchpad->string == NULL)  READER_OOM(WHILE_NOS); }
+    if (scratchpad->size == 0) READER_EOF(WHILE_NOS);
+    return readInteger(interp, scratchpad);
 }
 
 /* Composed object readers */
@@ -1223,13 +1230,13 @@ Object *readUnary(Object *interp, FILE *fd, char *symbol)
     }
     GC_CHECKPOINT;
     GC_TRACE(gcSymbol, newSymbol(interp, symbol));
+    if IS_OOM(*gcSymbol) GC_RETURN(*gcSymbol);
     GC_TRACE(gcObject, readExpr(interp, fd));
 
     *gcObject = newCons(interp, gcObject, &nil);
+    if IS_OOM(*gcSymbol) GC_RETURN(*gcSymbol);
     *gcObject = newCons(interp, gcSymbol, gcObject);
-    GC_RELEASE;
-
-    return *gcObject;
+    GC_RETURN(*gcObject);
 }
 
 Object *doReaderMacro(Object *interp, FILE *fd)
@@ -1400,8 +1407,11 @@ Object *primitiveRead(Object *interp, Object **args, Object **env, size_t nArgs)
 Object *evalBind(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     if (nArgs < 2)  return nil;
+
+    Object *global = evalExpr(interp, &FLISP_ARG1, env);
+    if (global->type == type_error)  return global;
     
-    bool globalp = evalExpr(interp, &FLISP_ARG1, env) != nil;
+    bool globalp = global  != nil;
 
     GC_CHECKPOINT;
     GC_TRACE(gcEnv, *env);
@@ -1773,75 +1783,99 @@ Object *writeDouble(FILE *fd, uint64_t number)
     if ((e = writeString(fd, "#D")) != nil) return e;
     return writeHex(fd, number, -1);
 }
+// Result assertion //
+/** w_ok - While ok: result assertion
+ * @param e .. points to test object
+ * @param r .. result of an operation
+ *
+ * @returns: true if result r is not test *e
+ *
+ */
+bool not_same(Object **e, Object *r)
+{
+    return (*e != r) && (*e = r) == NULL;
+}
+/** W_OK - While ok: result assertion
+ * @param F .. operation
+ *
+ * Breaks from loop if result of F is not equal to test object
+ */
+#define W_OK(F) if (not_same(&e, F)) break
+/* Usage see below */
+
 Object *writePrimitive(FILE *fd, Object *p)
 {
-    Object *e;
-    (void)
-        ((e = writeString(fd, "#<Primitive ")) != nil ||
-         (e = writeString(fd, p->primitive->name)) != nil ||
-         (e = writeString(fd, " [")) != nil ||
-         (e = writeInteger(fd, p->primitive->nMinArgs)) != nil ||
-         (e = writeString(fd, ", ")) != nil ||
-         (e = writeInteger(fd, p->primitive->nMaxArgs)) != nil ||
-         (e = writeString(fd, "] ")) != nil ||
-         (e = flisp_write_object(fd, p->primitive->argsType, true)) != nil ||
-         (e = writeChar(fd, '>')));
-        return e;
+    Object *e = nil;
+    do {
+        W_OK(writeString(fd, "#<Primitive "));
+        W_OK(writeString(fd, p->primitive->name));
+        W_OK(writeString(fd, " ["));
+        W_OK(writeInteger(fd, p->primitive->nMinArgs));
+        W_OK(writeString(fd, ", "));
+        W_OK(writeInteger(fd, p->primitive->nMaxArgs));
+        W_OK(writeString(fd, "] "));
+        W_OK(flisp_write_object(fd, p->primitive->argsType, true));
+        W_OK(writeChar(fd, '>'));
+    } while (0);
+    return e;
 }
 Object *writeVector(FILE *fd, Object *vector)
 {
-    Object *e;
-    (void)
-        ((e = writeString(fd, "#<Vector ")) != nil ||
-         (e = writeInteger(fd, vector->length)) != nil ||
-         (e = writeChar(fd, '>')));
-        return e;
+    Object *e = nil;
+    do {
+        W_OK(writeString(fd, "#<Vector "));
+        W_OK(writeInteger(fd, vector->length));
+        W_OK(writeChar(fd, '>'));
+    } while (0);
+    return e;
 }
 // WRITING OBJECTS ////////////////////////////////////////////////////////////
 
 Object *writeCons(FILE *fd, Object *cons, bool readably)
 {
-    Object *e;
-
-    if ((e = writeChar(fd, '(')) != nil ||
-        (e = flisp_write_object(fd, cons->car, readably)) != nil)
-        return e;
-
-    while (cons->cdr != nil) {
-        cons = cons->cdr;
-        if (cons->type == type_cons) {
-            if ((e = writeChar(fd, ' ')) != nil ||
-                (e =  flisp_write_object(fd, cons->car, readably)) !=nil)
-                return e;
-        } else {
-            if ((e = writeString(fd, " . ")) !=nil ||
-                (e= flisp_write_object(fd, cons, readably)) !=nil)
-                return e;
-            break;
+    Object *e = nil;
+    do {
+        W_OK(writeChar(fd, '('));
+        W_OK(flisp_write_object(fd, cons->car, readably));
+        while (cons->cdr != nil) {
+            cons = cons->cdr;
+            if (cons->type == type_cons) {
+                W_OK(writeChar(fd, ' '));
+                W_OK( flisp_write_object(fd, cons->car, readably));
+            } else {
+                W_OK(writeString(fd, " . "));
+                W_OK(flisp_write_object(fd, cons, readably));
+                break;
+            }
         }
-    }
-    return writeChar(fd, ')');
+        if (e != nil) break;
+        W_OK(writeChar(fd, ')'));
+    } while (0);
+    return e;
 }
 Object *writeClosure(FILE *fd, Object *closure, bool readably, char *type)
 {
     Object *e;
-    (void)
-        ((e = writeString(fd, type)) != nil ||
-         (e = flisp_write_object(fd, closure->params, readably)) != nil ||
-         (e = writeChar(fd, '>')) != nil );
+    do {
+        W_OK(writeString(fd, type));
+        W_OK(flisp_write_object(fd, closure->params, readably));
+        W_OK(writeChar(fd, '>'));
+    } while (0);
     return e;
 }
 Object *writeEnv(FILE *fd, Object *env, bool readably)
 {
     Object *symbols = env->vars, *values = env->vals;
-    Object *e;
-    if ((e = writeString(fd, "<#Env ")) != nil) return e;
+    Object *e = nil;
+    if (not_same(&e, writeString(fd, "<#Env "))) return e;
     while (symbols != nil) {
-        if ((e = flisp_write_object(fd, symbols->car, readably)) != nil ||
-            (e = writeChar(fd, ' ')) != nil ||
-            (e = flisp_write_object(fd, values->car, readably)) != nil ||
-            ((symbols->cdr != nil) && (e = writeString(fd, ",  ")) != nil) )
-            return e;
+        do {
+            W_OK(flisp_write_object(fd, symbols->car, readably));
+            W_OK(writeChar(fd, ' '));
+            W_OK(flisp_write_object(fd, values->car, readably));
+            if (symbols->cdr != nil) W_OK(writeString(fd, ",  "));
+        } while (0);
+        if (e != nil) return e;
         symbols = symbols->cdr;
         values = values->cdr;
     }
@@ -1850,8 +1884,8 @@ Object *writeEnv(FILE *fd, Object *env, bool readably)
 Object *writeStringReadably(FILE *fd, char *string)
 {
     char *escape;
-    Object *e;
-    if ((e = writeChar(fd, '"')) != nil) return e;
+    Object *e = nil;
+    if (not_same(&e, writeChar(fd, '"'))) return e;
 
     for (; *string; ++string) {
         switch (*string) {
@@ -1871,69 +1905,73 @@ Object *writeStringReadably(FILE *fd, char *string)
             escape = "\\\\";
             break;
         default:
-            writeChar(fd, *string);
+            if (not_same(&e, writeChar(fd, *string))) return e;
             continue;
         }
-        if ((e = writeString(fd, escape)) != nil) return e;
+        if (not_same(&e, writeString(fd, escape))) return e;
     }
     return writeChar(fd, '"');
 }
 Object *writeStream(FILE *fd, Object *stream)
 {
     Object *e;
-    (void)
-        ((e = writeString(fd, "#<Stream ")) != nil ||
-         (e = writeHex(fd, (uintptr_t) stream->fd, 0)) != nil ||
-         (e = writeChar(fd, ' ')) != nil ||
-         (e = writeString(fd, stream->path->string)) != nil ||
-         (e = writeChar(fd, '>')) != nil );
+    do {
+        W_OK(writeString(fd, "#<Stream "));
+        W_OK(writeHex(fd, (uintptr_t) stream->fd, 0));
+        W_OK(writeChar(fd, ' '));
+        W_OK(writeString(fd, stream->path->string));
+        W_OK(writeChar(fd, '>'));
+    } while (0);
     return e;
 }
 Object *writeError(FILE *fd, Object *error, bool readably)
 {
     Object *e;
     if (readably) {
-        (void)
-            ((e = writeString(fd, "#<Error ")) != nil ||
-             (e = flisp_write_object(fd, error->error, readably)) != nil ||
-             (e = writeString(fd, ": ")) != nil ||
-             (e = flisp_write_object(fd, error->message, readably)) != nil ||
-             (e = writeString(fd, ", ")) != nil ||
-             (e = flisp_write_object(fd, error->culprit, readably)) != nil ||
-             (e = writeChar(fd, '>')) != nil );
+        do {
+            W_OK(writeString(fd, "#<Error "));
+            W_OK(flisp_write_object(fd, error->error, readably));
+            W_OK(writeString(fd, ": "));
+            W_OK(flisp_write_object(fd, error->message, readably));
+            W_OK(writeString(fd, ", "));
+            W_OK(flisp_write_object(fd, error->culprit, readably));
+            W_OK(writeChar(fd, '>'));;
+        } while (0);
         return e;
     }
-    if ((e = writeString(fd, "error:")) != nil ||
-        (e = flisp_write_object(fd, error->error, false)) != nil ||
-        (e = writeString(fd, ": ")) != nil ||
-        (e = flisp_write_object(fd, error->message, false)) != nil)
-        return e;
-    if (error->culprit != nil) {
-        (void)
-            ((e = writeString(fd, ": '")) != nil ||
-             (e = flisp_write_object(fd, error->culprit, true)) != nil ||
-             (e = writeString(fd, "'")) );
-    }
+    do {
+        W_OK(writeString(fd, "error:"));
+        W_OK(flisp_write_object(fd, error->error, false));
+        W_OK(writeString(fd, ": "));
+        W_OK(flisp_write_object(fd, error->message, false));
+        if (error->culprit != nil) {
+            W_OK(writeString(fd, ": '"));
+            W_OK(flisp_write_object(fd, error->culprit, true));
+            W_OK(writeString(fd, "'"));
+        }
+    } while (0);
     return e;
 }
 Object *writeInterpreter(FILE *fd, Object *interp, bool readably)
 {
     Object *e;
-    (void)
-        ((e = writeString(fd, "#<Interpreter ")) != nil ||
-         (e = writeHex(fd, (uintptr_t) interp, 0)) != nil ||
-         (e = writeChar(fd, '>')) != nil );
+    do {
+        W_OK(writeString(fd, "#<Interpreter "));
+        W_OK(writeHex(fd, (uintptr_t) interp, 0));
+        W_OK(writeChar(fd, '>'));
+    } while (0);
     return e;
 }
 Object *writeExtension(FILE *fd, Object *o,  bool readably)
 {
     Object *e;
-    (void)
-        ((e = writeString(fd, "#<Extension ")) != nil ||
-         (e = flisp_write_object(fd, o->extension.name, readably)) != nil ||
-         (e = writeString(fd, ", ")) != nil ||
-         (e = flisp_write_object(fd, o->extension.version, readably)) != nil ||
-         (e = writeChar(fd, '>')) != nil );
+    do {
+        W_OK(writeString(fd, "#<Extension "));
+        W_OK(flisp_write_object(fd, o->extension.name, readably));
+        W_OK(writeString(fd, ", "));
+        W_OK(flisp_write_object(fd, o->extension.version, readably));
+        W_OK(writeChar(fd, '>'));
+    } while (0);
     return e;
 }
 
@@ -1951,41 +1989,27 @@ Object *flisp_write_object(FILE *fd, Object *object, bool readably)
 {
     if (fd == NULL) return nil;
 
-    if (object->type == type_integer)
-        return writeInteger(fd, object->value);
-    if (object->type == type_double)
-        return writeDouble(fd, object->value);
-    if (object->type == type_primitive)
-        return writePrimitive(fd, object);
-    if (object->type == type_vector)
-        return writeVector(fd, object);
-    if (object->type == type_cons)
-        return writeCons(fd, object, readably);
-    if (object->type == type_lambda)
-        return writeClosure(fd, object, readably, "#<Lambda ");
-    if (object->type == type_macro)
-        return writeClosure(fd, object, readably, "#<Macro ");
-    if (object->type == type_env)
-        return writeEnv(fd, object, readably);
+    if (object->type == type_integer)     return writeInteger(fd, object->value);
+    if (object->type == type_double)      return writeDouble(fd, object->value);
+    if (object->type == type_primitive)   return writePrimitive(fd, object);
+    if (object->type == type_vector)      return writeVector(fd, object);
+    if (object->type == type_cons)        return writeCons(fd, object, readably);
+    if (object->type == type_lambda)      return writeClosure(fd, object, readably, "#<Lambda ");
+    if (object->type == type_macro)       return writeClosure(fd, object, readably, "#<Macro ");
+    if (object->type == type_env)         return writeEnv(fd, object, readably);
     if (object->type == type_string) {
         if (readably)
             return writeStringReadably(fd, object->string);
         else
             return writeString(fd, object->string);
     }
-    if (object->type == type_symbol)
-        return writeString(fd, object->string);
-    if (object->type == type_stream)
-        return writeStream(fd, object);
-    if (object->type == type_error)
-        return writeError(fd, object, readably);
-    if (object->type == type_interpreter)
-        return writeInterpreter(fd, object, readably);
-    if (object->type == type_extension)
-        return writeExtension(fd, object, readably);
-    if (object->type == type_moved) {
-        return flisp_write_object(fd, object->forward, readably);
-    }
+    if (object->type == type_symbol)      return writeString(fd, object->string);
+    if (object->type == type_stream)      return writeStream(fd, object);
+    if (object->type == type_error)       return writeError(fd, object, readably);
+    if (object->type == type_interpreter) return writeInterpreter(fd, object, readably);
+    if (object->type == type_extension)   return writeExtension(fd, object, readably);
+    if (object->type == type_moved)       return flisp_write_object(fd, object->forward, readably);
+    
     return flisp_static_error(invalid_value, &write_invalid_object);
 }
 

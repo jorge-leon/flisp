@@ -34,7 +34,7 @@ IN="0" OUT='0'
 flisp_expr; ok reader-4-1 read integer 0
 
 IN="10" OUT='10'
-flisp_expr; ok reader-4-2 read integer 10 \# TODO fix reader
+flisp_expr; ok reader-4-2 read integer 10
 
 IN="010" OUT='8'
 flisp_expr; ok reader-4-3 read integer octal 10 is 8
@@ -122,7 +122,7 @@ IN="(bind t var1 3) ((lambda () (bind nil var1 2) t)) var1" OUT=3
 flisp_expr 4; ok bind-6 local bind does not set outer variable.
 
 IN="(bind t var1 3) ((lambda () (bind t var1 2) t)) var1" OUT=2
-flisp_expr 4; ok bind-7 global bind does set outer variable. \# TODO fix bind
+flisp_expr 4; ok bind-7 global bind does set outer variable.
 
 IN='(progn)' OUT=nil
 flisp_expr; ok progn-1 no args evaluate to nil
@@ -173,25 +173,17 @@ flisp_expr; ok cond-12 cond with last expresion single string list gives its val
 IN="(cond nil ((consp (quote (a b)))))" OUT=t
 flisp_expr; ok cond-13 cond with last expresion funcall gives result
 
-IN='(cond . "a")' CODE=wrong-type-argument
-ERR='(cond args) - args is not a list, arg 0' OBJ='"a"'
-flisp_err; ok cond-14 fail if not called with a cons
-#OUT='#<Error "a": "(cond args) - args is not a list: arg 0", wrong-type-argument>'
-#flisp_expr; ok cond-14 fail if not called with a cons
+IN='(cond . "a")' OUT="error:wrong-type-argument: (cond args) - args is not a list, arg 0: '\"a\"'"
+flisp_expr; ok cond-14 fail if not called with a cons
 
-IN='(cond "a" ())' OBJ='"a"' CODE=wrong-type-argument
-ERR='(cond clause ..) - is not a list, clause'
-flisp_err; ok cond-15 fail if clause is not a cons
-#OUT='#<Error "a": "(cond clause ..) - is not a list: clause", wrong-type-argument>'
-#flisp_expr 1; ok cond-15 fail if clause is not a cons
+IN='(cond "a" ())' OUT="error:wrong-type-argument: (cond clause ..) - is not a list, clause: '\"a\"'"
+flisp_expr; ok cond-15 fail if clause is not a cons
 
-IN='(cond (nil . "a"))' CODE=invalid-value
-ERR='read error while reading expression in list' OBJ=
-flisp_err 3 1; ok cond-16 fail if clause is cons with car nil - captured by reader \# TODO why is cons starting with nil an error?
+IN='(cond (nil . "a"))' OUT="error:invalid-value: read error while reading expression in list"
+flisp_expr; ok cond-16 fail if clause is cons with car nil - captured by reader \# TODO why is cons starting with nil an error?
 
-IN='(cond (t . t))' CODE=wrong-type-argument
-ERR='(cond (pred action) ..) action is not a list' OBJ='(t . t)'
-flisp_err; ok cond-17 fail if t and clause action is not a list
+IN='(cond (t . t))' OUT="error:wrong-type-argument: (cond (pred action) ..) action is not a list: '(t . t)'"
+flisp_expr ok cond-17 fail if t and clause action is not a list
 
 IN="(cond ('(0)))" OUT="(0)"
 flisp_expr; ok cond-18 cond with only pred returns pred
@@ -375,9 +367,8 @@ IN="(car '(1 2))" OUT='1'
 flisp_expr; ok car-1  car returns first element
 
 # Intermezzo
-IN="(car 1)" CODE=wrong-type-argument OBJ="type-integer: 1"
-ERR='(car o) - o expected type-cons, got'
-flisp_err; ok arg_check-1  argument checking '(car 1)' fails
+IN="(car 1)" OUT="error:wrong-type-argument: (car o) - o expected type-cons, got, type-integer: '1'"
+flisp_expr ok arg_check-1  argument checking '(car 1)' fails
 
 IN="(cdr '(1 2))" OUT='(2)'
 flisp_expr; ok cdr-1  cdr returns rest
