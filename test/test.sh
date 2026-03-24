@@ -112,6 +112,7 @@ ok () {
     echo ok $TEST - $@
 
     if [ "$OK" = 1 -a "$VERBOSE" ]; then
+	echo "input   : " "$IN"
 	echo "expected: " "$OUT"
 	echo "got     : " "$F_OUT"
 	echo "raw:"
@@ -143,14 +144,15 @@ range () {
 # pipe expr $PREPARE, then $IN to fLisp, extract $1 last values of
 # output, default 1. Filters trailing 't.  Compare output with $OUT
 flisp_expr () {
-    local T_OUT T_RC F_OUT
+    local T_RC
+    local START=${1:-2}
     T_OUT=$(echo -n "$PREPARE $IN" | $FLISP 2>&1)
     T_RC=$?
-    F_OUT=$(echo "$T_OUT" | range ${1:-2} ${2:-10})
+    F_OUT=$(echo "$T_OUT" | range $START ${2:-$START})
     [ "$F_OUT" = "$OUT" ]
 }
 flisp_err () {
-    local T_OUT T_RC F_OUT
+    local T_RC
     T_OUT=$(echo -n "$PREPARE $IN" | $FLISP 2>&1)
     T_RC=$?
     F_OUT=$(echo "$T_OUT" | range ${1:-2} ${2:-10})
@@ -167,6 +169,7 @@ flisp_err () {
 	return 0
     }
 }
+
 
 if [ "$SUMMARY" ]; then SUMMARY=./tapview; else SUMMARY=cat; fi
 

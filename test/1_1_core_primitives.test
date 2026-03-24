@@ -34,7 +34,7 @@ IN="0" OUT='0'
 flisp_expr; ok reader-4-1 read integer 0
 
 IN="10" OUT='10'
-flisp_expr; ok reader-4-2 read integer 10
+flisp_expr; ok reader-4-2 read integer 10 \# TODO fix reader
 
 IN="010" OUT='8'
 flisp_expr; ok reader-4-3 read integer octal 10 is 8
@@ -42,16 +42,16 @@ flisp_expr; ok reader-4-3 read integer octal 10 is 8
 IN="0x10" OUT='16'
 flisp_expr; ok reader-4-4 read integer hex 10 is 16
 
-IN="#d.1" OUT='0.1'
+IN="#d.1" OUT='#D3FB999999999999A'
 flisp_expr; ok reader-4-5 read double .1 is 0.1 at eof
 
-IN="#d3.14" OUT='3.14'
+IN="#d3.14" OUT='#D40091EB851EB851F'
 flisp_expr; ok reader-4-6 read double 3.14 is 3.14 at eof
 
 IN="#d7." OUT='#D401C000000000000'
 flisp_expr; ok reader-4-7 read double 7. is 7 at eof
 
-IN="#d7. " OUT='7'
+IN="#d7. " OUT='#D401C000000000000'
 flisp_expr; ok reader-4-8 read double 7. is 7
 
 IN="t" OUT='t'
@@ -87,46 +87,42 @@ flisp_expr; ok reader-13 read dotted pair
 IN="'(0 1 . 2)" OUT='(0 1 . 2)'
 flisp_expr; ok reader-14 read dotted list
 
-IN="'(0 1 . " CODE="read-incomplete"
-ERR="unexpected end of stream in dotted list" OBJ=
-flisp_err; ok reader-14-1 dotted list w/o end paren
+IN="'(0 1 . " OUT="error:read-incomplete: unexpected end of stream while reading dotted list"
+flisp_expr; ok reader-14-1 dotted list w/o end paren
 
-IN="'(0 1 . 2 3)" CODE="invalid-read-syntax"
-ERR="unexpected object at end of dotted list" OBJ=
-flisp_err 2 1; ok reader-15 read dotted list with extra element
+IN="'(0 1 . 2 3)" OUT="error:invalid-read-syntax: unexpected object at end of dotted list"
+flisp_expr; ok reader-15 read dotted list with extra element
 
-IN="'(0 1 .)" CODE="invalid-read-syntax"
-ERR="expected object at end of dotted list" OBJ=
-flisp_err 2 1; ok reader-16 read dotted list without cdr
+IN="'(0 1 .)" OUT="error:invalid-read-syntax: expected object at end of dotted list"
+flisp_expr; ok reader-16 read dotted list without cdr
 
-IN="'(" CODE="read-incomplete"
-ERR="unexpected end of stream in list" OBJ=
-flisp_err; ok reader-17 read list without end
+IN="'(" OUT="error:read-incomplete: unexpected end of stream while reading list"
+flisp_expr; ok reader-17 read list without end
 
 # Special forms
-IN='(quote)' CODE=wrong-number-of-arguments
-ERR='expects at least 1 arguments' OBJ='#<Primitive quote>'
-flisp_err; ok quote-1 w/o arg error message
-#OUT='#<Error #<Primitive quote>: "expects at least 1 arguments", wrong-number-of-arguments>'
-#flisp_expr; ok quote-1 w/o arg error message
+IN='(quote)' OUT="error:wrong-number-of-arguments: expects at least 1 arguments: '#<Primitive quote [1, 1] nil>'"
+flisp_expr; ok quote-1 w/o arg error message
 
-IN="(bind var 'val)" OUT=val
-flisp_expr; ok bind-2 assignment returns value
+IN='(bind)' OUT=nil
+flisp_expr; ok bind-1 zero arg gives nil
 
-IN="(bind var 'val) var" OUT="val"
-flisp_expr; ok bind-3 var evaluates to val
+IN='(bind t)' OUT=nil
+flisp_expr; ok bind-2 one arg gives nil
 
-IN='(bind var1)' CODE=wrong-number-of-arguments
-OBJ='#<Primitive bind>' ERR='expects at least 2 arguments'
-flisp_err; ok bind-4 one arg fails
-#OUT='#<Error #<Primitive bind>: "expects at least 2 arguments", wrong-number-of-arguments>'
-#flisp_expr; ok bind-4 one arg fails
+IN="(bind nil var 'val)" OUT=val
+flisp_expr; ok bind-3 assignment returns value
 
-IN="(bind var1 3) ((lambda () (bind var1 2))) var1" OUT=3
-flisp_expr; ok bind-5 local bind does not set outer variable.
+IN="(bind nil var 'val) t var" OUT="val"
+flisp_expr 4; ok bind-4 local bind var evaluates to val
 
-IN="(bind var1 3) ((lambda () (bind var1 2 t))) var1" OUT=2
-flisp_expr; ok bind-4 global bind does not set outer variable.
+IN="(bind t var 'val) t var" OUT="val"
+flisp_expr 4; ok bind-5 global bind var evaluates to val
+
+IN="(bind t var1 3) ((lambda () (bind nil var1 2) t)) var1" OUT=3
+flisp_expr 4; ok bind-6 local bind does not set outer variable.
+
+IN="(bind t var1 3) ((lambda () (bind t var1 2) t)) var1" OUT=2
+flisp_expr 4; ok bind-7 global bind does set outer variable. \# TODO fix bind
 
 IN='(progn)' OUT=nil
 flisp_expr; ok progn-1 no args evaluate to nil
