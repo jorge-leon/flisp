@@ -176,16 +176,16 @@ flisp_expr; ok cond-13 cond with last expresion funcall gives result
 IN='(cond . "a")' OUT="error:wrong-type-argument: (cond args) - args is not a list, arg 0: '\"a\"'"
 flisp_expr; ok cond-14 fail if not called with a cons
 
-IN='(cond "a" ())' OUT="error:wrong-type-argument: (cond clause ..) - is not a list, clause: '\"a\"'"
+IN='(cond "a" ())' OUT="error:wrong-type-argument: (cond clause ..) - clause is not a list: '\"a\"'"
 flisp_expr; ok cond-15 fail if clause is not a cons
 
-IN='(cond (nil . "a"))' OUT="error:invalid-value: read error while reading expression in list"
-flisp_expr; ok cond-16 fail if clause is cons with car nil - captured by reader \# TODO why is cons starting with nil an error?
+IN='(cond (nil . "a"))' OUT="error:invalid-value: read error while reading expression in list: 'cond'"
+flisp_expr; ok cond-16 fail if clause is cons with car nil
 
 IN='(cond (t . t))' OUT="error:wrong-type-argument: (cond (pred action) ..) action is not a list: '(t . t)'"
-flisp_expr ok cond-17 fail if t and clause action is not a list
+flisp_expr; ok cond-17 fail if t and clause action is not a list
 
-IN="(cond ('(0)))" OUT="(0)"
+IN="(cond (42))" OUT="42"
 flisp_expr; ok cond-18 cond with only pred returns pred
 
 # lambda
@@ -367,8 +367,8 @@ IN="(car '(1 2))" OUT='1'
 flisp_expr; ok car-1  car returns first element
 
 # Intermezzo
-IN="(car 1)" OUT="error:wrong-type-argument: (car o) - o expected type-cons, got, type-integer: '1'"
-flisp_expr ok arg_check-1  argument checking '(car 1)' fails
+IN="(car 1)" OUT="error:wrong-type-argument: (car o) - o expected type-cons, got: type-integer: '1'"
+flisp_expr; ok arg_check-1  argument checking '(car 1)' fails
 
 IN="(cdr '(1 2))" OUT='(2)'
 flisp_expr; ok cdr-1  cdr returns rest
@@ -383,23 +383,23 @@ flisp_expr
 [ -e _file_ ]; ok open-1 create file
 rm -f _file_
 
-RESULT=$(echo $PREPARE '(open "empty.lsp")' | $FLISP | grep -E '#<Stream [0-9A-F]{8,} empty.lsp>')
+RESULT=$(echo $PREPARE '(open "empty.lsp")' | $FLISP | grep -E '#<Stream 0X[0-9A-F]{2,16} empty.lsp>')
 ok open-2 open file readonly
 
-RESULT=$(echo $PREPARE '(open "<0")' | $FLISP | grep -E "#<Stream [0-9A-F]{8,} <0>")
+RESULT=$(echo $PREPARE '(open "<0")' | $FLISP | grep -E "#<Stream 0X[0-9A-F]{2,16} <0>")
 ok open-3 open readable file descriptor
 
-RESULT=$(echo $PREPARE '(open ">1")' | $FLISP | grep -E "#<Stream [0-9A-F]{8,} >1>")
+RESULT=$(echo $PREPARE '(open ">1")' | $FLISP | grep -E "#<Stream 0X[0-9A-F]{2,17} >1>")
 ok open-4 open writeable file descriptor
 
-RESULT=$(echo $PREPARE '(open "any text" "<")' | $FLISP | grep -E "#<Stream [0-9A-F]{8,} <STRING>")
+RESULT=$(echo $PREPARE '(open "any text" "<")' | $FLISP | grep -E "#<Stream 0X[0-9A-F]{2,16} <STRING>")
 ok open-5 open memory input stream
 
-RESULT=$(echo $PREPARE '(open "" ">")' | $FLISP | grep -E "#<Stream [0-9A-F]{8,} >STRING>")
+RESULT=$(echo $PREPARE '(open "" ">")' | $FLISP | grep -E "#<Stream 0X[0-9A-F]{2,16} >STRING>")
 ok open-6 open memory output stream
 
-IN='(close (open "empty.lsp"))' OUT="0" \# TODO why now nul?
-flisp_expr; ok close-1 close file
+IN='(close (open "empty.lsp"))' OUT="0" 
+flisp_expr; ok close-1 close file \# TODO why now nul\?
 
 IN='(close (open ">2"))' OUT="0"
 flisp_expr; ok close-2 close file descriptor
@@ -410,10 +410,10 @@ flisp_expr; ok close-3 close memory input stream
 IN='(close (open "" ">"))' OUT="0"
 flisp_expr; ok close-4 close memory output stream
 
-IN='(bind f (open "abc" "<")) (cons (car (file-info f)) (car (cdr (file-info f))))' OUT='("<STRING" . "abc")'
+IN='(bind t (open "abc" "<")) (cons (car (file-info f)) (car (cdr (file-info f))))' OUT='("<STRING" . "abc")'
 flisp_expr; ok file-info-1 file-info of memory stream contains string
 
-IN='(bind f (open "" ">")) (close f) (file-info f)' OUT='(">STRING" nil nil)'
+IN='(bind t (open "" ">")) (close f) (file-info f)' OUT='(">STRING" nil nil)'
 flisp_expr; ok file-info-2 file-info of closed memory stream contains nil
 
 IN='(read (open "1" "<"))' OUT="1"

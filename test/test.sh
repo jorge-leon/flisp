@@ -120,7 +120,6 @@ ok () {
     fi
     
     [ "$TEST" = "$BREAK" ] && {
-	echo BREAK: $BREAK >&2
 	exit
     }
     return $OK

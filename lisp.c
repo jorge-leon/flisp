@@ -524,7 +524,8 @@ allocateObject:
     return object;
 }
 
-#define IS_OOM(OBJECT) ((OBJECT)->type == gc_error)
+/* Note: for speed reasons we should use a single static error object and compare pointers */
+#define IS_OOM(OBJECT) ((OBJECT)->type == type_error && (OBJECT)->error == gc_error)
 #define CHECK_OOM(OBJECT) if IS_OOM(OBJECT) return OBJECT
 
 // CONSTRUCTING OBJECTS ///////////////////////////////////////////////////////
@@ -1459,48 +1460,45 @@ Object *evalProgn(Object *interp, Object **args, Object **env)
  */
 Object *evalCond(Object *interp, Object **args, Object **env)
 {
-    if (*args == nil)
-        return nil;
-
-    Object *clause = (*args)->car;
-    Object *next_clause = (*args)->cdr;
-
-    if (clause == nil)
-        goto next_clause;
-
-    if (clause->type != type_cons)
-        return newError(interp, wrong_type_argument, clause, "(cond clause ..) - is not a list, clause");
-
-    Object *action = clause->cdr;
-    if (action != nil && action->type != type_cons)
-        return newError(interp, wrong_type_argument, clause, "(cond (pred action) ..) action is not a list");
-
-    Object *pred = clause->car;
-    if (pred == nil)
-        goto next_clause;
-
     GC_CHECKPOINT;
-    GC_TRACE(gcPred, pred);
-    GC_TRACE(gcAction, action);
-    GC_TRACE(gcEnv, *env);
-    GC_TRACE(gcNext, next_clause);
-    pred = evalExpr(interp, gcPred, gcEnv);
-    GC_RELEASE;
-    if (pred == nil) {
-        *env = *gcEnv;
-        next_clause = *gcNext;
-        goto next_clause;
+    GC_TRACE(gcArgs, *args);
+    while((*gcArgs != nil)) {
+
+        Object *clause = (*gcArgs)->car;
+
+        if (clause == nil)  goto next_clause;
+        
+        if (clause->type == type_error) GC_RETURN(clause);
+
+        if (clause->type != type_cons)
+            return newError(interp, wrong_type_argument, clause,
+                            "(cond clause ..) - clause is not a list");
+        
+        Object *action = clause->cdr;
+        if (action != nil && action->type != type_cons)
+            return newError(interp, wrong_type_argument, clause, "(cond (pred action) ..) action is not a list");
+        if (action->type == type_error) GC_RETURN(action);
+
+        Object *pred = clause->car;
+        if (pred->type == type_error)  GC_RETURN(pred);
+
+        if (pred == nil)  goto next_clause;
+        
+        pred = evalExpr(interp, &pred, env);
+        if (pred->type == type_error)  GC_RETURN(pred);
+        
+        if (pred == nil) goto next_clause;
+    
+        if (action == nil)  GC_RETURN(pred);
+
+        Object *result = (action->type == type_cons)
+            ? evalProgn(interp, &action, env) : evalExpr(interp, &action, env);
+        GC_RETURN(result);
+    next_clause:        
+        (*gcArgs) = (*gcArgs)->cdr;
     }
-    if (*gcAction == nil)
-        return *gcPred;
-
-    if ((*gcAction)->type == type_cons)
-        return evalProgn(interp, gcAction, gcEnv);
-    return evalExpr(interp, gcAction, gcEnv);
-
-next_clause:
-    if (next_clause == nil) return nil;
-    return evalCond(interp, &next_clause, env);
+    GC_RELEASE;
+    return nil;
 }
 
 Object *expandMacro(Object *interp, Object ** macro, Object **args)
