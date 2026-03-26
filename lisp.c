@@ -54,7 +54,10 @@ Object *type_vector =               &(Object) { .string = "type-vector" };
 Object *type_lambda =               &(Object) { .string = "type-lambda" };
 Object *type_macro =                &(Object) { .string = "type-macro" };
 Object *type_error =                &(Object) { .string = "type-error" };
+Object *type_interpreter =          &(Object) { .string = "type-interpreter" };
+Object *type_extension =            &(Object) { .string = "type-extension" };
 Object *type_stream =               &(Object) { .string = "type-stream" };
+Object *type_values =               &(Object) { .string = "type-values" };
 /* Error symbols */
 Object *end_of_file =               &(Object) { .string = "end-of-file" };
 Object *read_incomplete =           &(Object) { .string = "read-incomplete" };
@@ -80,8 +83,6 @@ Object *standard_output =           &(Object) { .string = "*standard-output*" };
 /* Internal symbols */
 Object *type_env =                  &(Object) { .size = 17, .length = 0, .string = "type-environment" };
 Object *type_moved =                &(Object) { .size = 11, .length = 0, .string = "type-moved" };
-Object *type_interpreter =          &(Object) { .size = 17, .length = 0, .string = "type-interpreter" };
-Object *type_extension =            &(Object) { .size = 15, .length = 0, .string = "type-extension" };
 
 /* Constant Objects */
 Object *flisp_integer_zero =        &(Object) { .size =  0, .value = 0 };
@@ -579,7 +580,7 @@ Object *newPrimitive(Object *interp, Primitive* primitive)
 /** flisp_ext_obj(interp, type, list, length, extra) - create and initialize an extended object.
  *
  * @param interp   .. Interpreter in which to create the object.
- * @param obj_list .. List of initializer objects.
+ * @param obj_list .. List of initializer objects or object. Dottet lists are flattened.
  * @param length    .. Number of objects in the list to use for initialization.
  * @param extra    .. Number of additional space in bytes to allocate for extension data.
  *
@@ -602,10 +603,15 @@ Object *flisp_ext_obj(Object *interp, Object *type, Object **list, size_t length
     Object *object = newObject(interp, *gcType, (sizeof(Object *) * length) + extra);
     GC_RELEASE;
     CHECK_OOM(object);
-    object->length = length;
     size_t i;
+    object->length = length;
     for(i = 0; i < length && (*gcObjs) != nil; (*gcObjs) = (*gcObjs)->cdr)
-        object->objects[i++] = (*gcObjs)->car;
+        if ((*gcObjs)-> type == type_cons)
+            object->objects[i++] = (*gcObjs)->car;
+        else {
+            object->objects[i++] = *gcObjs;
+            break;
+        }
     while(i < length)
         object->objects[i++] = nil;
     return object;
@@ -784,7 +790,7 @@ Object *newError(Object *interp, Object *error, Object *culprit, char *format, .
     GC_TRACE(gcErrorType, error);
     GC_TRACE(gcCulprit, culprit);
     GC_TRACE(gcMessage, flisp_empty_string);
-    GC_TRACE(gcError, flisp_ext_obj(interp, type_error, &nil, 3, 0));
+    GC_TRACE(gcError, flisp_ext_obj(interp, type_error, gcErrorType, 3, 0));
     if IS_OOM(*gcError) GC_RETURN(*gcError);
 
     if (format != NULL && format[0] != '\0') {
@@ -801,7 +807,7 @@ Object *newError(Object *interp, Object *error, Object *culprit, char *format, .
             }
             *gcMessage = newStringWithLength(interp, message, len);
     }
-    (*gcError)->error = *gcErrorType;
+//    (*gcError)->error = *gcErrorType;
     (*gcError)->message = *gcMessage;
     (*gcError)->culprit = *gcCulprit;
     GC_RETURN(*gcError);
@@ -816,7 +822,7 @@ Object *newStreamObject(Object *interp, FILE *fd, char *path)
 {
     GC_CHECKPOINT;
     GC_TRACE(gcPath, newString(interp, path));
-    Object *stream = flisp_ext_obj(interp, type_stream, &nil, 1,
+    Object *stream = flisp_ext_obj(interp, type_stream, gcPath, 1,
                                    sizeof(FILE*) +
                                    sizeof(char*) +
                                    sizeof(size_t));
@@ -825,7 +831,6 @@ Object *newStreamObject(Object *interp, FILE *fd, char *path)
     stream->fd = fd;
     stream->buf = NULL;
     stream->len = 0;
-    stream->path = *gcPath;
 
     return stream;
 }
@@ -834,10 +839,9 @@ Object *newExtension(Object *interp, char *name, ExtensionInit init)
 {
     GC_CHECKPOINT;
     GC_TRACE(gcName, newString(interp, name));
-    Object *object = flisp_ext_obj(interp, type_extension, &nil, 2, sizeof(ExtensionInit));
+    Object *object = flisp_ext_obj(interp, type_extension, gcName, 2, sizeof(ExtensionInit));
     GC_RELEASE;
     CHECK_OOM(object);
-    object->extension.name = *gcName;
     object->extension.version = nil;
     object->extension.init = init;
     return object;
@@ -923,7 +927,7 @@ Object *envSet(Object *interp, Object ** var, Object ** val, Object **env, bool 
             if (vars->cdr == *var)
                 return vals->cdr = *val;
         }
-        
+
         if ((*env)->parent == nil || !top) {
             GC_CHECKPOINT;
             GC_TRACE(gcEnv, *env);
@@ -1411,7 +1415,7 @@ Object *evalBind(Object *interp, Object **args, Object **env, size_t nArgs)
 
     Object *global = evalExpr(interp, &FLISP_ARG1, env);
     if (global->type == type_error)  return global;
-    
+
     bool globalp = global  != nil;
 
     GC_CHECKPOINT;
@@ -1467,13 +1471,13 @@ Object *evalCond(Object *interp, Object **args, Object **env)
         Object *clause = (*gcArgs)->car;
 
         if (clause == nil)  goto next_clause;
-        
+
         if (clause->type == type_error) GC_RETURN(clause);
 
         if (clause->type != type_cons)
             return newError(interp, wrong_type_argument, clause,
                             "(cond clause ..) - clause is not a list");
-        
+
         Object *action = clause->cdr;
         if (action != nil && action->type != type_cons)
             return newError(interp, wrong_type_argument, clause, "(cond (pred action) ..) action is not a list");
@@ -1483,18 +1487,18 @@ Object *evalCond(Object *interp, Object **args, Object **env)
         if (pred->type == type_error)  GC_RETURN(pred);
 
         if (pred == nil)  goto next_clause;
-        
+
         pred = evalExpr(interp, &pred, env);
         if (pred->type == type_error)  GC_RETURN(pred);
-        
+
         if (pred == nil) goto next_clause;
-    
+
         if (action == nil)  GC_RETURN(pred);
 
         Object *result = (action->type == type_cons)
             ? evalProgn(interp, &action, env) : evalExpr(interp, &action, env);
         GC_RETURN(result);
-    next_clause:        
+    next_clause:
         (*gcArgs) = (*gcArgs)->cdr;
     }
     GC_RELEASE;
@@ -1829,11 +1833,11 @@ Object *writeVector(FILE *fd, Object *vector)
 }
 // WRITING OBJECTS ////////////////////////////////////////////////////////////
 
-Object *writeCons(FILE *fd, Object *cons, bool readably)
+Object *writeCons(FILE *fd, Object *cons, bool readably, char *start)
 {
     Object *e = nil;
     do {
-        W_OK(writeChar(fd, '('));
+        W_OK(writeString(fd, start));
         W_OK(flisp_write_object(fd, cons->car, readably));
         while (cons->cdr != nil) {
             cons = cons->cdr;
@@ -1972,6 +1976,19 @@ Object *writeExtension(FILE *fd, Object *o,  bool readably)
     } while (0);
     return e;
 }
+Object *writeValues(FILE *fd, Object *values, bool readably)
+{
+    Object *e = nil;
+    if (readably)
+        if (not_same(&e, writeCons(fd, values->objects[0], readably, "(values "))) return e;
+    do {
+        W_OK(writeString(fd, "#<Values "));
+        W_OK(writeHex(fd, (uintptr_t) values->objects[0], 0));
+        W_OK(writeChar(fd, '>'));
+    } while (0);
+    return e;
+}
+
 
 /** flisp_write_object - format and write object to file descriptor
  *
@@ -1991,7 +2008,7 @@ Object *flisp_write_object(FILE *fd, Object *object, bool readably)
     if (object->type == type_double)      return writeDouble(fd, object->value);
     if (object->type == type_primitive)   return writePrimitive(fd, object);
     if (object->type == type_vector)      return writeVector(fd, object);
-    if (object->type == type_cons)        return writeCons(fd, object, readably);
+    if (object->type == type_cons)        return writeCons(fd, object, readably, "(");
     if (object->type == type_lambda)      return writeClosure(fd, object, readably, "#<Lambda ");
     if (object->type == type_macro)       return writeClosure(fd, object, readably, "#<Macro ");
     if (object->type == type_env)         return writeEnv(fd, object, readably);
@@ -2006,8 +2023,9 @@ Object *flisp_write_object(FILE *fd, Object *object, bool readably)
     if (object->type == type_error)       return writeError(fd, object, readably);
     if (object->type == type_interpreter) return writeInterpreter(fd, object, readably);
     if (object->type == type_extension)   return writeExtension(fd, object, readably);
+    if (object->type == type_values)      return writeValues(fd, object, readably);
     if (object->type == type_moved)       return flisp_write_object(fd, object->forward, readably);
-    
+
     return flisp_static_error(invalid_value, &write_invalid_object);
 }
 
@@ -2107,6 +2125,12 @@ Object *primitiveVector(Object *interp, Object **args, Object **env, size_t nArg
 {
     return flisp_ext_obj(interp, type_vector, args, nArgs, 0);
 }
+Object *primitiveValues(Object *interp, Object **args, Object **env, size_t nArgs)
+{
+    Object *values = flisp_ext_obj(interp, type_values, &nil, 1, 0);
+    values->objects[0] = *args;
+    return values;
+}
 
 Object *firstConsElements(Object *interp, size_t n, Object *cons)
 {
@@ -2120,12 +2144,13 @@ Object *firstConsElements(Object *interp, size_t n, Object *cons)
 /** (elements object[ start[ end]]) => list of contained objects, sub-array of string, string range */
 Object *primitiveElements(Object *interp, Object **args, Object **env, size_t nArgs)
 {
-    int64_t i = 0, j = FLISP_ARG1->length, end;
+    int64_t i = 0, j,  end = FLISP_ARG1->length;
 
     if (FLISP_ARG1->size == 0)  return nil;
 
-    if (FLISP_ARG1->length == 0)
-        end = FLISP_ARG1->size;
+    if (FLISP_ARG1->length == 0)  end = FLISP_ARG1->size;
+
+    j = end;
 
     if (nArgs > 1) {
         FLISP_ASSERT(FLISP_ARG2, type_integer, "(elements object[ start[ end]]) - start");
@@ -2137,15 +2162,14 @@ Object *primitiveElements(Object *interp, Object **args, Object **env, size_t nA
     }
     if (nArgs > 2) {
         j = (FLISP_ARG3->value);
-        if (FLISP_ARG1->type != type_cons) {
-            if (j < 0) j += end;
-            if (j >= end) j = end;
-        }
+        if (FLISP_ARG1->type != type_cons && j < 0) j += end;
     }
     if (i < 0) i = 0;
     if (j < 0) j = 0;
+    if (j >= end) j = end;
+
     if (i == end)  return nil;
-    if (i > end)
+    if (i > end && FLISP_ARG1->type != type_cons)
         return newError(interp, range_error, FLISP_ARG2, "(object-list object[ start[ end]]) - start > end: [%lu, %lu]", i, end);
 
     if (FLISP_ARG1->length == 0)
@@ -2693,6 +2717,7 @@ bool flisp_primitives_register(Object *interp, Object *extension)
         && flisp_register_primitive(interp, "object-size",   1,  1, nil,            primitiveObjectSize)
         && flisp_register_primitive(interp, "object-length", 1,  1, nil,            primitiveObjectLength)
         && flisp_register_primitive(interp, "vector",        1, -1, nil,            primitiveVector)
+        && flisp_register_primitive(interp, "values",        0, -1, nil,            primitiveValues)
         && flisp_register_primitive(interp, "elements",      1,  3, nil,            primitiveElements)
         && flisp_register_primitive(interp, "cons",          2,  2, nil,            primitiveCons)
         && flisp_register_primitive(interp, "open",          1,  2, type_string,    primitiveFopen)
@@ -2739,8 +2764,6 @@ void initRootEnv(Object *interp)
     /* Internal symbols */
     type_env->type = type_symbol;
     type_moved->type = type_symbol;
-    type_interpreter->type = type_symbol;
-    type_extension->type = type_symbol;
     flisp_integer_zero->type = type_integer;
     flisp_empty_string->type = type_string;
     flisp_empty_vector->type = type_vector;
@@ -2759,6 +2782,9 @@ void initRootEnv(Object *interp)
     flisp_register_constant(interp, type_stream, NULL);
     flisp_register_constant(interp, type_error, NULL);
     flisp_register_constant(interp, type_double, NULL);
+    flisp_register_constant(interp, type_interpreter, NULL);
+    flisp_register_constant(interp, type_extension, NULL);
+    flisp_register_constant(interp, type_values, NULL);
     /* Exceptions */
     flisp_register_constant(interp, end_of_file, NULL);
     flisp_register_constant(interp, read_incomplete, NULL);
