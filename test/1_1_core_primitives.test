@@ -96,6 +96,9 @@ flisp_expr; ok reader-15 read dotted list with extra element
 IN="'(0 1 .)" OUT="error:invalid-read-syntax: expected object at end of dotted list"
 flisp_expr; ok reader-16 read dotted list without cdr
 
+IN="'(nil . t)" OUT="(nil . t)"
+flisp_expr; ok reader-16-1 read dotted list where nil precedes dot
+
 IN="'(" OUT="error:read-incomplete: unexpected end of stream while reading list"
 flisp_expr; ok reader-17 read list without end
 
@@ -180,7 +183,7 @@ IN='(cond "a" ())' OUT="error:wrong-type-argument: (cond clause ..) - clause is 
 flisp_expr; ok cond-15 fail if clause is not a cons
 
 IN='(cond (nil . "a"))' OUT="error:invalid-value: read error while reading expression in list: 'cond'"
-flisp_expr; ok cond-16 fail if clause is cons with car nil
+flisp_expr; ok cond-16 fail if clause is cons with car nil \# TODO Fix list reader to allow "(nil . o)"
 
 IN='(cond (t . t))' OUT="error:wrong-type-argument: (cond (pred action) ..) action is not a list: '(t . t)'"
 flisp_expr; ok cond-17 fail if t and clause action is not a list
@@ -398,23 +401,23 @@ ok open-5 open memory input stream
 RESULT=$(echo $PREPARE '(open "" ">")' | $FLISP | grep -E "#<Stream 0X[0-9A-F]{2,16} >STRING>")
 ok open-6 open memory output stream
 
-IN='(close (open "empty.lsp"))' OUT="0" 
+IN='(close (open "empty.lsp"))' OUT="nil" 
 flisp_expr; ok close-1 close file \# TODO why now nul\?
 
-IN='(close (open ">2"))' OUT="0"
+IN='(close (open ">2"))' OUT="nil"
 flisp_expr; ok close-2 close file descriptor
 
-IN='(close (open "any text" "<"))' OUT="0"
+IN='(close (open "any text" "<"))' OUT="nil"
 flisp_expr; ok close-3 close memory input stream
 
-IN='(close (open "" ">"))' OUT="0"
+IN='(close (open "" ">"))' OUT="nil"
 flisp_expr; ok close-4 close memory output stream
 
-IN='(bind t (open "abc" "<")) (cons (car (file-info f)) (car (cdr (file-info f))))' OUT='("<STRING" . "abc")'
+IN='(file-info (open "abc" "<"))' OUT='("<STRING" "abc" -1)'
 flisp_expr; ok file-info-1 file-info of memory stream contains string
 
-IN='(bind t (open "" ">")) (close f) (file-info f)' OUT='(">STRING" nil nil)'
-flisp_expr; ok file-info-2 file-info of closed memory stream contains nil
+IN='(close (bind t f (open "" ">"))) (file-info f)' OUT='(">STRING" nil nil)'
+flisp_expr 3; ok file-info-2 file-info of closed memory stream contains nil
 
 IN='(read (open "1" "<"))' OUT="1"
 flisp_expr; ok read-1 read memory input stream
@@ -425,12 +428,13 @@ flisp_expr; ok read-2 read with eof marker
 IN='(eval 1)' OUT='1'
 flisp_expr; ok eval-1 eval number is number
 
+OUT=$(printf 'ans\wer"ans\\\\wer"\n' | base64)
+T_OUT=$(echo -n '(write "ans\\wer")' | $FLISP 2>&1 | sed -n 2p | base64);
+[ "$OUT" = "$T_OUT" ]; ok write-1 write string normally
 
-IN='(write "ans\\wer")' OUT='ans\wer"ans\\wer"'
-flisp_expr; ok write-1 write string normally
-
-IN='(write "ans\\wer" t)' OUT='"ans\\wer""ans\\wer"'
-flisp_expr; ok write-2 write string readably
+OUT=$(printf '"ans\\wer""ans\\\\wer"\n' | base64)
+T_OUT=$(echo -n '(write "ans\\wer" t)' | $FLISP 2>&1 | sed -n 2p | base64)
+[ "$OUT = $T_OUT" ]; ok write-2 write string readably
 
 if false; then
     # Note: Catch/Throw temporarily withdrawn

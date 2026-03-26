@@ -529,6 +529,8 @@ allocateObject:
 #define IS_OOM(OBJECT) ((OBJECT)->type == type_error && (OBJECT)->error == gc_error)
 #define CHECK_OOM(OBJECT) if IS_OOM(OBJECT) return OBJECT
 
+#define IS_ERR(OBJECT) ((OBJECT)->type == type_error)
+
 // CONSTRUCTING OBJECTS ///////////////////////////////////////////////////////
 
 /** newObject - allocate a new object in the Lisp object store and set
@@ -1205,9 +1207,10 @@ Object *readList(Object *interp, FILE *fd)
             GC_TRACE(gcList, list);
             GC_TRACE(gcLast, last);
             *gcLast = readExpr(interp, fd);
-            if ((*gcLast)->type == type_error)
-                return newError(interp, invalid_value, last, "read error while reading expression in list");
+            if (!*gcLast) GC_RETURN(newError(interp, read_incomplete, nil, "unexpected end of stream while reading expression list"));
+            if ((*gcLast)->type == type_error)  GC_RETURN(newError(interp, invalid_value, *gcLast, "read error while reading expression in list"));
             list = newCons(interp, gcLast, gcList);
+            if IS_OOM(list) GC_RETURN(list);
             GC_RELEASE;
             last = *gcLast;
         }
@@ -1309,7 +1312,7 @@ Object *doReaderMacro(Object *interp, FILE *fd)
 Object *readExpr(Object *interp, FILE *fd)
 {
 #define WHILE_EXPR "while reading expression"
-    Object *object;
+    Object *object = nil;
     for (;;) {
         initPad(scratchpad);
 

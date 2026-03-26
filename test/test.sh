@@ -115,8 +115,7 @@ ok () {
 	echo "input   : " "$IN"
 	echo "expected: " "$OUT"
 	echo "got     : " "$F_OUT"
-	echo "raw:"
-	echo "$T_OUT" 
+	printf "raw: %s" "$T_OUT" 
     fi
     
     [ "$TEST" = "$BREAK" ] && {
@@ -132,12 +131,13 @@ range () {
     local START=$1
     local END=$2
     local LN=0
-    while read LINE; do
-	LN=$((LN+1))
-	if [ $LN -ge $START ] && [ $LN -le $END ]; then
-	    echo "$LINE"
-	fi
-    done
+#    while read LINE; do
+#	LN=$((LN+1))
+#	if [ $LN -ge $START ] && [ $LN -le $END ]; then
+#	    echo "$LINE"
+#	fi
+    #    done
+    sed -n $START,${END}p
 }
 
 # pipe expr $PREPARE, then $IN to fLisp, extract $1 last values of
@@ -145,9 +145,9 @@ range () {
 flisp_expr () {
     local T_RC
     local START=${1:-2}
-    T_OUT=$(echo -n "$PREPARE $IN" | $FLISP 2>&1)
+    T_OUT="$(echo -n "$PREPARE $IN" | $FLISP 2>&1)"
     T_RC=$?
-    F_OUT=$(echo "$T_OUT" | range $START ${2:-$START})
+    F_OUT="$(echo "$T_OUT" | range $START ${2:-$START})"
     [ "$F_OUT" = "$OUT" ]
 }
 flisp_err () {
