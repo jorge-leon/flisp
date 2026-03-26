@@ -3,13 +3,12 @@
 # test executable and fLisp functionality
 #
 
-export FLISP=../flisp
 FLISP_DEBUG=../f.log
 unset PREPARE
 
 #export FLISP_SIZE=$((20*1024*1024))
 
-tap 199
+tap 154
 
 [ -x $FLISP ]
 ok flisp-1 flisp exists and is executable;

@@ -29,7 +29,7 @@ PACKAGE = flisp
 CFLAGS += -D FLISPLIB=$(DATADIR)/$(PACKAGE) -D FLISPRC=$(DATADIR)/$(PACKAGE)/init.lsp
 
 OBJ = double.o lisp.o posix.o string.o
-BINARIES = flisp fl
+BINARIES = fl
 LIBRARIES = libflisp.a
 RC_FILES = init.lsp
 HEADER = lisp.h string.h posix.h double.h
@@ -55,10 +55,9 @@ double.o: double.c double.h lisp.h
 fl: fl.o lisp.o $(OBJ)
 	$(LD) $(LDFLAGS) -o $@ $^ -lm
 
-flisp: flisp.o $(OBJ) init.lsp
-	$(LD) $(LDFLAGS) -o $@ $< $(OBJ) -lm
+flisp: fl init.lsp
 
-flisp.o: flisp.c lisp.h posix.h
+fl.o: fl.c lisp.h posix.h double.h string.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
 
 flisp.pc: flisp.pc.sht
@@ -107,11 +106,11 @@ doxygen: FORCE
 
 # Development
 fli: flisp FORCE
-	FLISPRC=init.lsp FLISPLIB=. FLISP_DEBUG=f.log $$(which rlwrap) ./flisp
+	FLISPRC=init.lsp FLISPLIB=. FLISP_DEBUG=f.log $$(which rlwrap) ./fl
 fld: flisp FORCE
-	FLISPRC=init.lsp FLISPLIB=. FLISP_DEBUG=f.log gdb ./flisp
+	FLISPRC=init.lsp FLISPLIB=. FLISP_DEBUG=f.log gdb ./fl
 flv: flisp FORCE
-	FLISPRC=init.lsp FLISPLIB=. FLISP_DEBUG=f.log valgrind ./flisp
+	FLISPRC=init.lsp FLISPLIB=. FLISP_DEBUG=f.log valgrind ./fl
 frama-c: FORCE
 	frama-c -c11 -cpp-extra-args="-I$(frama-c -print-path)/libc -I/usr/include -I." -kernel-msg-key pp -metrics *.c
 
@@ -123,7 +122,7 @@ measure: $(RC_FILES) $(BINARIES) strip FORCE
 	@echo fLisp Code Stats
 	@echo
 	@echo "libsize: " $$(set -- $$(ls -l libflisp.a); echo $$5)
-	@echo "binsize: " $$(set -- $$(ls -l flisp); echo $$5)
+	@echo "binsize: " $$(set -- $$(ls -l fl); echo $$5)
 	@echo "              C  Lisp  Total"
 	@echo "lines:     $$(cat $(SOURCES) | wc -l)   $$(cat $(LISPSRC) | wc -l)   $$(cat $(ALLSRC) | wc -l)"
 	@echo "files:        $$(echo $(SOURCES) | wc -w)     $$(echo $(LISPSRC) | wc -w)     $$(echo $(ALLSRC) | wc -w)"
@@ -138,11 +137,11 @@ splint: FORCE
 TAGS: FORCE
 	ctags -e *.c *.h *.lsp
 
-test: fl flisp test/test.lsp FORCE
+test: fl test/test.lsp FORCE
 	@(cd test && ./test.sh -as)
 
 # Exit 1 if any testsuite fails
-check: flisp test/test.lsp FORCE
+check: fl test/test.lsp FORCE
 	@(cd test && ./test.sh -sa | grep tests, | \
 	while read RESULT; do \
 	   RESULT=$${RESULT#* tests, }; \
@@ -157,7 +156,7 @@ strip: $(BINARIES) $(LIBRARIES) FORCE
 	strip $(BINARIES) $(LIBRARIES)
 
 clean: FORCE
-	-$(RM) -f $(OBJ) $(BINARIES) $(LIBRARIES) $(RC_FILES) fl.o flisp.o flisp.pc
+	-$(RM) -f $(OBJ) $(BINARIES) $(LIBRARIES) $(RC_FILES) fl.o flisp.pc
 	-$(RM) -rf doxygen
 	-$(RM) -f $(MOREDOCS)
 	-$(RM) -f f.log
