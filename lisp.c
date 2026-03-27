@@ -525,11 +525,14 @@ allocateObject:
     return object;
 }
 
+#define IS_ERR(OBJECT) ((OBJECT)->type == type_error)
+#define CHECK_ERR(OBJECT) if IS_ERR(OBJECT) return OBJECT
+#define IS_EOF(OBJECT) (IS_ERR(OBJECT) && (OBJECT)->error == end_of_file)
 /* Note: for speed reasons we should use a single static error object and compare pointers */
-#define IS_OOM(OBJECT) ((OBJECT)->type == type_error && (OBJECT)->error == gc_error)
+#define IS_OOM(OBJECT) (IS_ERR(OBJECT) && (OBJECT)->error == gc_error)
 #define CHECK_OOM(OBJECT) if IS_OOM(OBJECT) return OBJECT
 
-#define IS_ERR(OBJECT) ((OBJECT)->type == type_error)
+
 
 // CONSTRUCTING OBJECTS ///////////////////////////////////////////////////////
 
@@ -1189,8 +1192,7 @@ Object *readList(Object *interp, FILE *fd)
                 GC_TRACE(gcList, list);
                 last = readExpr(interp, fd);
                 GC_RELEASE;
-                if (!last) READER_EOF("while reading dotted list");
-                if (last->type == type_error)
+                if (IS_ERR(last))
                     return newError(interp, invalid_value, last, "read error while reading expression in dotted list");
                 ch = peekNext(interp, fd);
                 if (ch == EOF && ferror(fd))  READER_IO("while reading dotted list");
@@ -1207,8 +1209,7 @@ Object *readList(Object *interp, FILE *fd)
             GC_TRACE(gcList, list);
             GC_TRACE(gcLast, last);
             *gcLast = readExpr(interp, fd);
-            if (!*gcLast) GC_RETURN(newError(interp, read_incomplete, nil, "unexpected end of stream while reading expression list"));
-            if ((*gcLast)->type == type_error)  GC_RETURN(newError(interp, invalid_value, *gcLast, "read error while reading expression in list"));
+            if (IS_ERR(*gcLast))  GC_RETURN(newError(interp, invalid_value, *gcLast, "read error while reading expression in list"));
             list = newCons(interp, gcLast, gcList);
             if IS_OOM(list) GC_RETURN(list);
             GC_RELEASE;
@@ -1238,11 +1239,11 @@ Object *readUnary(Object *interp, FILE *fd, char *symbol)
     }
     GC_CHECKPOINT;
     GC_TRACE(gcSymbol, newSymbol(interp, symbol));
-    if IS_OOM(*gcSymbol) GC_RETURN(*gcSymbol);
+    if IS_ERR(*gcSymbol) GC_RETURN(*gcSymbol);
     GC_TRACE(gcObject, readExpr(interp, fd));
-
+    if IS_ERR(*gcObject) GC_RETURN(*gcObject);
     *gcObject = newCons(interp, gcObject, &nil);
-    if IS_OOM(*gcSymbol) GC_RETURN(*gcSymbol);
+    if IS_ERR(*gcSymbol) GC_RETURN(*gcSymbol);
     *gcObject = newCons(interp, gcSymbol, gcObject);
     GC_RETURN(*gcObject);
 }
@@ -1257,7 +1258,7 @@ Object *doReaderMacro(Object *interp, FILE *fd)
     fgetc(fd);
     if (ch == '!') {
         while ((ch = fgetc(fd)) != EOF && ch != '\n');
-        return NULL;
+        return nil;
     }
     if (ch == '\'') {
         initPad(scratchpad);
@@ -1304,10 +1305,10 @@ Object *doReaderMacro(Object *interp, FILE *fd)
  * @param interp  fLisp interpreter
  * @param fd      open readable file descriptor
  *
- * returns: sexp object or NULL if EOF
+ * returns: sexp object or error
  *
  * @errors: io-error, read-incomplete, range-error,
- *     out-of-memory
+ *     out-of-memory, end-of-file
  */
 Object *readExpr(Object *interp, FILE *fd)
 {
@@ -1318,10 +1319,20 @@ Object *readExpr(Object *interp, FILE *fd)
 
         int ch = skipToNext(interp, fd);
 
-        if (ch == EOF) { if (ferror(fd)) READER_IO(WHILE_EXPR); else return NULL; }
+        if (ch == EOF) {
+            if (ferror(fd))
+                READER_IO(WHILE_EXPR);
+            else
+                /* Note: this would be "The Right Thing" (tm), but we
+                 *  have to unmangle the whole reader and repl to use
+                 *  it correctly:
+                 */
+                //return newError(interp, end_of_file, nil, "EOF");
+                READER_EOF(WHILE_EXPR);
+        }
         if (ch == '#') {
             object = doReaderMacro(interp, fd);
-            if (object == NULL) continue;
+            if (object == nil) continue;
             return object;
         }
         if (ch == '\'' || ch == ':')
@@ -1330,7 +1341,7 @@ Object *readExpr(Object *interp, FILE *fd)
             return readUnary(interp, fd, "quasiquote");
         if (ch == ',') {
             ch = streamPeek(fd);
-            if (ch == EOF) { if (ferror(fd)) READER_IO(WHILE_EXPR); else return NULL; }
+            if (ch == EOF) { if (ferror(fd)) READER_IO(WHILE_EXPR); else READER_EOF(WHILE_EXPR); }
             if (ch == '@') {
                 if (!addCharToPad(scratchpad, fgetc(fd))) {
                     if (ferror(fd)) READER_IO(WHILE_EXPR);  else READER_OOM(WHILE_EXPR);
@@ -1366,30 +1377,22 @@ Object *readExpr(Object *interp, FILE *fd)
 Object *primitiveRead(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     Object *eofv = nil;
-    Object *stream = nil;
     FILE *fd = interp->input->fd;
 
     GC_CHECKPOINT;
-    if (nArgs--) {
+    if (nArgs) {
         if (FLISP_ARG1 != nil) {
             FLISP_ASSERT(FLISP_ARG1, type_stream, "(read[ stream[ eofv]]) - stream)");
-            stream = FLISP_ARG1;
             fd = FLISP_ARG1->fd;
         }
-        if (nArgs)
-            eofv = FLISP_ARG2;
     }
-    GC_TRACE(gcStream, stream);
+    if (nArgs > 1)  eofv = FLISP_ARG2;
+
     GC_TRACE(gcEofv, eofv);
     Object *result = readExpr(interp, fd);
     GC_RELEASE;
 
-    if (result == NULL) {
-        if (*gcEofv == nil)
-            return newError(interp, end_of_file, *gcStream, "(read[ stream[ eofv]) - input exhausted");
-        else
-            result = *gcEofv;
-    }
+    if (IS_EOF(result) && *gcEofv == nil)  return *gcEofv;
     return result;
 }
 

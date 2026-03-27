@@ -3,6 +3,7 @@
 # test executable and fLisp functionality
 #
 
+export FLISP=../fl
 FLISP_DEBUG=../f.log
 unset PREPARE
 
@@ -385,23 +386,23 @@ flisp_expr
 [ -e _file_ ]; ok open-1 create file
 rm -f _file_
 
-RESULT=$(echo $PREPARE '(open "empty.lsp")' | $FLISP | grep -E '#<Stream 0X[0-9A-F]{2,16} empty.lsp>')
+RESULT=$(echo $PREPARE '(open "empty.lsp")' | $FLISP 2>&1 | grep -E '#<Stream 0X[0-9A-F]{2,16} empty.lsp>')
 ok open-2 open file readonly
 
-RESULT=$(echo $PREPARE '(open "<0")' | $FLISP | grep -E "#<Stream 0X[0-9A-F]{2,16} <0>")
+RESULT=$(echo $PREPARE '(open "<0")' | $FLISP 2>&1 | grep -E "#<Stream 0X[0-9A-F]{2,16} <0>")
 ok open-3 open readable file descriptor
 
-RESULT=$(echo $PREPARE '(open ">1")' | $FLISP | grep -E "#<Stream 0X[0-9A-F]{2,17} >1>")
+RESULT=$(echo $PREPARE '(open ">1")' | $FLISP 2>&1 | grep -E "#<Stream 0X[0-9A-F]{2,17} >1>")
 ok open-4 open writeable file descriptor
 
-RESULT=$(echo $PREPARE '(open "any text" "<")' | $FLISP | grep -E "#<Stream 0X[0-9A-F]{2,16} <STRING>")
+RESULT=$(echo $PREPARE '(open "any text" "<")' | $FLISP 2>&1 | grep -E "#<Stream 0X[0-9A-F]{2,16} <STRING>")
 ok open-5 open memory input stream
 
-RESULT=$(echo $PREPARE '(open "" ">")' | $FLISP | grep -E "#<Stream 0X[0-9A-F]{2,16} >STRING>")
+RESULT=$(echo $PREPARE '(open "" ">")' | $FLISP 2>&1 | grep -E "#<Stream 0X[0-9A-F]{2,16} >STRING>")
 ok open-6 open memory output stream
 
 IN='(close (open "empty.lsp"))' OUT="nil" 
-flisp_expr; ok close-1 close file \# TODO why now nul\?
+flisp_expr; ok close-1 close file
 
 IN='(close (open ">2"))' OUT="nil"
 flisp_expr; ok close-2 close file descriptor
@@ -419,7 +420,7 @@ IN='(close (bind t f (open "" ">"))) (file-info f)' OUT='(">STRING" nil nil)'
 flisp_expr 3; ok file-info-2 file-info of closed memory stream contains nil
 
 IN='(read (open "1" "<"))' OUT="1"
-flisp_expr; ok read-1 read memory input stream
+flisp_expr; ok read-1 read memory input stream \# TODO this works with "x", so it seems to be an issue with scratchpad and integer conversion
 
 IN='(read *standard-input* end-of-file)' OUT="end-of-file"
 flisp_expr; ok read-2 read with eof marker
