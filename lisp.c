@@ -1327,8 +1327,8 @@ Object *readExpr(Object *interp, FILE *fd)
                  *  have to unmangle the whole reader and repl to use
                  *  it correctly:
                  */
-                //return newError(interp, end_of_file, nil, "EOF");
-                READER_EOF(WHILE_EXPR);
+                return newError(interp, end_of_file, nil, "EOF");
+            //READER_EOF(WHILE_EXPR);
         }
         if (ch == '#') {
             object = doReaderMacro(interp, fd);
@@ -2845,13 +2845,13 @@ Memory *newMemory(size_t size)
  */
 Object *flisp_new(
     size_t size,
-    char **argv, char *library_path,
-    FILE *input, FILE *output, FILE* debug)
+    char **argv,
+    FILE *input, FILE *output, FILE *error, FILE* debug)
 {
     Object *interp;
     Object *var;
 
-    interp = malloc(sizeof(ObjectHeader) + sizeof(InterpreterObjects));
+    interp = malloc(sizeof(ObjectHeader) + sizeof(InterpreterObjects)+20);
     if (interp == NULL) return NULL;
 
     flisp_debug->type = type_stream;
@@ -2903,7 +2903,12 @@ Object *flisp_new(
     /* output stream */
     interp->output = newStreamObject(interp, output, "*standard-output*");
     var = newSymbol(interp, "*standard-output*");
-    (void)envSet(interp, &var, &interp->input, &interp->global, true);
+    (void)envSet(interp, &var, &interp->output, &interp->global, true);
+
+    /* error stream */
+    interp->stderr = newStreamObject(interp, error, "*standard-error*");
+    var = newSymbol(interp, "*standard-error*");
+    (void)envSet(interp, &var, &interp->stderr, &interp->global, true);
 
     GC_CHECKPOINT;
     GC_TRACE(gcVal, nil);
@@ -2941,15 +2946,6 @@ Object *flisp_new(
         (void)envSet(interp, &var, gcVal, &interp->global, true);
     }
 
-    /* Add library_path to the environment */
-    if (library_path == NULL)
-        if ((library_path=getenv("FLISPLIB")) == NULL)
-            library_path = CPP_XSTR(FLISPLIB);
-
-    *gcVal = newString(interp, library_path);
-    var = newSymbol(interp, "script_dir");
-    envSet(interp, &var, gcVal, &interp->global, true);
-
     GC_RELEASE;
 
     return interp;
@@ -2975,7 +2971,37 @@ void flisp_destroy(Object *interp)
     free(interp);
 }
 
+Object *flisp_eval_expr(Object *interp, Object *object)
+{
+    return evalExpr(interp, &object, &interp->global);
+}
+Object *flisp_read_expr(Object *interp)
+{
+    return readExpr(interp, interp->input->fd);
+}
+#define WRITENL(FD) fputs("\n", FD)
+Object *flisp_eval_input(Object *interp, bool readably)
+{
+    Object *object;
 
+    for (;;) {
+        object = flisp_read_expr(interp);
+        if (IS_ERR(object)) return object;
+        object = flisp_eval_expr(interp, object);
+        if (IS_ERR(object)) {
+            if (object->error == end_of_file)  return object;
+            flisp_write_object(interp->stderr->fd, object, readably);
+            if (interp->stderr->fd) fputs("\n", interp->stderr->fd);
+            fflush(0);
+            return object;
+        }
+        flisp_write_object(interp->output->fd, object, readably);
+        if (interp->output->fd) fputs("\n", interp->output->fd);
+        fflush(0);
+    }
+}
+
+/* Note: let's retire this one */
 /** flisp_eval() - interpret a string or file in Lisp
  *
  * @param interp  fLisp interpreter
@@ -3041,10 +3067,6 @@ Object *flisp_eval(Object *interp, char *input)
     return object;
 }
 
-Object *flisp_expr(Object *interp, Object *object)
-{
-    return evalExpr(interp, &object, &interp->global);
-}
 
 /*
  * Local Variables:

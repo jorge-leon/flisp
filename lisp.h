@@ -100,6 +100,7 @@ typedef struct InterpreterObjects {
     Object *debug;
     Object *input;
     Object *output;
+    Object *stderr;
     Object *extensions;
 } InterpreterObjects;
 
@@ -127,6 +128,7 @@ struct Object {
             Object *debug;
             Object *input;
             Object *output;
+            Object *stderr;
             Object *extensions;
             
             Memory *memory;
@@ -142,10 +144,11 @@ typedef struct Scratchpad {
 } Scratchpad;
 
 // PUBLIC INTERFACE ///////////////////////////////////////////////////////
-extern Object *flisp_new(size_t size, char **, char*, FILE*, FILE*, FILE*);
+extern Object *flisp_new(size_t size, char **, FILE*, FILE*, FILE*, FILE*);
 extern void flisp_destroy(Object *);
 extern Object *flisp_eval(Object *, char *);
 extern Object *flisp_expr(Object *, Object *);
+extern Object *flisp_eval_input(Object *, bool);
 extern Object *flisp_write_object(FILE *, Object *, bool);
 /* Note: to be documented */
 extern Object *flisp_find_symbol(Object *, char*, size_t);

@@ -4,6 +4,8 @@
 #
 
 export FLISP=../fl
+export FLISPRC=
+export FLISP_INTERACTIVE=1
 FLISP_DEBUG=../f.log
 unset PREPARE
 

@@ -22,77 +22,62 @@ void fatal(char *msg)
     fputc('\n', stderr);
     exit(1);
 }
-
+void writeln_object(FILE * fd, Object *object, bool readably)
+{
+    flisp_write_object(fd, object, readably);
+    fputs("\n", fd);
+    fflush(fd);
+}
 int main(int argc, char **argv)
 {
-    char *rcfile, *debug_file, *size_string;
-    FILE *debug_fd = NULL, *input_fd = stdin, *output_fd = NULL;
+//    char *rcfile;
+    char *debug_file, *noout, *size_string;
+    FILE *debug_fd = NULL, *input_fd = stdin, *output_fd = stdout;
     long long size = 0;
     Object *interp;
 
+    if ((size_string=getenv("FLISP_SIZE")) != NULL) {
+        size = strtoll(size_string, NULL, 16);
+        if (errno == ERANGE || errno == EINVAL)  fatal("invalid FLISP_SIZE");
+    }
     if ((debug_file=getenv("FLISP_DEBUG")) != NULL) {
         if (debug_file[0] != '\0')
             ;
         else if (debug_file[0] == '-')
             debug_fd = stdout;
-        else if (debug_file[0] == '=')
+        else if (debug_file[0] == '&')
             debug_fd = stderr;
         else if ((debug_fd = fopen(debug_file, "w")) == NULL) {
-            fputs("failed to open debug file", stderr);
-            debug_fd = output_fd = stdout;
+            fatal("failed to open debug file");
         }
     }
-    if ((rcfile = getenv("FLISPRC")) == NULL)
-        rcfile = CPP_XSTR(FLISPRC);
-
-    if (*rcfile != '\0')
-        if (!(input_fd = fopen(rcfile, "r"))) {
-            fputs("failed to open rcfile: ", stderr);
-            fputs(rcfile, stderr);
-            fputs("\n", stderr);
-            input_fd = stdin;
-            output_fd = stdout;
-        }
-
-    if ((size_string=getenv("FLISP_SIZE")) != NULL) {
-        size = strtoll(size_string, NULL, 16);
-        if (errno == ERANGE || errno == EINVAL)
-            fputs("invalid FLISP_SIZE", stderr);
-    }
+    if ((noout = getenv("FLISP_QUIET")) != NULL && noout[0] != '0')
+        output_fd = (FILE *)NULL;
 
     bool interactive = (getenv("FLISP_INTERACTIVE") != NULL || isatty(fileno(input_fd)));
-    if (interactive && output_fd == NULL) output_fd = stdout;
 
-    interp = (Object *)flisp_new((size_t) size, argv, NULL, input_fd, output_fd, debug_fd);
+    interp = flisp_new((size_t) size, argv, input_fd, output_fd, stderr, debug_fd);
     if (interp == NULL)
         fatal("fLisp interpreter initialization failed");
 
     if (interp->type == type_error) {
-        flisp_write_object(stderr, (Object *)interp, false);
-        exit(1);
+        writeln_object(stderr, (Object *)interp, false);
+        return 1;
     }
 
-    if (interactive)  fputs(FL_NAME " " FL_VERSION, output_fd);
+    if (interactive) fputs(FL_NAME " " FL_VERSION, output_fd);
 
     Object *result = nil;
-
     for (;;) {
-        if (interactive)   fputs( "\n> ", stdout);
-        result = flisp_eval(interp, NULL);
-        if (interp->output->fd && interp->output->fd != debug_fd)
-            fflush(interp->output->fd);
-        if (debug_fd)
-            fflush(debug_fd);
+        if (interactive)  fputs( "\n> ", stdout);
+        fflush(NULL);
+
+        result = flisp_eval_input(interp, !interactive);
         if (result->type == type_error) {
-            flisp_write_object(stderr, result, false);
-            if (result->error == end_of_file || feof(input_fd)) exit(0);
-            fputs("", stderr);
-            if (interactive)  continue;
-            exit(1);
+            if (result->error == end_of_file) return 0;
+            if (!interactive) return 1;
         }
-        if (result == end_of_file || feof(input_fd)) exit(0);
-        if (interactive)  continue;
-        exit(0);
+        if (interp->output->fd) fputs("\n", interp->output->fd);
     }
 }
 
