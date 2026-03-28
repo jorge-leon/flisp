@@ -103,9 +103,9 @@ Object init_env_failed =      { .length = 0, .string = "failed to create global 
 Object init_oom_message =     { .length = 0, .string = "failed to allocate memory for the interpreter" };
 Object fmt_oom_message =      { .length = 0, .string = "failed to allocate memory for the writer" };
 Object fmt_invalid_base=      { .length = 0, .string = "invalid number base" };
+Object fmt_invalid_length =   { .length = 0, .string = "invalid formatting length" };
 Object eval_no_input =        { .length = 0, .string = "no input stream configured" };
 Object eval_input_open =      { .length = 0, .string = "fmemopen() for input string failed" };
-/* Note: originally we had also , "%s", strerror(errno) */
 Object write_char_failed =    { .length = 0, .string = "failed to write character" };
 Object write_string_failed =  { .length = 0, .string = "failed to write string" };
 Object write_invalid_object = { .length = 0, .string = "invalid object" };
@@ -1772,6 +1772,8 @@ Object *writeInteger(FILE *fd, int64_t value)
     char *i = fmtInteger(scratchpad, value, 10, flisp_integer_char_map, 'd', -1);
     if (i == NULL)
         return flisp_static_error(out_of_memory, &fmt_oom_message);
+    if (i == (char *)-1) return flisp_static_error(range_error, &fmt_invalid_base);
+    if (i == (char *)-2) return flisp_static_error(range_error, &fmt_invalid_length);
     return writeString(fd, i);
 }
 Object *writeHex(FILE *fd, int64_t value, size_t length)
@@ -2979,94 +2981,27 @@ Object *flisp_read_expr(Object *interp)
 {
     return readExpr(interp, interp->input->fd);
 }
-#define WRITENL(FD) fputs("\n", FD)
+
 Object *flisp_eval_input(Object *interp, bool readably)
 {
     Object *object;
 
     for (;;) {
         object = flisp_read_expr(interp);
-        if (IS_ERR(object)) return object;
+        if (IS_ERR(object))  break;
         object = flisp_eval_expr(interp, object);
-        if (IS_ERR(object)) {
-            if (object->error == end_of_file)  return object;
-            flisp_write_object(interp->stderr->fd, object, readably);
-            if (interp->stderr->fd) fputs("\n", interp->stderr->fd);
-            fflush(0);
-            return object;
-        }
+        if (IS_ERR(object))  break;
         flisp_write_object(interp->output->fd, object, readably);
         if (interp->output->fd) fputs("\n", interp->output->fd);
         fflush(0);
     }
-}
-
-/* Note: let's retire this one */
-/** flisp_eval() - interpret a string or file in Lisp
- *
- * @param interp  fLisp interpreter
- * @param input   string to evaluate
- *
- * @returns result of last expression or error
- *
- * If input is NULL, the interpreters input stream is evaluated
- * instead.
- *
- */
-Object *flisp_eval(Object *interp, char *input)
-{
-    FILE *fd = NULL;
-
-    if (input == NULL) {
-        fl_debug(interp, "flisp_eval()\n");
-        if (interp->input->fd  == NULL)
-            return flisp_static_error(invalid_value, &eval_no_input);
-    } else {
-        fl_debug(interp, "flisp_eval(\"%s\")\n", input);
-        if (NULL == (fd = fmemopen(input, strlen(input), "r")))
-            return flisp_static_error(io_error, &eval_input_open);
+    if (object->error != end_of_file) {
+        flisp_write_object(interp->stderr->fd, object, readably);
+        if (interp->stderr->fd) fputs("\n", interp->stderr->fd);
     }
-    interp->gcTop = nil;
-    GC_CHECKPOINT;
-    GC_TRACE(gcResult, nil);
-    GC_TRACE(gcArgs, newCons(interp, &end_of_file, &nil));
-    *gcArgs = newCons(interp, &nil, gcArgs);
-    if (fd)
-        (*gcArgs)->car = newStreamObject(interp, fd, input);
-
-    Object *object;
-    for (;;) {
-        object = primitiveRead(interp, gcArgs, &interp->global, (fd) ? 1 : 0);
-#if FLISP_TRACE_READ
-        fl_debug(interp, "trace read: ");
-        flisp_write_object(interp->debug->fd, object, true);
-        fl_debug(interp, "\n");
-#endif
-        /* Note: the reader incorrectly sends us errors when he only
-         * should indicate end-of-file
-         */
-        if (object->type == type_error && object->error == end_of_file)
-            object = end_of_file;
-
-        if (object == end_of_file)  break;
-
-        object = evalExpr(interp, &object, &interp->global);
-        if (object->type == type_error)
-            break;
-
-        flisp_write_object(interp->output->fd, object, true);
-        writeChar(interp->output->fd, '\n');
-        /* Note: we should do a smart decision on wether to flush or not if console flush, if file don't */
-        fflush(interp->output->fd);
-        *gcResult = object;
-    }
-    GC_RELEASE;
-    if (interp->output->fd) fflush(interp->output->fd);
-    if (fd) fclose(fd);
-    if (object == end_of_file)  return *gcResult;
+    fflush(0);
     return object;
 }
-
 
 /*
  * Local Variables:

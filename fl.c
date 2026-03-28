@@ -3,6 +3,18 @@
  *
  * Georg Lehner <jorge@magma-soft.at> 2024, CC0 1.0
  *
+ * Commandline arguments are passed to the fLisp interpreter.
+ * Environment:
+ * - FLISP_SIZE        .. Number of bytes to allocate on start, defaults to zero.
+ * - FLISP_QUIET       .. If not '' or '0' set interpreter stdout to NULL.
+ * - FLISP_INTERACTIVE .. If set to '0' interactive mode is off.
+ *                        Oterwise if set or stdin is a tty write
+ *                        version at start and prompt after each
+ *                        error.
+ * - FLISP_DEBUG       .. File name to use for debugging. Special cases:
+ *     - '-' .. stdout
+ *     - '&' .. stderr
+ *     - ''  .. no debugging
  */
 
 #include <stdlib.h>
@@ -24,37 +36,44 @@ void fatal(char *msg)
 }
 void writeln_object(FILE * fd, Object *object, bool readably)
 {
+    if (!fd)  return;
     flisp_write_object(fd, object, readably);
     fputs("\n", fd);
     fflush(fd);
 }
+void write_string(FILE *fd, char *string)
+{
+    if (!fd)  return;
+    fputs(string, fd);
+    fflush(fd);
+}
 int main(int argc, char **argv)
 {
-//    char *rcfile;
-    char *debug_file, *noout, *size_string;
+    char *env;
     FILE *debug_fd = NULL, *input_fd = stdin, *output_fd = stdout;
     long long size = 0;
     Object *interp;
 
-    if ((size_string=getenv("FLISP_SIZE")) != NULL) {
-        size = strtoll(size_string, NULL, 16);
+    if ((env = getenv("FLISP_SIZE")) != NULL) {
+        size = strtoll(env, NULL, 16);
         if (errno == ERANGE || errno == EINVAL)  fatal("invalid FLISP_SIZE");
     }
-    if ((debug_file=getenv("FLISP_DEBUG")) != NULL) {
-        if (debug_file[0] != '\0')
+    if ((env = getenv("FLISP_DEBUG")) != NULL) {
+        if (env[0] != '\0')
             ;
-        else if (debug_file[0] == '-')
+        else if (env[0] == '-')
             debug_fd = stdout;
-        else if (debug_file[0] == '&')
+        else if (env[0] == '&')
             debug_fd = stderr;
-        else if ((debug_fd = fopen(debug_file, "w")) == NULL) {
+        else if ((debug_fd = fopen(env, "w")) == NULL) {
             fatal("failed to open debug file");
         }
     }
-    if ((noout = getenv("FLISP_QUIET")) != NULL && noout[0] != '0')
+    if ((env = getenv("FLISP_QUIET")) != NULL && env[0] != '0')
         output_fd = (FILE *)NULL;
 
-    bool interactive = (getenv("FLISP_INTERACTIVE") != NULL || isatty(fileno(input_fd)));
+    env = getenv("FLISP_INTERACTIVE");
+    bool interactive = env[0] != '0' && (env || isatty(fileno(input_fd)));
 
     interp = flisp_new((size_t) size, argv, input_fd, output_fd, stderr, debug_fd);
     if (interp == NULL)
@@ -65,19 +84,21 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    if (interactive) fputs(FL_NAME " " FL_VERSION, output_fd);
+    if (interactive) write_string(output_fd, FL_NAME " " FL_VERSION "\n");
 
     Object *result = nil;
     for (;;) {
-        if (interactive)  fputs( "\n> ", stdout);
+        if (interactive)  write_string(interp->output->fd, "> ");
         fflush(NULL);
 
         result = flisp_eval_input(interp, !interactive);
         if (result->type == type_error) {
-            if (result->error == end_of_file) return 0;
+            if (result->error == end_of_file) {
+                if (interactive) write_string(interp->output->fd, "\n");
+                return 0;
+            }
             if (!interactive) return 1;
         }
-        if (interp->output->fd) fputs("\n", interp->output->fd);
     }
 }
 
