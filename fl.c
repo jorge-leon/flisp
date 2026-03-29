@@ -58,7 +58,7 @@ int main(int argc, char **argv)
         if (errno == ERANGE || errno == EINVAL)  fatal("invalid FLISP_SIZE");
     }
     if ((env = getenv("FLISP_DEBUG")) != NULL) {
-        if (env[0] != '\0')
+        if (env[0] == '\0')
             ;
         else if (env[0] == '-')
             debug_fd = stdout;
@@ -76,10 +76,10 @@ int main(int argc, char **argv)
         interactive = !(env[0] == '0' || env[0] == '\0' );
     
     do {
-        FLISP_WHILE_OK(interp = flisp_new((size_t) size, argv, input_fd, output_fd, stderr, debug_fd));
-        FLISP_WHILE_OK(flisp_register_extension(interp, "string", flisp_string_init));
-        FLISP_WHILE_OK(flisp_register_extension(interp, "double", flisp_double_init));
-        FLISP_WHILE_OK(flisp_register_extension(interp, "posix", flisp_posix_init));
+        FLISP_UNLESS_ERR(interp = flisp_new((size_t) size, argv, input_fd, output_fd, stderr, debug_fd));
+        FLISP_UNLESS_ERR(flisp_register_extension(interp, "string", flisp_string_init));
+        FLISP_UNLESS_ERR(flisp_register_extension(interp, "double", flisp_double_init));
+        FLISP_UNLESS_ERR(flisp_register_extension(interp, "posix", flisp_posix_init));
     } while (0);
     if (FLISP_IS_ERR(e)) {
         writeln_object(stderr, e, false);

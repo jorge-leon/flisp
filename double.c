@@ -96,21 +96,20 @@ Object *flisp_double_init(Object *interp, Object *extension)
     GC_CHECKPOINT;
     GC_TRACE(gcExt, extension);
     do {
-        FLISP_WHILE_OK(flisp_register_primitive(interp, "integer", 1,  1, type_double,  integerFromDouble));
-        FLISP_WHILE_OK(flisp_register_primitive(interp, "double",  1,  1, type_integer, doubleFromInteger));
-        FLISP_WHILE_OK(flisp_register_primitive(interp, "d+",      2,  2, type_double, doubleAdd));
-        FLISP_WHILE_OK(flisp_register_primitive(interp, "d-",      2,  2, type_double, doubleSubtract));
-        FLISP_WHILE_OK(flisp_register_primitive(interp, "d*",      2,  2, type_double, doubleMultiply));
-        FLISP_WHILE_OK(flisp_register_primitive(interp, "d/",      2,  2, type_double, doubleDivide));
-        FLISP_WHILE_OK(flisp_register_primitive(interp, "d%",      2,  2, type_double, doubleMod));
-        FLISP_WHILE_OK(flisp_register_primitive(interp, "d=",      2,  2, type_double, doubleEqual));
-        FLISP_WHILE_OK(flisp_register_primitive(interp, "d<",      2,  2, type_double, doubleLess));
-        FLISP_WHILE_OK(flisp_register_primitive(interp, "d<=",     2,  2, type_double, doubleLessEqual));
-        FLISP_WHILE_OK(flisp_register_primitive(interp, "d>",      2,  2, type_double, doubleGreater));
-        FLISP_WHILE_OK(flisp_register_primitive(interp, "d>=",     2,  2, type_double, doubleGreaterEqual));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "integer", 1,  1, type_double,  integerFromDouble));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "double",  1,  1, type_integer, doubleFromInteger));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "d+",      2,  2, type_double, doubleAdd));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "d-",      2,  2, type_double, doubleSubtract));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "d*",      2,  2, type_double, doubleMultiply));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "d/",      2,  2, type_double, doubleDivide));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "d%",      2,  2, type_double, doubleMod));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "d=",      2,  2, type_double, doubleEqual));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "d<",      2,  2, type_double, doubleLess));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "d<=",     2,  2, type_double, doubleLessEqual));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "d>",      2,  2, type_double, doubleGreater));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "d>=",     2,  2, type_double, doubleGreaterEqual));
 
-        (*gcExt)->extension.version = newString(interp, FLISP_DOUBLE_VERSION);
-        if (FLISP_IS_ERR(*gcExt)) GC_RETURN(*gcExt);
+        FLISP_UNLESS_ERR((*gcExt)->extension.version = newString(interp, FLISP_DOUBLE_VERSION));
     } while (0);
     GC_RELEASE;
     return e;

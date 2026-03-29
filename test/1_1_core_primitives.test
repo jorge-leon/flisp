@@ -8,7 +8,7 @@ export FLISP_INTERACTIVE=0
 FLISP_DEBUG=../f.log
 unset PREPARE
 
-#export FLISP_SIZE=$((20*1024*1024))
+export FLISP_SIZE=$((20*1024*1024))
 
 tap 154
 
@@ -89,7 +89,7 @@ IN="'(0 1 . 2)" OUT='(0 1 . 2)'
 flisp_expr; ok reader-14 read dotted list
 
 IN="'(0 1 . " OUT="#<Error read-incomplete: \"unexpected end of stream while reading dotted list\", nil>"
-flisp_expr; ok reader-14-1 dotted list w/o end paren
+flisp_expr; ok reader-14-1 dotted list w/o end paren \# TODO review - double error
 
 IN="'(0 1 . 2 3)" OUT="#<Error invalid-read-syntax: \"unexpected object at end of dotted list\", nil>"
 flisp_expr; ok reader-15 read dotted list with extra element
@@ -98,7 +98,7 @@ IN="'(0 1 .)" OUT="#<Error invalid-read-syntax: \"expected object at end of dott
 flisp_expr; ok reader-16 read dotted list without cdr
 
 IN="'(nil . t)" OUT="(nil . t)"
-flisp_expr; ok reader-16-1 read dotted list where nil precedes dot
+flisp_expr; ok reader-16-1 read dotted list where nil precedes dot \# TODO fix reader
 
 IN="'(" OUT="#<Error read-incomplete: \"unexpected end of stream while reading list\", nil>"
 flisp_expr; ok reader-17 read list without end

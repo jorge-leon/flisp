@@ -241,17 +241,16 @@ Object *flisp_string_init(Object *interp, Object *extension)
     GC_CHECKPOINT;
     GC_TRACE(gcExt, extension);
     do {
-        FLISP_WHILE_OK(flisp_register_primitive(   interp, "code-length",   1, 1, type_string,  stringCodeLength));
-        FLISP_WHILE_OK(flisp_register_primitive(interp, "char-offset",   2, 2, nil,          stringCharOffset));
-        FLISP_WHILE_OK(flisp_register_primitive(interp, "string-length", 1, 1, type_string,  stringLength));
-        FLISP_WHILE_OK(flisp_register_primitive(interp, "code-char",     1, 1, type_integer, stringCodeChar));
-        FLISP_WHILE_OK(flisp_register_primitive(interp, "char-code",     1, 1, type_string,  stringCharCode));
-        FLISP_WHILE_OK(flisp_register_primitive(interp, "string-search", 2, 2, type_string,  stringSearch));
-        FLISP_WHILE_OK(flisp_register_primitive(interp, "strspn",        2, 2, type_string,  stringStrspn));
-        FLISP_WHILE_OK(flisp_register_primitive(interp, "strcspn",       2, 2, type_string,  stringStrcspn));
+        FLISP_UNLESS_ERR(flisp_register_primitive(   interp, "code-length",   1, 1, type_string,  stringCodeLength));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "char-offset",   2, 2, nil,          stringCharOffset));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "string-length", 1, 1, type_string,  stringLength));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "code-char",     1, 1, type_integer, stringCodeChar));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "char-code",     1, 1, type_string,  stringCharCode));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "string-search", 2, 2, type_string,  stringSearch));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "strspn",        2, 2, type_string,  stringStrspn));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "strcspn",       2, 2, type_string,  stringStrcspn));
 
-        (*gcExt)->extension.version = newString(interp, FLISP_STRING_VERSION);
-        if (FLISP_IS_ERR(*gcExt)) GC_RETURN(*gcExt);
+        FLISP_UNLESS_ERR((*gcExt)->extension.version = newString(interp, FLISP_STRING_VERSION));
     } while (0);
     GC_RELEASE;
     return e;
