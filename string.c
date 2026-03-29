@@ -237,6 +237,10 @@ bool flisp_string_register(Object *interp, Object *extension)
 {
     if (extension->extension.version != nil) return true;
 
+    bool success = false;
+    GC_CHECKPOINT;
+    GC_TRACE(gcExt, extension);
+
     if (flisp_register_primitive(   interp, "code-length",   1, 1, type_string,  stringCodeLength)
         && flisp_register_primitive(interp, "char-offset",   2, 2, nil,          stringCharOffset)
         && flisp_register_primitive(interp, "string-length", 1, 1, type_string,  stringLength)
@@ -246,10 +250,11 @@ bool flisp_string_register(Object *interp, Object *extension)
         && flisp_register_primitive(interp, "strspn",        2, 2, type_string,  stringStrspn)
         && flisp_register_primitive(interp, "strcspn",       2, 2, type_string,  stringStrcspn)) {
 
-        extension->extension.version = newString(interp, FLISP_STRING_VERSION);
-        return true;
+        (*gcExt)->extension.version = newString(interp, FLISP_STRING_VERSION);
+        success = true;
     }
-    return false;
+    GC_RELEASE;
+    return success;
 }
 
 

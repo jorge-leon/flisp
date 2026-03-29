@@ -518,11 +518,14 @@ Object *posixFnmatch(Object *interp, Object** args, Object **env, size_t nArgs)
     return newError(interp, invalid_value, nil, "(fnmatch pattern string[ flags]) - error");
 }
 
-Object *posix_extension = &(Object) { .string = "extension-posix" };
-
 bool flisp_posix_register(Object *interp, Object *extension)
 {
     if (extension->extension.version != nil) return true;
+
+    bool success = false;
+    GC_CHECKPOINT;
+    GC_TRACE(gcExt, extension);
+
 
     flisp_register_constant(interp, fnm_pathname, newInteger(interp, FNM_PATHNAME));
     flisp_register_constant(interp, fnm_noescape, newInteger(interp, FNM_NOESCAPE));
@@ -545,10 +548,11 @@ bool flisp_posix_register(Object *interp, Object *extension)
         && flisp_register_primitive(interp, "getcwd",  0, 0, nil,         posixGetcwd)
         && flisp_register_primitive(interp, "fnmatch", 2, 3, nil,         posixFnmatch)) {
 
-        extension->extension.version = newString(interp, FLISP_POSIX_VERSION);
-        return true;
+        (*gcExt)->extension.version = newString(interp, FLISP_POSIX_VERSION);
+        success = true;
     }
-    return false;
+    GC_RELEASE;
+    return success;
 }
 
 /*

@@ -2569,15 +2569,17 @@ Object *stringCompare(Object *interp, Object **args, Object **env, size_t nArgs)
 Object *primitiveLoadExtension(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     Object *extensions, *name = FLISP_ARG1;
-
+    
     for (extensions = interp->extensions; extensions != nil; extensions = extensions->cdr) {
         if (extensions->car->type == type_extension
             && strcmp(extensions->car->extension.name->string, name->string) == 0) {
             if (extensions->car->extension.version != nil)
                 return extensions->car->extension.version;
-            if (!extensions->car->extension.init(interp, extensions->car))
-                return newError(interp, invalid_value, extensions->car, "(extension name) - failed to load");
-            return extensions->car->extension.version;
+            GC_CHECKPOINT;
+            GC_TRACE(gcExts, extensions);
+            if (!(*gcExts)->car->extension.init(interp, extensions->car))
+                GC_RETURN(newError(interp, invalid_value, extensions->car, "(extension name) - failed to load"));
+            GC_RETURN((*gcExts)->car->extension.version);
         }
     }
     return nil;
