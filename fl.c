@@ -20,9 +20,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
+
 #include "lisp.h"
-
-
 #include "double.h"
 #include "posix.h"
 #include "string.h"
@@ -52,7 +51,7 @@ int main(int argc, char **argv)
     char *env;
     FILE *debug_fd = NULL, *input_fd = stdin, *output_fd = stdout;
     long long size = 0;
-    Object *interp;
+    Object *interp, *e = nil;
 
     if ((env = getenv("FLISP_SIZE")) != NULL) {
         size = strtoll(env, NULL, 16);
@@ -72,32 +71,20 @@ int main(int argc, char **argv)
     if ((env = getenv("FLISP_QUIET")) != NULL && env[0] != '0')
         output_fd = (FILE *)NULL;
 
-    env = getenv("FLISP_INTERACTIVE");
-    bool interactive = !(env != NULL && env[0] != '0') != (env || isatty(fileno(input_fd)));
-
-    interp = flisp_new((size_t) size, argv, input_fd, output_fd, stderr, debug_fd);
-    if (interp == NULL)
+    bool interactive = isatty(fileno(input_fd));
+    if ((env = getenv("FLISP_INTERACTIVE")))
+        interactive = !(env[0] == '0' || env[0] == '\0' );
+    
+    do {
+        FLISP_WHILE_OK(interp = flisp_new((size_t) size, argv, input_fd, output_fd, stderr, debug_fd));
+        FLISP_WHILE_OK(flisp_register_extension(interp, "string", flisp_string_init));
+        FLISP_WHILE_OK(flisp_register_extension(interp, "double", flisp_double_init));
+        FLISP_WHILE_OK(flisp_register_extension(interp, "posix", flisp_posix_init));
+    } while (0);
+    if (FLISP_IS_ERR(e)) {
+        writeln_object(stderr, e, false);
         fatal("fLisp interpreter initialization failed");
-
-    if (interp->type == type_error) {
-        writeln_object(stderr, (Object *)interp, false);
-        return 1;
     }
-
-    /* if (!flisp_string_register(interp, interp->extensions->car)) { */
-    /*     flisp_destroy(interp); */
-    /*     fatal("could not pre-register string extension"); */
-    /* } */
-
-    /* if (!flisp_double_register(interp, interp->extensions->car)) { */
-    /*     flisp_destroy(interp); */
-    /*     fatal("could not pre-register double extension"); */
-    /* } */
-
-    /* if (!flisp_posix_register(interp, interp->extensions->car)) { */
-    /*     flisp_destroy(interp); */
-    /*     fatal("could not pre-register posix extension"); */
-    /* } */
 
     if (interactive) write_string(output_fd, FL_NAME " " FL_VERSION "\n");
 

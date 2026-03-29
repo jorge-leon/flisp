@@ -233,28 +233,28 @@ Object *stringStrcspn(Object *interp, Object** args, Object **env, size_t nArgs)
     return flisp_string_length(interp, FLISP_ARG1, i);
 }
 
-bool flisp_string_register(Object *interp, Object *extension)
+Object *flisp_string_init(Object *interp, Object *extension)
 {
-    if (extension->extension.version != nil) return true;
+    if (extension->extension.version != nil) return extension->extension.version;
 
-    bool success = false;
+    Object *e = nil;
     GC_CHECKPOINT;
     GC_TRACE(gcExt, extension);
-
-    if (flisp_register_primitive(   interp, "code-length",   1, 1, type_string,  stringCodeLength)
-        && flisp_register_primitive(interp, "char-offset",   2, 2, nil,          stringCharOffset)
-        && flisp_register_primitive(interp, "string-length", 1, 1, type_string,  stringLength)
-        && flisp_register_primitive(interp, "code-char",     1, 1, type_integer, stringCodeChar)
-        && flisp_register_primitive(interp, "char-code",     1, 1, type_string,  stringCharCode)
-        && flisp_register_primitive(interp, "string-search", 2, 2, type_string,  stringSearch)
-        && flisp_register_primitive(interp, "strspn",        2, 2, type_string,  stringStrspn)
-        && flisp_register_primitive(interp, "strcspn",       2, 2, type_string,  stringStrcspn)) {
+    do {
+        FLISP_WHILE_OK(flisp_register_primitive(   interp, "code-length",   1, 1, type_string,  stringCodeLength));
+        FLISP_WHILE_OK(flisp_register_primitive(interp, "char-offset",   2, 2, nil,          stringCharOffset));
+        FLISP_WHILE_OK(flisp_register_primitive(interp, "string-length", 1, 1, type_string,  stringLength));
+        FLISP_WHILE_OK(flisp_register_primitive(interp, "code-char",     1, 1, type_integer, stringCodeChar));
+        FLISP_WHILE_OK(flisp_register_primitive(interp, "char-code",     1, 1, type_string,  stringCharCode));
+        FLISP_WHILE_OK(flisp_register_primitive(interp, "string-search", 2, 2, type_string,  stringSearch));
+        FLISP_WHILE_OK(flisp_register_primitive(interp, "strspn",        2, 2, type_string,  stringStrspn));
+        FLISP_WHILE_OK(flisp_register_primitive(interp, "strcspn",       2, 2, type_string,  stringStrcspn));
 
         (*gcExt)->extension.version = newString(interp, FLISP_STRING_VERSION);
-        success = true;
-    }
+        if (FLISP_IS_ERR(*gcExt)) GC_RETURN(*gcExt);
+    } while (0);
     GC_RELEASE;
-    return success;
+    return e;
 }
 
 

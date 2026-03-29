@@ -87,33 +87,33 @@ Object *writeDouble(FILE *fd, uint64_t number)
 #endif
 
 
-bool flisp_double_register(Object *interp, Object *extension)
+Object *flisp_double_init(Object *interp, Object *extension)
 {
 
-    if (extension->extension.version != nil) return true;
+    if (extension->extension.version != nil) return extension->extension.version;
 
-    bool success = false;
+    Object *e = nil;
     GC_CHECKPOINT;
     GC_TRACE(gcExt, extension);
-    
-    if (flisp_register_primitive(   interp, "integer", 1,  1, type_double,  integerFromDouble)
-        && flisp_register_primitive(interp, "double",  1,  1, type_integer, doubleFromInteger)
-        && flisp_register_primitive(interp, "d+",      2,  2, type_double, doubleAdd)
-        && flisp_register_primitive(interp, "d-",      2,  2, type_double, doubleSubtract)
-        && flisp_register_primitive(interp, "d*",      2,  2, type_double, doubleMultiply)
-        && flisp_register_primitive(interp, "d/",      2,  2, type_double, doubleDivide)
-        && flisp_register_primitive(interp, "d%",      2,  2, type_double, doubleMod)
-        && flisp_register_primitive(interp, "d=",      2,  2, type_double, doubleEqual)
-        && flisp_register_primitive(interp, "d<",      2,  2, type_double, doubleLess)
-        && flisp_register_primitive(interp, "d<=",     2,  2, type_double, doubleLessEqual)
-        && flisp_register_primitive(interp, "d>",      2,  2, type_double, doubleGreater)
-        && flisp_register_primitive(interp, "d>=",     2,  2, type_double, doubleGreaterEqual)) {
+    do {
+        FLISP_WHILE_OK(flisp_register_primitive(interp, "integer", 1,  1, type_double,  integerFromDouble));
+        FLISP_WHILE_OK(flisp_register_primitive(interp, "double",  1,  1, type_integer, doubleFromInteger));
+        FLISP_WHILE_OK(flisp_register_primitive(interp, "d+",      2,  2, type_double, doubleAdd));
+        FLISP_WHILE_OK(flisp_register_primitive(interp, "d-",      2,  2, type_double, doubleSubtract));
+        FLISP_WHILE_OK(flisp_register_primitive(interp, "d*",      2,  2, type_double, doubleMultiply));
+        FLISP_WHILE_OK(flisp_register_primitive(interp, "d/",      2,  2, type_double, doubleDivide));
+        FLISP_WHILE_OK(flisp_register_primitive(interp, "d%",      2,  2, type_double, doubleMod));
+        FLISP_WHILE_OK(flisp_register_primitive(interp, "d=",      2,  2, type_double, doubleEqual));
+        FLISP_WHILE_OK(flisp_register_primitive(interp, "d<",      2,  2, type_double, doubleLess));
+        FLISP_WHILE_OK(flisp_register_primitive(interp, "d<=",     2,  2, type_double, doubleLessEqual));
+        FLISP_WHILE_OK(flisp_register_primitive(interp, "d>",      2,  2, type_double, doubleGreater));
+        FLISP_WHILE_OK(flisp_register_primitive(interp, "d>=",     2,  2, type_double, doubleGreaterEqual));
 
         (*gcExt)->extension.version = newString(interp, FLISP_DOUBLE_VERSION);
-        success = true;
-    }
+        if (FLISP_IS_ERR(*gcExt)) GC_RETURN(*gcExt);
+    } while (0);
     GC_RELEASE;
-    return success;
+    return e;
 }
 
 

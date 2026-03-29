@@ -518,41 +518,40 @@ Object *posixFnmatch(Object *interp, Object** args, Object **env, size_t nArgs)
     return newError(interp, invalid_value, nil, "(fnmatch pattern string[ flags]) - error");
 }
 
-bool flisp_posix_register(Object *interp, Object *extension)
+Object *flisp_posix_init(Object *interp, Object *extension)
 {
-    if (extension->extension.version != nil) return true;
+    if (extension->extension.version != nil) return extension->extension.version;
 
-    bool success = false;
+    Object *e = nil;
     GC_CHECKPOINT;
     GC_TRACE(gcExt, extension);
-
-
-    flisp_register_constant(interp, fnm_pathname, newInteger(interp, FNM_PATHNAME));
-    flisp_register_constant(interp, fnm_noescape, newInteger(interp, FNM_NOESCAPE));
-    flisp_register_constant(interp, fnm_period, newInteger(interp, FNM_PERIOD));
+    do {
+        FLISP_WHILE_OK(flisp_register_constant(interp, fnm_pathname, newInteger(interp, FNM_PATHNAME)));
+        FLISP_WHILE_OK(flisp_register_constant(interp, fnm_noescape, newInteger(interp, FNM_NOESCAPE)));
+        FLISP_WHILE_OK(flisp_register_constant(interp, fnm_period, newInteger(interp, FNM_PERIOD)));
     
-    if (flisp_register_primitive(   interp, "fflush",  0, 1, type_stream, posixFflush)
-        && flisp_register_primitive(interp, "fseek",   2, 3, nil,         posixFseek)
-        && flisp_register_primitive(interp, "ftell",   0, 1, type_stream, posixFtell)
-        && flisp_register_primitive(interp, "feof",    0, 1, type_stream, posixFeof)
-        && flisp_register_primitive(interp, "fgetc",   0, 1, type_stream, posixFgetc)
-        && flisp_register_primitive(interp, "fungetc", 1, 2, nil,         posixFungetc)
-        && flisp_register_primitive(interp, "fgets",   0, 1, type_stream, posixFgets)
-        && flisp_register_primitive(interp, "fstat",   1, 2, nil,         posixFstat)
-        && flisp_register_primitive(interp, "fttyp",   0, 1, type_stream, posixFttyP)
-        && flisp_register_primitive(interp, "fmkdir",  1, 2, nil,         posixMkdir)
-        && flisp_register_primitive(interp, "popen",   1, 2, type_string, posixPopen)
-        && flisp_register_primitive(interp, "pclose",  1, 1, type_stream, posixPclose)
-        && flisp_register_primitive(interp, "system",  1, 1, type_string, posixSystem)
-        && flisp_register_primitive(interp, "getenv",  1, 1, type_string, posixGetenv)
-        && flisp_register_primitive(interp, "getcwd",  0, 0, nil,         posixGetcwd)
-        && flisp_register_primitive(interp, "fnmatch", 2, 3, nil,         posixFnmatch)) {
-
+        FLISP_WHILE_OK(flisp_register_primitive(interp, "fflush",  0, 1, type_stream, posixFflush));
+        FLISP_WHILE_OK(flisp_register_primitive(interp, "fseek",   2, 3, nil,         posixFseek));
+        FLISP_WHILE_OK(flisp_register_primitive(interp, "ftell",   0, 1, type_stream, posixFtell));
+        FLISP_WHILE_OK(flisp_register_primitive(interp, "feof",    0, 1, type_stream, posixFeof));
+        FLISP_WHILE_OK(flisp_register_primitive(interp, "fgetc",   0, 1, type_stream, posixFgetc));
+        FLISP_WHILE_OK(flisp_register_primitive(interp, "fungetc", 1, 2, nil,         posixFungetc));
+        FLISP_WHILE_OK(flisp_register_primitive(interp, "fgets",   0, 1, type_stream, posixFgets));
+        FLISP_WHILE_OK(flisp_register_primitive(interp, "fstat",   1, 2, nil,         posixFstat));
+        FLISP_WHILE_OK(flisp_register_primitive(interp, "fttyp",   0, 1, type_stream, posixFttyP));
+        FLISP_WHILE_OK(flisp_register_primitive(interp, "fmkdir",  1, 2, nil,         posixMkdir));
+        FLISP_WHILE_OK(flisp_register_primitive(interp, "popen",   1, 2, type_string, posixPopen));
+        FLISP_WHILE_OK(flisp_register_primitive(interp, "pclose",  1, 1, type_stream, posixPclose));
+        FLISP_WHILE_OK(flisp_register_primitive(interp, "system",  1, 1, type_string, posixSystem));
+        FLISP_WHILE_OK(flisp_register_primitive(interp, "getenv",  1, 1, type_string, posixGetenv));
+        FLISP_WHILE_OK(flisp_register_primitive(interp, "getcwd",  0, 0, nil,         posixGetcwd));
+        FLISP_WHILE_OK(flisp_register_primitive(interp, "fnmatch", 2, 3, nil,         posixFnmatch));
+        
         (*gcExt)->extension.version = newString(interp, FLISP_POSIX_VERSION);
-        success = true;
-    }
+        if (FLISP_IS_ERR(*gcExt)) GC_RETURN(*gcExt);
+    } while (0);
     GC_RELEASE;
-    return success;
+    return e;
 }
 
 /*

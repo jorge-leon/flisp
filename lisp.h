@@ -48,7 +48,7 @@
 
 typedef struct Object Object;
 typedef Object *(*LispEval) (Object *, Object **, Object **, size_t);
-typedef bool (*ExtensionInit) (Object *, Object *);
+typedef Object *(*ExtensionInit) (Object *, Object *);
 
 typedef struct Primitive {
     char *name;
@@ -153,6 +153,14 @@ extern Object *flisp_write_object(FILE *, Object *, bool);
 /* Note: to be documented */
 extern Object *flisp_find_symbol(Object *, char*, size_t);
 
+/* Extensions */
+#define FLISP_IS_ERR(OBJECT) ((OBJECT)->type == type_error)
+extern Object *flisp_register_extension(Object *, char *, ExtensionInit);
+
+extern Object *flisp_register_constant(Object *, Object *, Object *);
+extern Object *flisp_register_primitive(Object *, char *, int, int, Object *, LispEval);
+
+
 // PROGRAMMING INTERFACE ////////////////////////////////////////////////
 
 /* Constants */
@@ -223,6 +231,12 @@ extern Object *gcReturn(Object *, Object *, Object *);
     interp->gcTop = &GC_UNIQUE(gcTrace);                                \
     Object **name = &GC_UNIQUE(gcTrace).car;
 
+/*  do while dispatcher */
+extern bool flisp_not_same(Object **, Object *);
+extern bool flisp_is_error(Object **, Object *);
+#define FLISP_WHILE_OK(F) if (flisp_not_same(&e, F)) break
+#define FLISP_UNLESS_ERR(F) if (flisp_is_error(&e, F)) break
+
 void fl_debug(Object *, char *, ...);
 
 #define FLISP_ARG1 (*args)->car
@@ -235,9 +249,6 @@ void fl_debug(Object *, char *, ...);
     if (PARAM->type != TYPE)                                            \
         return newError(interp, wrong_type_argument, PARAM,     \
             SIGNATURE " expected %s, got: %s", TYPE->string, PARAM->type->string)
-
-extern void flisp_register_constant(Object *, Object *, Object *);
-extern Primitive *flisp_register_primitive(Object *, char *, int, int, Object *, LispEval);
 
 #endif
 /*
