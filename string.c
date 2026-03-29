@@ -233,8 +233,6 @@ Object *stringStrcspn(Object *interp, Object** args, Object **env, size_t nArgs)
     return flisp_string_length(interp, FLISP_ARG1, i);
 }
 
-Object *string_extension = &(Object) { .string = "extension-string" };
-
 bool flisp_string_register(Object *interp, Object *extension)
 {
     if (extension->extension.version != nil) return true;

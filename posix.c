@@ -520,16 +520,15 @@ Object *posixFnmatch(Object *interp, Object** args, Object **env, size_t nArgs)
 
 Object *posix_extension = &(Object) { .string = "extension-posix" };
 
-bool flisp_posix_register(Object *interp)
+bool flisp_posix_register(Object *interp, Object *extension)
 {
-    flisp_register_constant(interp, posix_extension, newString(interp, FLISP_POSIX_VERSION));
+    if (extension->extension.version != nil) return true;
 
     flisp_register_constant(interp, fnm_pathname, newInteger(interp, FNM_PATHNAME));
     flisp_register_constant(interp, fnm_noescape, newInteger(interp, FNM_NOESCAPE));
     flisp_register_constant(interp, fnm_period, newInteger(interp, FNM_PERIOD));
     
-    return
-        flisp_register_primitive(   interp, "fflush",  0, 1, type_stream, posixFflush)
+    if (flisp_register_primitive(   interp, "fflush",  0, 1, type_stream, posixFflush)
         && flisp_register_primitive(interp, "fseek",   2, 3, nil,         posixFseek)
         && flisp_register_primitive(interp, "ftell",   0, 1, type_stream, posixFtell)
         && flisp_register_primitive(interp, "feof",    0, 1, type_stream, posixFeof)
@@ -544,7 +543,12 @@ bool flisp_posix_register(Object *interp)
         && flisp_register_primitive(interp, "system",  1, 1, type_string, posixSystem)
         && flisp_register_primitive(interp, "getenv",  1, 1, type_string, posixGetenv)
         && flisp_register_primitive(interp, "getcwd",  0, 0, nil,         posixGetcwd)
-        && flisp_register_primitive(interp, "fnmatch", 2, 3, nil,         posixFnmatch);
+        && flisp_register_primitive(interp, "fnmatch", 2, 3, nil,         posixFnmatch)) {
+
+        extension->extension.version = newString(interp, FLISP_POSIX_VERSION);
+        return true;
+    }
+    return false;
 }
 
 /*

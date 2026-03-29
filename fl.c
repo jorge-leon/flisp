@@ -73,7 +73,7 @@ int main(int argc, char **argv)
         output_fd = (FILE *)NULL;
 
     env = getenv("FLISP_INTERACTIVE");
-    bool interactive = env[0] != '0' && (env || isatty(fileno(input_fd)));
+    bool interactive = !(env != NULL && env[0] != '0') != (env || isatty(fileno(input_fd)));
 
     interp = flisp_new((size_t) size, argv, input_fd, output_fd, stderr, debug_fd);
     if (interp == NULL)
@@ -83,6 +83,21 @@ int main(int argc, char **argv)
         writeln_object(stderr, (Object *)interp, false);
         return 1;
     }
+
+    /* if (!flisp_string_register(interp, interp->extensions->car)) { */
+    /*     flisp_destroy(interp); */
+    /*     fatal("could not pre-register string extension"); */
+    /* } */
+
+    /* if (!flisp_double_register(interp, interp->extensions->car)) { */
+    /*     flisp_destroy(interp); */
+    /*     fatal("could not pre-register double extension"); */
+    /* } */
+
+    /* if (!flisp_posix_register(interp, interp->extensions->car)) { */
+    /*     flisp_destroy(interp); */
+    /*     fatal("could not pre-register posix extension"); */
+    /* } */
 
     if (interactive) write_string(output_fd, FL_NAME " " FL_VERSION "\n");
 

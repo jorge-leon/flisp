@@ -4,8 +4,7 @@
 #
 
 export FLISP=../fl
-export FLISPRC=
-export FLISP_INTERACTIVE=1
+export FLISP_INTERACTIVE=0
 FLISP_DEBUG=../f.log
 unset PREPARE
 
@@ -17,20 +16,20 @@ tap 154
 ok flisp-1 flisp exists and is executable;
 
 IN= OUT="fLisp 0.17α1"
-FLISP_INTERACTIVE=1 flisp_expr 2 2; ok flisp-2 empty input succeeds
+FLISP_INTERACTIVE=1 flisp_expr 1 1; ok flisp-2 empty input succeeds
 
 # reader
-IN='(' OBJ= CODE=read-incomplete ERR='unexpected end of stream while reading list'
-flisp_err; ok reader-1 incomplete sexp error msg
+IN='(' OUT='#<Error read-incomplete: "unexpected end of stream while reading list", nil>'
+flisp_expr; ok reader-1 incomplete sexp error msg
 
-IN='"' OBJ= CODE=read-incomplete ERR='unexpected end of stream while reading string literal'
-flisp_err; ok reader-2 incomplete string error msg
+IN='"' OUT='#<Error read-incomplete: "unexpected end of stream while reading string literal", nil>'
+flisp_expr; ok reader-2 incomplete string error msg
 
-IN='}' OBJ="'}'" CODE=invalid-read-syntax ERR="unexpected character"
-flisp_err; ok reader-3-1 unexpected ascii character error msg
+IN='}' OUT='#<Error invalid-read-syntax: "unexpected character: '"'}'\", nil>"
+flisp_expr; ok reader-3-1 unexpected ascii character error msg
 
-IN='ä' OBJ="0xC3" CODE=invalid-read-syntax ERR="unexpected character"
-flisp_err; ok reader-3-2 unexpected unicode character error msg
+IN='ä' OUT='#<Error invalid-read-syntax: "unexpected character: 0xC3'"\", nil>"
+flisp_expr; ok reader-3-2 unexpected unicode character error msg
 
 IN="0" OUT='0'
 flisp_expr; ok reader-4-1 read integer 0
@@ -89,23 +88,23 @@ flisp_expr; ok reader-13 read dotted pair
 IN="'(0 1 . 2)" OUT='(0 1 . 2)'
 flisp_expr; ok reader-14 read dotted list
 
-IN="'(0 1 . " OUT="error:read-incomplete: unexpected end of stream while reading dotted list"
+IN="'(0 1 . " OUT="#<Error read-incomplete: \"unexpected end of stream while reading dotted list\", nil>"
 flisp_expr; ok reader-14-1 dotted list w/o end paren
 
-IN="'(0 1 . 2 3)" OUT="error:invalid-read-syntax: unexpected object at end of dotted list"
+IN="'(0 1 . 2 3)" OUT="#<Error invalid-read-syntax: \"unexpected object at end of dotted list\", nil>"
 flisp_expr; ok reader-15 read dotted list with extra element
 
-IN="'(0 1 .)" OUT="error:invalid-read-syntax: expected object at end of dotted list"
+IN="'(0 1 .)" OUT="#<Error invalid-read-syntax: \"expected object at end of dotted list\", nil>"
 flisp_expr; ok reader-16 read dotted list without cdr
 
 IN="'(nil . t)" OUT="(nil . t)"
 flisp_expr; ok reader-16-1 read dotted list where nil precedes dot
 
-IN="'(" OUT="error:read-incomplete: unexpected end of stream while reading list"
+IN="'(" OUT="#<Error read-incomplete: \"unexpected end of stream while reading list\", nil>"
 flisp_expr; ok reader-17 read list without end
 
 # Special forms
-IN='(quote)' OUT="error:wrong-number-of-arguments: expects at least 1 arguments: '#<Primitive quote [1, 1] nil>'"
+IN='(quote)' OUT="#<Error wrong-number-of-arguments: \"expects at least 1 arguments\", #<Primitive quote [1, 1] nil>>"
 flisp_expr; ok quote-1 w/o arg error message
 
 IN='(bind)' OUT=nil
@@ -118,16 +117,16 @@ IN="(bind nil var 'val)" OUT=val
 flisp_expr; ok bind-3 assignment returns value
 
 IN="(bind nil var 'val) t var" OUT="val"
-flisp_expr 4; ok bind-4 local bind var evaluates to val
+flisp_expr; ok bind-4 local bind var evaluates to val
 
 IN="(bind t var 'val) t var" OUT="val"
-flisp_expr 4; ok bind-5 global bind var evaluates to val
+flisp_expr; ok bind-5 global bind var evaluates to val
 
 IN="(bind t var1 3) ((lambda () (bind nil var1 2) t)) var1" OUT=3
-flisp_expr 4; ok bind-6 local bind does not set outer variable.
+flisp_expr; ok bind-6 local bind does not set outer variable.
 
 IN="(bind t var1 3) ((lambda () (bind t var1 2) t)) var1" OUT=2
-flisp_expr 4; ok bind-7 global bind does set outer variable.
+flisp_expr 3; ok bind-7 global bind does set outer variable.
 
 IN='(progn)' OUT=nil
 flisp_expr; ok progn-1 no args evaluate to nil
@@ -178,16 +177,16 @@ flisp_expr; ok cond-12 cond with last expresion single string list gives its val
 IN="(cond nil ((consp (quote (a b)))))" OUT=t
 flisp_expr; ok cond-13 cond with last expresion funcall gives result
 
-IN='(cond . "a")' OUT="error:wrong-type-argument: (cond args) - args is not a list, arg 0: '\"a\"'"
+IN='(cond . "a")' OUT="#<Error wrong-type-argument: \"(cond args) - args is not a list, arg 0\", \"a\">"
 flisp_expr; ok cond-14 fail if not called with a cons
 
-IN='(cond "a" ())' OUT="error:wrong-type-argument: (cond clause ..) - clause is not a list: '\"a\"'"
+IN='(cond "a" ())' OUT="#<Error wrong-type-argument: \"(cond clause ..) - clause is not a list\", \"a\">"
 flisp_expr; ok cond-15 fail if clause is not a cons
 
-IN='(cond (nil . "a"))' OUT="error:invalid-value: read error while reading expression in list: 'cond'"
+IN='(cond (nil . "a"))' OUT="#<Error invalid-value: \"read error while reading expression in list\", 'cond'>"
 flisp_expr; ok cond-16 fail if clause is cons with car nil \# TODO Fix list reader to allow "(nil . o)"
 
-IN='(cond (t . t))' OUT="error:wrong-type-argument: (cond (pred action) ..) action is not a list: '(t . t)'"
+IN='(cond (t . t))' OUT="#<Error wrong-type-argument: \"(cond (pred action) ..) action is not a list\", (t . t)>"
 flisp_expr; ok cond-17 fail if t and clause action is not a list
 
 IN="(cond (42))" OUT="42"
@@ -372,7 +371,7 @@ IN="(car '(1 2))" OUT='1'
 flisp_expr; ok car-1  car returns first element
 
 # Intermezzo
-IN="(car 1)" OUT="error:wrong-type-argument: (car o) - o expected type-cons, got: type-integer: '1'"
+IN="(car 1)" OUT="#<Error wrong-type-argument: \"(car o) - o expected type-cons, got: type-integer\", 1>"
 flisp_expr; ok arg_check-1  argument checking '(car 1)' fails
 
 IN="(cdr '(1 2))" OUT='(2)'
@@ -419,23 +418,23 @@ IN='(file-info (open "abc" "<"))' OUT='("<STRING" "abc" -1)'
 flisp_expr; ok file-info-1 file-info of memory stream contains string
 
 IN='(close (bind t f (open "" ">"))) (file-info f)' OUT='(">STRING" nil nil)'
-flisp_expr 3; ok file-info-2 file-info of closed memory stream contains nil
+flisp_expr 2; ok file-info-2 file-info of closed memory stream contains nil
 
 IN='(read (open "1" "<"))' OUT="1"
 flisp_expr; ok read-1 read memory input stream \# TODO this works with "x", so it seems to be an issue with scratchpad and integer conversion
 
-IN='(read *standard-input* end-of-file)' OUT="end-of-file"
+IN="(read *standard-input* 'EOF)" OUT="EOF"
 flisp_expr; ok read-2 read with eof marker
 
 IN='(eval 1)' OUT='1'
 flisp_expr; ok eval-1 eval number is number
 
 OUT=$(printf 'ans\wer"ans\\\\wer"\n' | base64)
-T_OUT=$(echo -n '(write "ans\\wer")' | $FLISP 2>&1 | sed -n 2p | base64);
+T_OUT=$(echo -n '(write "ans\\wer")' | $FLISP 2>&1 | head -1 | base64);
 [ "$OUT" = "$T_OUT" ]; ok write-1 write string normally
 
 OUT=$(printf '"ans\\wer""ans\\\\wer"\n' | base64)
-T_OUT=$(echo -n '(write "ans\\wer" t)' | $FLISP 2>&1 | sed -n 2p | base64)
+T_OUT=$(echo -n '(write "ans\\wer" t)' | $FLISP 2>&1 | head -1 | base64)
 [ "$OUT = $T_OUT" ]; ok write-2 write string readably
 
 if false; then

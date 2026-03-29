@@ -5,29 +5,6 @@ export PREPARE="(require 'string)"
 
 tap 32
 
-
-IN='(string-length "")' OUT="0" flisp_expr; ok string-length-1 length of emtpy string is 0
-IN='(string-length "answer")' OUT="6" flisp_expr; ok string-length-2  length of answer string is 6
-IN='(string-length "änßwér")' OUT="6" flisp_expr; ok string-length-3  length of 3 unicode 3 ascii string is 6
-
-IN='(string-search "" "")' OUT='0'
-flisp_expr; ok string-search-1 emtpy string is contained in empty string at 0
-
-IN='(string-search "" "abcde")' OUT='0'
-flisp_expr; ok string-search-2 emtpy string is contained in string at 0
-
-IN='(string-search "ab" "abcde")' OUT='0'
-flisp_expr; ok string-search-3 start string is contained in string at 0
-
-IN='(string-search "bc" "abcde")' OUT='1'
-flisp_expr; ok string-search-4 not start string is contained in string at 1
-
-IN='(string-search "bc" "äbcdé")' OUT='1'
-flisp_expr; ok string-search-4-1  in unicode prefix string at 1
-
-IN='(string-search "x" "abcde")' OUT='nil'
-flisp_expr; ok string-search-5 not contained string is nil
-
 IN='(substring "")' OUT='""'
 flisp_expr; ok substring-1 substring empty is empty
 

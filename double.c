@@ -91,7 +91,8 @@ bool flisp_double_register(Object *interp, Object *extension)
 {
 
     if (extension->extension.version != nil) return true;
-
+    extension->extension.version = newString(interp, FLISP_DOUBLE_VERSION);
+    
     if (flisp_register_primitive(   interp, "integer", 1,  1, type_double,  integerFromDouble)
         && flisp_register_primitive(interp, "double",  1,  1, type_integer, doubleFromInteger)
         && flisp_register_primitive(interp, "d+",      2,  2, type_double, doubleAdd)
@@ -105,7 +106,7 @@ bool flisp_double_register(Object *interp, Object *extension)
         && flisp_register_primitive(interp, "d>",      2,  2, type_double, doubleGreater)
         && flisp_register_primitive(interp, "d>=",     2,  2, type_double, doubleGreaterEqual)) {
 
-        extension->extension.version = newString(interp, FLISP_DOUBLE_VERSION);
+        //extension->extension.version = newString(interp, FLISP_DOUBLE_VERSION);
         return true;
     }
     return false;

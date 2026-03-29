@@ -11,7 +11,7 @@
 
 #define FLISP_POSIX_VERSION "0.1"
 
-extern bool flisp_posix_register(Object *);
+extern bool flisp_posix_register(Object *, Object *);
 
 #endif
 /*

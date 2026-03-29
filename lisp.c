@@ -2929,7 +2929,7 @@ Object *flisp_new(
     *gcVal = newExtension(interp, "string", flisp_string_register);
     interp->extensions = newCons(interp, gcVal, &interp->extensions);
 
-    *gcVal = newExtension(interp, "posix", flisp_double_register);
+    *gcVal = newExtension(interp, "posix", flisp_posix_register);
     interp->extensions = newCons(interp, gcVal, &interp->extensions);
 
     if (argv != NULL) {

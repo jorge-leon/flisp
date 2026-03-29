@@ -144,7 +144,7 @@ range () {
 # output, default 1. Filters trailing 't.  Compare output with $OUT
 flisp_expr () {
     local T_RC
-    local START=${1:-2}
+    local START=${1:-1}
     T_OUT="$(echo -n "$PREPARE $IN" | $FLISP 2>&1)"
     T_RC=$?
     F_OUT="$(echo "$T_OUT" | range $START ${2:-$START})"
@@ -154,7 +154,7 @@ flisp_err () {
     local T_RC
     T_OUT=$(echo -n "$PREPARE $IN" | $FLISP 2>&1)
     T_RC=$?
-    F_OUT=$(echo "$T_OUT" | range ${1:-2} ${2:-10})
+    F_OUT=$(echo "$T_OUT" | range ${1:-1} ${2:-1})
     echo -n "$F_OUT" | {
 	IFS=: read PRE ECODE MSG EOBJ
 	: $PRE
