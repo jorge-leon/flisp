@@ -230,7 +230,7 @@ Object *posixFgets(Object *interp, Object** args, Object **env, size_t nArgs)
     }
     free(input);
     if (!feof(stream->fd))
-        return newError(interp, stream, io_error, "fgets() failed: %s", strerror(errno));
+        return newError(interp, io_error, stream, "fgets() failed: %s", strerror(errno));
     return end_of_file;
 }
 /** (fstat path[ linkp]) - get  information about file
@@ -272,15 +272,15 @@ Object *posixFstat(Object *interp, Object** args, Object **env, size_t nArgs)
     if (result == -1) {
         switch(errno) {
         case EACCES:
-            return newError(interp, FLISP_ARG1, permission_denied, "(fstat path[ linkp]): %s", strerror(errno));
+            return newError(interp, permission_denied, FLISP_ARG1, "(fstat path[ linkp]): %s", strerror(errno));
         case ENOENT:
         case ENOTDIR:
-            return newError(interp, FLISP_ARG1, not_found, "(fstat path[ linkp]): %s", strerror(errno));
+            return newError(interp, not_found, FLISP_ARG1, "(fstat path[ linkp]): %s", strerror(errno));
             break;
         case ENAMETOOLONG:
             return newError(interp, FLISP_ARG1, invalid_value, "(fstat path[ linkp]): %s", strerror(errno));
         }
-        return newError(interp, FLISP_ARG1, io_error, "(fstat path[ linkp]): l/stat() failed: %s", strerror(errno));
+        return newError(interp, io_error, FLISP_ARG1, "(fstat path[ linkp]): l/stat() failed: %s", strerror(errno));
     }
 
     /* (size _size_ type _type_ mode _mode_ uid _uid_ gid _gid_ ) */
@@ -376,7 +376,7 @@ Object *posixMkdir(Object *interp, Object** args, Object **env, size_t nArgs)
         switch(errno) {
         case EACCES:
         case EROFS:
-            return newError(interp, FLISP_ARG1, permission_denied,
+            return newError(interp, permission_denied, FLISP_ARG1,
                                 "(fmkdir path[ mode]): %s", strerror(errno));
         case EEXIST:
             return newError(interp, FLISP_ARG1, file_exists,
@@ -384,10 +384,10 @@ Object *posixMkdir(Object *interp, Object** args, Object **env, size_t nArgs)
         case ENAMETOOLONG:
         case ENOENT:
         case ENOTDIR:
-            return newError(interp, FLISP_ARG1, invalid_value,
+            return newError(interp, invalid_value, FLISP_ARG1,
                                 "(fmkdir path[ mode]): %s", strerror(errno));
         }
-        return newError(interp, FLISP_ARG1, io_error,
+        return newError(interp, io_error, FLISP_ARG1,
                             "(fmkdir path[ mode]): %s", strerror(errno));
     }
     return t;

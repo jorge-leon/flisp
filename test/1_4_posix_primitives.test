@@ -9,7 +9,7 @@ PREPARE="(extension 'posix)"
 
 #export FLISP_DEBUG=f.log
 export FLISP_SIZE=$((20*1024*1024))
-
+export START_LINE=2
 tap 19
 
 # File extension
@@ -22,14 +22,14 @@ false; ok fgetc \# TODO
 false; ok fungetc \# TODO
 false; ok fgets \# TODO
 
-IN='(type-of (fstat "five_lines.txt"))' OUT='<Error not-found: "(fstat path[ linkp]): No such file or directory", "_unknown_">'
-flisp_expr; ok file-fstat-1 existing file returns data \# TODO fstat is in file extension
+RESULT=$(echo $PREPARE '(fstat "five_lines.txt")'  | $FLISP 2>&1 | grep  '(size .\+ mode .\+ uid .\+ gid .\+ type "f")')
+ok file-fstat-1 existing file returns data about it
 
-IN='(fstat "_unknown_")' ERR='(fstat path[ linkp]): No such file or directory' OBJ='"_unknown_"'
-flisp_err; ok file-fstat-1 existing file returns data
+IN='(fstat "_unknown_")' OUT='#<Error not-found: "(fstat path[ linkp]): No such file or directory", "_unknown_">'
+flisp_expr; ok file-fstat-1 existing file returns data
 
 IN='(fttyp (open "/dev/tty"))' OUT='t'
-flisp_expr; ok file-fttyp-1 console is tty \# TODO fttyp is in file extension
+flisp_expr; ok file-fttyp-1 console is tty
 
 IN='(fttyp (open "answer" "<"))' OUT='nil'
 flisp_expr; ok file-fttyp-2
@@ -39,16 +39,19 @@ false; ok popen \# TODO
 false; ok pclose \# TODO
 
 IN='(system "true")' OUT='0'
-flisp_expr; ok file-system-1 shell command true returns successfully \# TODO system is in file extension
+flisp_expr; ok file-system-1 shell command true returns successfully
 
 IN='(system "/..,")' OUT=32512
-flisp_expr 2>/dev/null; ok file-system-2 not existing shell command fails
+flisp_expr 3; ok file-system-2 not existing shell command fails
 
 IN='(getenv "HOME")' OUT="\"$HOME\""
-flisp_expr; ok file-getenv-1 known variable returns value string \# TODO getenv is in file extension
+flisp_expr; ok file-getenv-1 known variable returns value string
 
 IN='(getenv "?")' OUT=nil
 flisp_expr; ok file-getenv-2 unknown variable returns nil
 
 IN='(getcwd)' OUT="\"$(pwd)\""
-flisp_expr; ok file-getcwd-1 getcwd returns working directory \# TODO getcwd is in file extension
+flisp_expr; ok file-getcwd-1 getcwd returns working directory
+
+
+false; ok fnmatch \# TODO

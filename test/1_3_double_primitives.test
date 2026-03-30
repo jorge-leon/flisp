@@ -9,7 +9,8 @@ PREPARE="(extension 'double)"
 
 #export FLISP_DEBUG=f.log
 export FLISP_SIZE=$((20*1024*1024))
+export START_LINE=2
 
 tap 1
 IN='(d+ #d2.72 #d3.14)' OUT="#D401770A3D70A3D71"
-flisp_expr 2; ok double-plus-1 \# TODO double tests
+flisp_expr; ok double-plus-1 \# TODO double tests
