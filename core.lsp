@@ -25,21 +25,8 @@
 (defmacro unless (pred . body)
   (cond (body (list 'cond (list pred nil) (cons 't body)))) )
 
-;; `(progn
-;;   (bind value ,form)
-;;   (if (eq type-error (type-of value)) (,handler value)
-;;     value ))
-(defmacro on-error (form handler)
-  (list
-   'progn
-   (list 'bind nil 'value form)
-   (list 'cond
-	 (list (list 'eq 'type-error (list 'type-of 'value)) (list handler 'value))
-	 (list 'value) )))
-
-(bind t defun
-      (macro (name params . body)
-	     (list 'bind t name (list (quote lambda) params . body)) ))
+(defmacro defun (name params . body)
+  (list 'bind t name (list (quote lambda) params . body)) )
 
 ;;; Accessors
 ;; Note: replace c*ddr with (elements n) where n = number of 'd's
@@ -67,14 +54,17 @@
 (defun typep (type object)  (same type (type-of object)))
 
 (bind t
- integerp (curry typep type-integer)
- doublep (curry typep type-double)
- stringp (curry typep type-string)
- symbolp (curry typep type-symbol)
-;;; consp is a primitive
- lambdap (curry typep type-lambda)
- macrop (curry typep type-macro)
- streamp (curry typep type-stream))
+      integerp (curry typep type-integer)
+      doublep  (curry typep type-double)
+      stringp  (curry typep type-string)
+      symbolp  (curry typep type-symbol)
+      ;; consp is a primitive
+      lambdap  (curry typep type-lambda)
+      macrop   (curry typep type-macro)
+      streamp  (curry typep type-stream)
+      errorp   (curry typep type-error)
+      vectorp  (curry typep type-vector)
+      valuesp  (curry typep type-values) )
 
 (defun mapcar (func xs)
   (cond (xs (cons (func (car xs)) (mapcar func (cdr xs))))))
@@ -106,9 +96,9 @@
 ;; (let* ((var val) ..) body) =>  ((lambda (var) (let* (..) body)) val)
 (defmacro let* (bindings . body)
   (if (null bindings)  (list (cons 'lambda (cons (list) body)))
-      (unless (and (consp bindings)  (consp (car bindings)))
-	(throw wrong-type-argument "(let* bindings[ body]) - bindings: does not start with a binding" bindings))
-      (cons (cons 'lambda (cons (list (caar bindings)) (list (cons let* (cons (cdr bindings) body)))))  (cdar bindings)) ))
+      (if (and (consp bindings)  (consp (car bindings)))
+	  (cons (cons 'lambda (cons (list (caar bindings)) (list (cons let* (cons (cdr bindings) body)))))  (cdar bindings))
+	  (error wrong-type-argument "(let* bindings[ body]) - bindings: does not start with a binding" bindings)) ))
 
 (defun prog1 (arg . args) arg)
 
@@ -133,14 +123,6 @@
     ((eq nil args) "")
     ((eq nil (cdr args)) (string (car args)))
     (t (string-append (string (car args)) (concat (cdr args)))) ))
-
-(defun assert-type (o type s)
-  (cond ((not (same (type-of o) type))
-	 (throw invalid-value (concat s ": expected "type", got " (type-of o)) o))))
-
-(defun assert-number (o s)
-  (cond ((not (numberp o))
-	 (throw invalid-value (concat s ": expected number, got " (type-of o)) o))))
 
 (defun numberp (o) (cond  ((integerp o)) ((doublep o))))
 
@@ -190,13 +172,12 @@
       (write o nil) ))
 
 (defun string-to-number (string)
-  (let ((f (open string "<")) (result nil))
-    ;; Note: setq not acceptable here
-    (setq  result (catch (read f)))
+  (let* ((f (open string "<"))
+	 (n (read f))
+	 (t (type-of n)) )
     (close f)
-    (if (car result)  0
-	(if (numberp (caddr result))  (caddr result)
-	    0 ))))
+    (if (numberp n) n
+	(error invalid-value (concat "(string-to-number string) - string expected number, got: " t) n) )))
 
 (defun string-equal (s1 s2)  (i=0 (string-compare s1 s2)))
 
@@ -237,7 +218,7 @@
   (cond ((null list))
 	((predicate start (car list)) (fold-leftp predicate (car list) (cdr list)))))
 
-(cond ((car (catch d=)) ;; only integer operations available
+(cond ((errorp d=) ;; only integer operations available
        (defun + args (fold-left i+ 0 args))
        (defun - args (nfold     i- 0 args))
        (defun * args (fold-left i* 1 args))
@@ -268,11 +249,12 @@
        (defun >= (n . args) (fold-leftp (coercec i>= d>=)  n args)) ))
 
 (defun min (n . args)
-  (assert-number n "(min n[ arg ..]) n")
-  (fold-left (lambda (a b) (cond ((> a b) b) (t a))) n args) )
+  (if (numberp n)  (fold-left (lambda (a b) (cond ((> a b) b) (t a))) n args)
+      (error invalid-value (concat "(min n[ arg ..]) - n expected number, got :" (type-of n)) n) ))
+
 (defun max (n . args)
-  (assert-number n "(max n[ arg ..]) n")
-  (fold-left (lambda (a b) (cond ((< a b) b) (t a))) n args) )
+  (if (numberp n) (fold-left (lambda (a b) (cond ((< a b) b) (t a))) n args)
+      (error invalid-value (concat "(max n[ arg ..]) - n expected number, got :" (type-of n)) n) ))
 
 ;;; Note: in CL and Scheme (or 'a) => a when a is unbound, and the value of a otherwise.
 ;;;   We don't know how to produce this (easily?) in fLisp
@@ -297,7 +279,6 @@
 	 (t  (loop (concat s (car l) f) (cdr l))) )))
 
 ;; load
-;; Note: setq has to be removed here
 (defun fload (f)
   (let loop ((o  nil) (r nil))
        (setq o (read f :eof))
@@ -312,12 +293,11 @@
 	  (close f) ))))
 
 ;; Features
-(bind t features nil)
+(setq features nil)
 
 (defun provide args
   ;; args: (feature [subfeature ..])
   ;; Elisp, subfeatures not implemented
-  ;; Note: setq must be replaced here
   (if (memq (car args) features)  (car args)
       (setq features (cons (car args) features)) ))
 

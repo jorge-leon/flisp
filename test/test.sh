@@ -128,7 +128,7 @@ ok () {
 
 # Filter line range: start end
 range () {
-    local START=$1
+    local START=${1:-1}
     local END=$2
     local LN=0
 #    while read LINE; do
@@ -144,7 +144,7 @@ range () {
 # output, default 1. Filters trailing 't.  Compare output with $OUT
 flisp_expr () {
     local T_RC
-    local START=${1:-1}
+    local START=${1:-${START_LINE:-1}}
     T_OUT="$(echo -n "$PREPARE $IN" | $FLISP 2>&1)"
     T_RC=$?
     F_OUT="$(echo "$T_OUT" | range $START ${2:-$START})"
