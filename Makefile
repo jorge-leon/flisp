@@ -11,7 +11,7 @@ CPPFLAGS += -D_DEFAULT_SOURCE -D_BSD_SOURCE
 CFLAGS += -O0 -std=c11 -Wall -pedantic -pedantic-errors -Werror=format-security -Wformat -g
 LD      = cc
 #LDFLAGS = --static
-LDFLAGS = --static
+LDFLAGS =
 LIBS    =
 CP      = cp
 MV      = mv

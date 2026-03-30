@@ -2466,7 +2466,9 @@ Object *file_fopen(Object *interp, char *path, char* mode) {
         if (NULL == (fd = fdopen((int)d, c == '<' ? "r" : "a")))
             return newError(interp, io_error, nil, "failed to open I/O stream %ld for %s", d, c == '<' ? "reading" : "writing");
     } else {
-        if (NULL == (fd = fopen(path, mode))) {
+        fl_debug(interp, "fopen(%s, %s)\n", path, mode);
+        fd = fopen(path, mode);
+        if (fd == NULL) {
             fl_debug(interp, "fopen() failed:%d: %s\n", errno, strerror(errno));
             switch(errno) {
             case EACCES:  err = permission_denied; break;
@@ -2494,9 +2496,12 @@ Object *primitiveFopen(Object *interp, Object **args, Object **env, size_t nArgs
 {
     char *mode = "r";
 
-    if (--nArgs)
+    if (nArgs > 1)
         mode = FLISP_ARG2->string;
-    return file_fopen(interp, FLISP_ARG1->string, mode);
+
+    Object *stream = file_fopen(interp, FLISP_ARG1->string, mode);
+    CHECK_OOM(stream);
+    return stream;
 }
 
 /** file_fclose() - closes stream object
@@ -2578,7 +2583,7 @@ Object *stringCompare(Object *interp, Object **args, Object **env, size_t nArgs)
 Object *primitiveLoadExtension(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     Object *extensions, *name = FLISP_ARG1;
-    
+
     for (extensions = interp->extensions; extensions != nil; extensions = extensions->cdr) {
         if (extensions->car->type == type_extension
             && strcmp(extensions->car->extension.name->string, name->string) == 0) {
@@ -2599,7 +2604,7 @@ Object *flisp_register_extension(Object *interp, char *name, ExtensionInit init)
     GC_TRACE(gcObject, newExtension(interp, name, init));
     if (IS_OOM(*gcObject)) GC_RETURN(*gcObject);
     *gcObject = newCons(interp, gcObject, &interp->extensions);
-    if (IS_OOM(*gcObject)) GC_RETURN(*gcObject);    
+    if (IS_OOM(*gcObject)) GC_RETURN(*gcObject);
     GC_RETURN(interp->extensions = *gcObject);
 }
 
@@ -2611,83 +2616,61 @@ Object *flisp_register_extension(Object *interp, char *name, ExtensionInit init)
  * - No tests yet.
  */
 
-/** (interp cmd[ arg..]) - query or set interpreter internals */
+/** (interp) - return interpreter object */
 Object *primitiveInterp(Object *interp, Object **args, Object **env, size_t nArgs)
 {
-    FLISP_ASSERT(FLISP_ARG1, type_symbol, "(interp cmd[ arg..])");
+    return interp;
+}
+/** (interp-symbols - return interpreter symbols */
+Object *primitiveInterpSymbols(Object *interp, Object **args, Object **env, size_t nArgs)
+{
+    return (interp->symbols);
+}
+/** (interp-env) - return the current environemnt */
+/* Note: (elements (interp-env)) within a lambda segfaults, as well as returning the global environment within a lambda */
+Object *primitiveInterpEnv(Object *interp, Object **args, Object **env, size_t nArgs)
+{
+    return *env;
+}
+/** (interp-version - return interpreter version  */
+Object *primitiveInterpVersion(Object *interp, Object **args, Object **env, size_t nArgs)
+{
+    return newString(interp, FL_NAME " " FL_VERSION);
+}
+/** (interp-gc - invoke the garbage collector  */
+Object *primitiveInterpGc(Object *interp, Object **args, Object **env, size_t nArgs)
+{
+    /* Note: let the garbage collector return its statistics as property list */
+    /* Note: let the garbage collector receive an integer, indicating how much to increase/remove/set the memory capacity */
+    gc(interp);
+    return nil;
+}
+/** (interp-extensions - return the list of extensions of the interpreter  */
+Object *primitiveInterpExtensions(Object *interp, Object **args, Object **env, size_t nArgs)
+{
+    return interp->extensions;
+}
 
-    if (!strcmp(FLISP_ARG1->string, "version")) {
-        return newString(interp, FL_NAME " " FL_VERSION);
-    }
-    if (!strcmp(FLISP_ARG1->string, "debug")) {
-        if (nArgs > 1) {
-            FLISP_ASSERT(FLISP_ARG2, type_stream, "(interp :debug[ fd] - fd");
-            interp->debug = FLISP_ARG2;
-        }
-        return interp->debug;
-    }
-    if (!strcmp(FLISP_ARG1->string, "input")) {
-        if (nArgs > 1) {
-            FLISP_ASSERT(FLISP_ARG2, type_stream, "(interp :input[ fd] - fd");
-            interp->input = FLISP_ARG2;
-        }
-        return interp->input;
-    }
-    if (!strcmp(FLISP_ARG1->string, "output")) {
-        if (nArgs > 1) {
-            FLISP_ASSERT(FLISP_ARG2, type_stream, "(interp :output[ fd] - fd");
-            interp->output = FLISP_ARG2;
-        }
-        return interp->output;
-    }
-    if (!strcmp(FLISP_ARG1->string, "error")) {
-        if (nArgs > 1) {
-            FLISP_ASSERT(FLISP_ARG2, type_stream, "(interp :error[ fd] - fd");
-            interp->stderr = FLISP_ARG2;
-        }
-        return interp->output;
-    }
-    if (!strcmp(FLISP_ARG1->string, "symbols")) {
-        return (interp->symbols);
-    }
-    if (!strcmp(FLISP_ARG1->string, "global")) {
-        return interp->global;
-    }
-    if (!strcmp(FLISP_ARG1->string, "env")) {
-        if (nArgs > 1) {
-            FLISP_ASSERT(FLISP_ARG2, type_symbol, "(interp env[ field[ env]]) - field");
-            Object *e = *env;
-            if (nArgs > 2) {
-                FLISP_ASSERT(FLISP_ARG3, type_env, "(interp env[ field[ env]]) - env");
-                e = FLISP_ARG3;
-            }
-            if (!strcmp(FLISP_ARG2->string, "parent"))
-                return e->parent;
-            if (!strcmp(FLISP_ARG2->string, "vars"))
-                return e->vars;
-            if (!strcmp(FLISP_ARG2->string, "vals"))
-                return e->vals;
-            return newError(interp, invalid_value, FLISP_ARG2,
-                            "(interp env[ field[ env]]) - field must be one of :parent, :vars, :vals");
-        }
-        /* Note: This one fails in the global environment with an
-         * infinite nested list of (nil "" nil) or so */
-        return *env;
-    }
-    if (!strcmp(FLISP_ARG1->string, "gc")) {
-        gc(interp);
-        return nil;
-    }
-    if (!strcmp(FLISP_ARG1->string, "self")) {
-        return interp;
-    }
-
-    if (!strcmp(FLISP_ARG1->string, "extensions")) {
-        return interp->extensions;
-    }
-
-    return newError(interp, invalid_value, FLISP_ARG1,
-                    "(flisp cmd[ arg..]) - unknown command");
+/** (interp-input [ stream]]) - query or set interpreter input stream */
+Object *primitiveInterpInput(Object *interp, Object **args, Object **env, size_t nArgs)
+{
+    if (nArgs)
+        interp->input = FLISP_ARG1;
+    return interp->input;
+}
+/** (interp-output [ stream]]) - query or set interpreter output stream */
+Object *primitiveInterpOutput(Object *interp, Object **args, Object **env, size_t nArgs)
+{
+    if (nArgs)
+        interp->output = FLISP_ARG1;
+    return interp->output;
+}
+/** (interp-debug [ stream]]) - query or set interpreter debug stream */
+Object *primitiveInterpDebug(Object *interp, Object **args, Object **env, size_t nArgs)
+{
+    if (nArgs)
+        interp->debug = FLISP_ARG1;
+    return interp->debug;
 }
 
 // MAIN ///////////////////////////////////////////////////////////////////////
@@ -2793,11 +2776,20 @@ Object *flisp_core_init(Object *interp, Object *extension)
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "<<",            2,  2, type_integer,   integerShiftLeft));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, ">>",            2,  2, type_integer,   integerShiftRight));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "~",             1,  1, type_integer,   integerNot));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "ifmt",          1,  5, nil,             integerFmt));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "ifmt",          1,  5, nil,            integerFmt));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "string-append", 2,  2, type_string,    stringAppend));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "string-compare",2,  2, type_string,    stringCompare));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "extension",     1,  1, type_symbol,    primitiveLoadExtension));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp",        1, -1, nil,            primitiveInterp));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-version",0,  0, nil,            primitiveInterpVersion));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-input",  0,  1, type_stream,    primitiveInterpInput));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-output", 0,  1, type_stream,    primitiveInterpOutput));
+        /* Introspection */
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp",           0,  0, nil,            primitiveInterp));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-env",       0,  0, nil,            primitiveInterpEnv));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-extensions",0,  0, nil,            primitiveInterpExtensions));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-symbols",   0,  0, nil,            primitiveInterpSymbols));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-gc",        0,  0, nil,            primitiveInterpGc));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-debug",     0,  1, type_stream,    primitiveInterpDebug));
 
         (*gcExt)->extension.version = newString(interp, FL_VERSION);
     } while (0);
@@ -2808,7 +2800,7 @@ Object *flisp_core_init(Object *interp, Object *extension)
 Object *initRootEnv(Object *interp)
 {
     Object *e = nil;
-    
+
     /* Internal symbols */
     type_moved->type = type_symbol;
     flisp_integer_zero->type = type_integer;
@@ -2936,10 +2928,10 @@ Object *flisp_new(
         FLISP_UNLESS_ERR(interp->symbols = newCons(interp, &nil, &nil));
         FLISP_UNLESS_ERR(interp->global = newEnv(interp, &nil, &nil));
         FLISP_WHILE_OK(initRootEnv(interp));
-        
+
         /* debug stream */
         FLISP_WHILE_OK(flisp_register_constant(interp, debug_output, interp->debug));
-        
+
         /* input stream */
         FLISP_UNLESS_ERR(interp->input = newStreamObject(interp, input, "*standard-input*"));
         FLISP_UNLESS_ERR(var = newSymbol(interp, "*standard-input*"));
@@ -2964,7 +2956,7 @@ Object *flisp_new(
         flisp_destroy(interp);
         return e;
     }
-    
+
     GC_CHECKPOINT;
     GC_TRACE(gcVal, nil);
 
@@ -2974,7 +2966,7 @@ Object *flisp_new(
             FLISP_UNLESS_ERR(*gcVal = newString(interp, *argv));
             FLISP_UNLESS_ERR(var = newSymbol(interp, "argv0"));
             FLISP_UNLESS_ERR(envSet(interp, &var, gcVal, &interp->global, true));
-            
+
             /* Add argv to the environement */
             *gcVal = nil;
             for (Object **j = gcVal; *++argv; j = &(*j)->cdr) {
