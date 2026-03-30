@@ -1,0 +1,63 @@
+#!./test # -*- mode: sh -*-
+#
+# test executable and fLisp functionality
+# leg20231128: Femto
+
+export FLISP=../fl
+unset FLISP_DEBUG
+export FLISP_INTERACTIVE=0
+PREPARE="(extension 'string)"
+
+export FLISP_DEBUG=../f.log
+export FLISP_SIZE=$((20*1024*1024))
+
+tap 18
+
+
+IN='(code-length "a")' OUT=1
+flisp_expr 2; ok char-length-1 ascii is 1
+
+IN='(code-length "ä")' OUT=2
+flisp_expr 2; ok char-length-1 umlaut a is 2
+
+true; ok char-offset-1  \# TODO pending test implementation
+
+IN='(string-length "")' OUT="0" flisp_expr 2; ok string-length-1 length of emtpy string is 0
+IN='(string-length "answer")' OUT="6" flisp_expr 2; ok string-length-2  length of answer string is 6
+IN='(string-length "änßwér")' OUT="6" flisp_expr 2; ok string-length-3  length of 3 unicode 3 ascii string is 6
+
+
+IN='(code-char 64)' OUT='"@"'
+flisp_expr 2; ok code-char-1 ascii 64 is @
+
+IN='(code-char 228)' OUT='"ä"'
+flisp_expr 2; ok code-char-2 codepoint 228 is umlaut a
+
+IN='(char-code "@")' OUT='64'
+flisp_expr 2; ok char-code-1 of @ is 64
+
+IN='(char-code "ä")' OUT='228'
+flisp_expr 2; ok char-code-2 of umlaut a is 228
+
+
+IN='(string-search "" "")' OUT='0'
+flisp_expr 2; ok string-search-1 emtpy string is contained in empty string at 0
+
+IN='(string-search "" "abcde")' OUT='0'
+flisp_expr 2; ok string-search-2 emtpy string is contained in string at 0
+
+IN='(string-search "ab" "abcde")' OUT='0'
+flisp_expr 2; ok string-search-3 start string is contained in string at 0
+
+IN='(string-search "bc" "abcde")' OUT='1'
+flisp_expr 2; ok string-search-4 not start string is contained in string at 1
+
+IN='(string-search "bc" "äbcdé")' OUT='1'
+flisp_expr 2; ok string-search-4-1  in unicode prefix string at 1
+
+IN='(string-search "x" "abcde")' OUT='nil'
+flisp_expr 2; ok string-search-5 not contained string is nil
+
+false; ok strspn-1 \# TODO missing tests
+false; ok strcspn-1 \# TODO missing tests
+

@@ -1,0 +1,54 @@
+#!./test # -*- mode: sh -*-
+#
+# test executable and fLisp functionality
+# leg20231128: Femto
+
+export FLISP=../fl
+unset FLISP_DEBUG
+PREPARE="(extension 'posix)"
+
+#export FLISP_DEBUG=f.log
+export FLISP_SIZE=$((20*1024*1024))
+
+tap 19
+
+# File extension
+
+false; ok fflush \# TODO
+false; ok fseek \# TODO
+false; ok ftell \# TODO
+false; ok feof \# TODO
+false; ok fgetc \# TODO
+false; ok fungetc \# TODO
+false; ok fgets \# TODO
+
+IN='(type-of (fstat "five_lines.txt"))' OUT='<Error not-found: "(fstat path[ linkp]): No such file or directory", "_unknown_">'
+flisp_expr; ok file-fstat-1 existing file returns data \# TODO fstat is in file extension
+
+IN='(fstat "_unknown_")' ERR='(fstat path[ linkp]): No such file or directory' OBJ='"_unknown_"'
+flisp_err; ok file-fstat-1 existing file returns data
+
+IN='(fttyp (open "/dev/tty"))' OUT='t'
+flisp_expr; ok file-fttyp-1 console is tty \# TODO fttyp is in file extension
+
+IN='(fttyp (open "answer" "<"))' OUT='nil'
+flisp_expr; ok file-fttyp-2
+
+false; ok fmkdir \# TODO
+false; ok popen \# TODO
+false; ok pclose \# TODO
+
+IN='(system "true")' OUT='0'
+flisp_expr; ok file-system-1 shell command true returns successfully \# TODO system is in file extension
+
+IN='(system "/..,")' OUT=32512
+flisp_expr 2>/dev/null; ok file-system-2 not existing shell command fails
+
+IN='(getenv "HOME")' OUT="\"$HOME\""
+flisp_expr; ok file-getenv-1 known variable returns value string \# TODO getenv is in file extension
+
+IN='(getenv "?")' OUT=nil
+flisp_expr; ok file-getenv-2 unknown variable returns nil
+
+IN='(getcwd)' OUT="\"$(pwd)\""
+flisp_expr; ok file-getcwd-1 getcwd returns working directory \# TODO getcwd is in file extension
