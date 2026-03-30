@@ -463,7 +463,8 @@ Object *memoryAllocObject(Object *interp, Object *type, size_t size)
         if (memory > interp->memory->capacity)
             interp->memory->capacity = memory;
         fl_debug(interp, "memoryAllocObject: allocate fromSpace: %zu bytes\n", interp->memory->capacity);
-        if (!(interp->memory->fromSpace = mmap(NULL, interp->memory->capacity, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)))
+        if (MAP_FAILED == (interp->memory->fromSpace = mmap(NULL, interp->memory->capacity,
+                                                            PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)))
             fl_fatal("OOM, allocating from space, exiting\n", 64);
         interp->memory->fromOffset = 0;
         goto allocateObject;
@@ -478,7 +479,7 @@ Object *memoryAllocObject(Object *interp, Object *type, size_t size)
         fl_debug(interp, "memoryAllocObject: need %lu bytes more then available, requesting garbage collection\n", (COUNTFMT) size);
         /* If not done already allocate to space */
         if (!interp->memory->toSpace) {
-            if (!(interp->memory->toSpace = mmap(NULL, interp->memory->capacity,
+            if (MAP_FAILED == (interp->memory->toSpace = mmap(NULL, interp->memory->capacity,
                                                  PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS,
                                                  -1, 0)))
                 fl_fatal("OOM allocating to space, exiting\n", 65);
@@ -494,8 +495,8 @@ Object *memoryAllocObject(Object *interp, Object *type, size_t size)
         );
     /* Increase to space */
     void *new;
-    new = mmap(NULL, interp->memory->capacity + memory, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    if (new == (void *) -1) {
+    if (MAP_FAILED == (new = mmap(NULL, interp->memory->capacity + memory,
+                                  PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0))) {
         /* Note: fake that we have more memory return an error and then hope the best. */
         interp->memory->capacity+= EXCEPTION_MEM_RESERVE;
         return newError(interp, gc_error, out_of_memory, "OOM reallocating toSpace: %s", strerror(errno));
@@ -519,7 +520,6 @@ allocateObject:
     /* Allocate object in from-space */
     Object *object = (Object *) ((char *)interp->memory->fromSpace + interp->memory->fromOffset);
     object->type = type;
-    object->size = size;
     interp->memory->fromOffset += size;
 
     return object;
@@ -774,6 +774,7 @@ Object *newSymbolWithLength(Object *interp, char *string, size_t length)
     strncpy((*gcSymbol)->string, string, length);
     (*gcSymbol)->string[length] = '\0';
     interp->symbols = newCons(interp, gcSymbol, &interp->symbols);
+    if IS_OOM(*gcSymbol) GC_RETURN(*gcSymbol);
     GC_RELEASE;
     return *gcSymbol;
 }
@@ -2134,11 +2135,14 @@ Object *primitiveObjectLength(Object *interp, Object **args, Object **env, size_
 /** (vector[ ..]) => v */
 Object *primitiveVector(Object *interp, Object **args, Object **env, size_t nArgs)
 {
-    return flisp_ext_obj(interp, type_vector, args, nArgs, 0);
+    Object *vector = flisp_ext_obj(interp, type_vector, args, nArgs, 0);
+    CHECK_OOM(vector);
+    return vector;
 }
 Object *primitiveValues(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     Object *values = flisp_ext_obj(interp, type_values, &nil, 1, 0);
+    CHECK_OOM(values);
     values->objects[0] = *args;
     return values;
 }
@@ -2148,8 +2152,10 @@ Object *firstConsElements(Object *interp, size_t n, Object *cons)
     GC_CHECKPOINT;
     GC_TRACE(gcCons, cons);
     GC_TRACE(gcList, nil);
-    for (;n-- && (*gcCons)->type == type_cons; (*gcCons) = (*gcCons)->cdr)
+    for (;n-- && (*gcCons)->type == type_cons; (*gcCons) = (*gcCons)->cdr) {
         *gcList = newCons(interp, &(*gcCons)->car, gcList);
+        if (IS_OOM(*gcList))  GC_RETURN(*gcList);
+    }
     GC_RETURN(reverseList(interp, *gcList));
 }
 /** (elements object[ start[ end]]) => list of contained objects, sub-array of string, string range */
@@ -2718,19 +2724,21 @@ Object *flisp_register_primitive(Object *interp, char *name,
 
     GC_CHECKPOINT;
     GC_TRACE(gcSymbol, newSymbol(interp, primitive->name));
-    if IS_OOM(*gcSymbol)  GC_RETURN(*gcSymbol);
+    if (IS_OOM(*gcSymbol))  GC_RETURN(*gcSymbol);
     Object *p = newPrimitive(interp, primitive);
+    if (IS_OOM(p))  GC_RETURN(p);
+    GC_TRACE(gcP, p);
+    Object *e = envSet(interp, gcSymbol, gcP, &interp->global, true);
     GC_RELEASE;
-    CHECK_OOM(p);
-    Object *e = envSet(interp, gcSymbol, &p, &interp->global, true);
     CHECK_ERR(e);
-    return p;
+    return *gcP;
 }
 
 Object *flisp_core_init(Object *interp, Object *extension)
 {
     if (extension->extension.version != nil)  return extension->extension.version;
-
+    GC_CHECKPOINT;
+    GC_TRACE(gcExt, extension);
     Object *e = nil;
     do {
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "quote",         1,  1, nil, (LispEval) PRIMITIVE_QUOTE));
@@ -2791,8 +2799,9 @@ Object *flisp_core_init(Object *interp, Object *extension)
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "extension",     1,  1, type_symbol,    primitiveLoadExtension));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp",        1, -1, nil,            primitiveInterp));
 
-        extension->extension.version = newString(interp, FL_VERSION);
+        (*gcExt)->extension.version = newString(interp, FL_VERSION);
     } while (0);
+    GC_RELEASE;
     return e;
 }
 
@@ -2801,7 +2810,6 @@ Object *initRootEnv(Object *interp)
     Object *e = nil;
     
     /* Internal symbols */
-    type_env->type = type_symbol;
     type_moved->type = type_symbol;
     flisp_integer_zero->type = type_integer;
     flisp_empty_string->type = type_string;
@@ -2920,6 +2928,8 @@ Object *flisp_new(
 
     /* Fundamentals */
     nil->type = type_symbol;
+    type_cons->type = type_symbol;
+    type_env->type = type_symbol;
 
     interp->gcTop = nil;
     do {
