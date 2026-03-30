@@ -5,7 +5,14 @@
 tap 31
 
 export FLISPRC=../init.lsp
-export PREPARE="(require 'flisp)"
+export FLISP_SIZE=$((200*1024*1024))
+
+export START_LINE=2
+flisp () {
+    { cat ../core.lsp ../flisp.lsp ; echo '(interp-output (open ">1"))'; cat -; } | FLISP_QUIET=1 ../fl
+}
+FLISP=flisp
+
 
 # listp
 IN='(listp nil)' OUT=t
@@ -106,7 +113,7 @@ IN='(zerop 0)' OUT=t
 flisp_expr; ok zerop-1 0 is zero
 
 IN='(zerop 1)' OUT=nil
-flisp_expr 1; ok zerop-2 1 is not zero
+flisp_expr; ok zerop-2 1 is not zero
 
 # equal
 true; ok equal \# TODO
