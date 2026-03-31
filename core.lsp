@@ -90,7 +90,7 @@
 	    (list 'bind nil b-or-l
 		  (cons 'lambda (cons (mapcar car (car args)) (cdr args))))
 	    (cons b-or-l (mapcar cadr (car args))) )))
-    (t (throw wrong-type-argument "(let bindings body) - bindings expected type-consp or type-symbol, got: " (type-of (car args)))) ))
+    (t (error wrong-type-argument "(let bindings body) - bindings expected type-consp or type-symbol, got: " (type-of (car args)))) ))
 
 ;; (let* () body) => ((lambda () body))
 ;; (let* ((var val) ..) body) =>  ((lambda (var) (let* (..) body)) val)
@@ -269,6 +269,17 @@
     ((null args))
     ((null (cdr args)) (car args))
     (t (list 'cond (list (car args) (cons 'and (cdr args)))))))
+
+(defun length (o)
+  (cond
+    ((null o) 0)
+    ((stringp o) (string-length o))
+    ((consp o)
+     (fold-left (lambda (x y) (i+ x 1)) 0 o))
+    ((vectorp o) (object-length o))
+    ((valuesp o) (length (elements o)))
+    (t (error wrong-type-argument "(length object) - object unknown length for this type" (type-of o)))))
+
 
 ;;; Concatenate each element of l with separator f
 (defun join (f l)

@@ -12,7 +12,7 @@ unset PREPARE
 
 export FLISP_SIZE=$((20*1024*1024))
 
-tap 154
+tap 186
 
 [ -x $FLISP ]
 ok flisp-1 flisp exists and is executable;
@@ -199,19 +199,19 @@ IN='(lambda nil)' OUT="#<Lambda nil>"
 flisp_expr; ok lambda-1 arg nil
 
 IN='(lambda a nil)' OUT="#<Lambda a>"
-flisp_expr; ok lambda-2 args a nil 
+flisp_expr; ok lambda-2 args a nil
 
 IN='(lambda nil nil)' OUT="#<Lambda nil>"
-flisp_expr; ok lambda-3 args nil nil 
+flisp_expr; ok lambda-3 args nil nil
 
 IN='(lambda (a b) nil)' OUT="#<Lambda (a b)>"
 flisp_expr; ok lambda-4 args a b
 
 IN='(lambda (a . b) nil)' OUT="#<Lambda (a . b)>"
-flisp_expr; ok lambda-5 args a . b nil 
+flisp_expr; ok lambda-5 args a . b nil
 
 IN='(lambda (a b) a b)' OUT="#<Lambda (a b)>"
-flisp_expr; ok lambda-6 args nil nil 
+flisp_expr; ok lambda-6 args nil nil
 
 IN='((lambda (a b) a b) 0 "a")' OUT='"a"'
 flisp_expr; ok lambda-7 apply return b string a
@@ -248,13 +248,13 @@ if false; then
     # catch
     IN='(catch nil)' OUT=nil
     flisp_expr; ok catch-1_1  catch nil \# TODO catch/throw to be reworked
-    
+
     IN='(catch t)' OUT=t
     flisp_expr; ok catch-1_2  catch t \# TODO catch/throw to be reworked
-    
+
     IN='(catch (i+ 3 4))' OUT=7
     flisp_expr; ok catch-1_3  catch expr \# TODO catch/throw to be reworked
-    
+
     #IN='(catch (i/))' OUT='(wrong-number-of-arguments "expects at least 2 arguments" #<Primitive i/>)'
     #flisp_expr; ok catch-1_4  catch error
 fi
@@ -382,6 +382,105 @@ flisp_expr; ok cdr-1  cdr returns rest
 IN="(cons 1 'a)" OUT="(1 . a)"
 flisp_expr; ok cons-1  cons returns dottet pair
 
+IN='(object-size "abc")' OUT=4
+flisp_expr; ok object-size-1 string is one plus length
+
+IN='(object-size 42)' OUT=0
+flisp_expr; ok object-size-2 integer is zero
+
+IN="(object-size '(a . b))" OUT=$((2*8)) # Note: 8 is size of pointer on architecture
+flisp_expr; ok object-size-3 cons is two times pointer
+
+IN="(object-size *standard-input*)" OUT=$((4*8))
+flisp_expr; ok object-size-4  stream is two cells plus two pointers
+
+IN='(object-length "abc")' OUT=0
+flisp_expr; ok object-length-1 string is zero
+
+IN='(object-length 42)' OUT=42
+flisp_expr; ok object-length-2 integer is integer
+
+IN="(object-length '(a . b))" OUT=2
+flisp_expr; ok object-length-3 cons is two cells
+
+IN="(object-length *standard-input*)" OUT=1
+flisp_expr; ok object-length-4  stream is one cell
+
+IN='(elements 1)' OUT=nil
+flisp_expr; ok elements-1 of integer is nil
+
+IN="(elements '(a b c))" OUT='(a b c)'
+flisp_expr; ok elements-2 of list is list of elements
+
+IN="(elements (cons 3 4) 0 1)" OUT="(3)"
+flisp_expr; ok elements-3 of first of cons is list of first
+
+IN="(elements (cons 3 4) 1)" OUT="4"
+flisp_expr; ok elements-4 of rest of cons is cdr
+
+IN="(elements '(a b c) 2)" OUT='(c)'
+flisp_expr; ok elements-5-1  of third rest/last of list
+
+IN="(elements '(a b c) 0 1)" OUT='(a)'
+flisp_expr; ok elements-5-2  of first of list
+
+IN="(elements '(a b c) 0 3)" OUT='(a b c)'
+flisp_expr; ok elements-5-3 of complete list via index
+
+IN="(elements '(a b c) -2)" OUT='(b c)'
+flisp_expr; ok elements-5-4 list with negative start within list
+
+IN="(elements '(a b c) -7)" OUT='(a b c)'
+flisp_expr; ok elements-5-5 list with negative start before list start
+
+IN="(elements '(a b c) -2 -1)" OUT='(b c)'
+flisp_expr; ok elements-5-6 list with negative start and end within list
+
+IN="(elements '(a b c) 1 1)" OUT='nil'
+flisp_expr; ok elements-5-7 list with start equal end
+
+IN="(elements '(a b c) -2 -2)" OUT='nil'
+flisp_expr; ok elements-5-8 list with negative start equal end
+
+IN="(elements '(a b c) 0 7)" OUT='(a b c)'
+flisp_expr; ok elements-5-9 list with end beyond list
+
+IN='(elements "abc")'  OUT='"abc"'
+flisp_expr; ok elements-6-1 of complete string
+
+IN='(elements "abc" 2)'  OUT='"c"'
+flisp_expr; ok elements-6-2 of third/last char
+
+IN='(elements "abc" 0 1)'  OUT='"a"'
+flisp_expr; ok elements-6-3 of first char
+
+IN='(elements "abc" 0 3)'  OUT='"abc"'
+flisp_expr; ok elements-6-4 of complete string via index
+
+IN='(elements "abc" -2)'  OUT='"bc"'
+flisp_expr; ok elements-6-5 string with negative start index
+
+IN='(elements "abc" -7)'  OUT='"abc"'
+flisp_expr; ok elements-5-1 string with negative start index before string
+
+IN='(elements "abc" -2 -1)'  OUT='"bc"'
+flisp_expr; ok elements-5-1 string with negative start and end index within string
+
+IN='(elements "abc" 1 1)'  OUT='""'
+flisp_expr; ok elements-5-1 string with start equal end
+
+IN='(elements "abc" -2 -2)'  OUT='""'
+flisp_expr; ok elements-5-1 string with negative start equal end
+
+IN='(elements "abc" 0 7)'  OUT='"abc"'
+flisp_expr; ok elements-5-1 string with end beyond string
+
+IN="(vector 1 2 3)" OUT="#<Vector 3>"
+flisp_expr; ok vector-1 vector of 3
+
+IN="(elements (values 1 2 3) 0 1)" OUT="((1 2 3))"
+flisp_expr; ok values-1 values of 3
+
 # I/O
 rm -f _file_
 IN='(open "_file_" "w")' OUT=""
@@ -404,7 +503,7 @@ ok open-5 open memory input stream
 RESULT=$(echo $PREPARE '(open "" ">")' | $FLISP 2>&1 | grep -E "#<Stream 0X[0-9A-F]{2,16} >STRING>")
 ok open-6 open memory output stream
 
-IN='(close (open "empty.lsp"))' OUT="nil" 
+IN='(close (open "empty.lsp"))' OUT="nil"
 flisp_expr; ok close-1 close file
 
 IN='(close (open ">2"))' OUT="nil"
@@ -444,7 +543,7 @@ if false; then
     # throw
     IN="(throw 'fourty-two \"answer\")" ERR='answer' OBJ=
     flisp_err; ok throw-1_1  throw w/o object \# TODO catch/throw to be revisited
-    
+
     IN="(throw 'fourty-three \"answer\" 1)" ERR='answer' OBJ=1
     flisp_err; ok throw-1_2  throw with object
 fi
@@ -487,4 +586,3 @@ IN='(string-compare "a" "a")' OUT="0" flisp_expr; ok string-compare-1 same strin
 IN='(string-compare "a" "b")' OUT="-1" flisp_expr; ok string-compare-2 a less then b
 IN='(string-compare "b" "a")' OUT="1" flisp_expr; ok string-compare-3 b greater then a
 IN='(string-compare "a" "ä")' OUT="-98" flisp_expr; ok string-compare-4 a less then umlaut a
-

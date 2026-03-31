@@ -12,7 +12,7 @@ FLISP=flisp
 
 export FLISP_SIZE=$((20*1024*1024))
 
-tap 185
+tap 189
 
 # list
 IN='(list)' OUT=nil
@@ -526,6 +526,18 @@ flisp_expr; ok join-5 join with empty separator concats
 IN='(join "nswe" (list "a" "r"))' OUT='"answer"'
 flisp_expr; ok join-6 with long separator inserts long separator
 
+# length
+IN='(length nil)' OUT=0
+flisp_expr; ok length-1 of nil 0
+
+IN="(length '(a b c))" OUT=3
+flisp_expr; ok length-2 of triple list is 3
+
+IN="(length (vector a b c d))" OUT=4
+echo flisp_expr; ok length-3 of quad vector is 4 \# TODO type-of vector segfaults
+
+IN="(length (car (elements (values 1 2 3 4 5))))" OUT=5
+flisp_expr; ok length-4 of five values is 5
 
 # fload
 IN='(setq f (open "empty.lsp" "r")) (fload f)' OUT=nil

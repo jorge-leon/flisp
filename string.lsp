@@ -1,22 +1,26 @@
 ;;
-;;  string function library
+;;  fLisp string library
 ;;
-;;
-;;  Built Into fLisp
-;;    (string-append s a)
-;;    (length s)
-;;    (substring s st end)
-;;    (string-search haystack needle)
+;; Hugh Barney
+;; leg20260331, CC 1.0
 ;;
 
-(defun length (o)
-  (cond
-    ((null o) 0)
-    ((stringp o) (string-length o))
-    ((consp o)
-     (fold-left (lambda (x y) (+ x 1)) 0 o))
-    (t (throw wrong-type-argument "(length object) - expected type-cons or type-string" o))))
+(extension 'string)
 
+;; (substring string[ start [end]])
+(defun substring (string . args)
+  (if-not args string
+	  (let ((start (car args)) (end (when (consp (cdr args) (cadr args)))))
+	    (if-not (same (type-of start) type-integer)
+		    (error wrong-type-argument
+			   "(substring string[ start [end]]) - start expected type-integer, got"
+			   (type-of start) )
+		    (if (null end) (elements string (char-offset string start))
+			(if-not (same (type-of end) type-integer)
+				(error wrong-type-argument
+				       "(substring string[ start [end]]) - end expected type-integer, got:"
+				       (type-of end) )
+				(elements (char-offset string start) (char-offset string end)) ))))))
 
 ;; trim all spaces from front of a string
 (defun string-trim-front(s)
@@ -32,7 +36,6 @@
 (defun string-trim(s)
   (string-trim-back (string-trim-front s)))
 
-
 ;;
 ;; string-ref , get character at position r
 ;;   zero based indexing
@@ -40,13 +43,11 @@
 (defun string-ref (s r)
    (substring s r (+ r 1)))
 
-
 ;;
 ;; string-startswith - return t if string starts with search
 ;;
 (defun string-startswith (str search)
   (eq 0 (string-search search str)))
-
 
 ;;
 ;; shrink string right by dropping off the first char
@@ -54,13 +55,11 @@
 (defun string-shrink-right(s)
   (substring s 1))
 
-
 ;;
 ;; shrink string left by dropping off last char
-;;  
+;;
 (defun string-shrink-left(s)
   (substring s 0 -1))
-
 
 ;;
 ;; return first char of string
@@ -98,5 +97,3 @@
 	   l )))))
 
 (provide 'string)
-
-

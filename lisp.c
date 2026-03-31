@@ -2743,12 +2743,12 @@ Object *flisp_core_init(Object *interp, Object *extension)
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "same",          2,  2, nil,            primitiveSame));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "car",           1,  1, nil,            primitiveCar  /* Note: nil|cons */ ));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "cdr",           1,  1, nil,            primitiveCdr  /* Note: nil|cons */ ));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "cons",          2,  2, nil,            primitiveCons));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "object-size",   1,  1, nil,            primitiveObjectSize));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "object-length", 1,  1, nil,            primitiveObjectLength));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "vector",        1, -1, nil,            primitiveVector));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "values",        0, -1, nil,            primitiveValues));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "elements",      1,  3, nil,            primitiveElements));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "cons",          2,  2, nil,            primitiveCons));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "open",          1,  2, type_string,    primitiveFopen));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "close",         1,  1, type_stream,    primitiveFclose));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "file-info",     1,  1, type_stream,    primitiveFinfo));
