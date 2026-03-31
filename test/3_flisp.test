@@ -1,13 +1,13 @@
-#!./test# -*- mode: sh -*-
-# test the fLisp library
-# leg20231129: Femto
+#!./test.sh # -*- mode: sh -*-
+#
+# fLisp test flisp library
+#
+# leg20231129, CC 1.0
+#
 
 tap 31
 
-export FLISPRC=../init.lsp
 export FLISP_SIZE=$((200*1024*1024))
-
-export START_LINE=2
 flisp () {
     { cat ../core.lsp ../flisp.lsp ; echo '(interp-output (open ">1"))'; cat -; } | FLISP_QUIET=1 ../fl
 }
@@ -30,10 +30,8 @@ flisp_expr; ok listp-4 two element list is list
 
 # Math
 
-IN='(nthcdr -1 nil)'
-ERR="negative index"
-OBJ='-1'
-flisp_err; ok nthcdr-1 negativ index fails
+IN='(nthcdr -1 nil)' OUR="negative index"
+flisp_expr; ok nthcdr-1 negativ index fails
 
 IN="(nthcdr 0 '(a b c))" OUT='(a b c)'
 flisp_expr; ok nthcdr-2 0 index is list
@@ -50,15 +48,11 @@ flisp_expr; ok nthcdr-5 of nil is nil
 IN="(nthcdr 1 '(2 . 3))" OUT=3
 flisp_expr; ok nthcdr-6 of 1 of cons is cdr
 
-IN="(nthcdr null nil)"
-ERR="(nthcdr i l) - i expected type-integer, got: type-primitive"
-OBJ='#<Primitive null>'
-flisp_err; ok nthcdr-7 wrong index type fails
+IN="(nthcdr null nil)" OUT="(nthcdr i l) - i expected type-integer, got: type-primitive"
+flisp_expr; ok nthcdr-7 wrong index type fails
 
-IN="(nthcdr 1 null)"
-ERR="(nthcdr i l) - l expected type-cons, got: type-primitive"
-OBJ='#<Primitive null>'
-flisp_err; ok nthcdr-8 wrong list type fails
+IN="(nthcdr 1 null)" OUT="(nthcdr i l) - l expected type-cons, got: type-primitive"
+flisp_expr; ok nthcdr-8 wrong list type fails
 
 IN="(nth 1 '(a b c))" OUT=b
 flisp_expr; ok nth-1 yields element

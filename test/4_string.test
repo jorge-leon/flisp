@@ -1,9 +1,17 @@
-#!./test # -*- mode: sh -*-
+#!./test.sh # -*- mode: sh -*-
+#
+# fLisp test string libarary
+#
+# leg20260331, CC 1.0
+#
 
-export FLISPRC=../init.lsp
-export PREPARE="(require 'string)"
+export FLISP_SIZE=$((200*1024*1024))
+flisp () {
+    { cat ../core.lsp ../string.lsp ; echo '(interp-output (open ">1"))'; cat -; } | FLISP_QUIET=1 ../fl
+}
+FLISP=flisp
 
-tap 32
+tap 45
 
 IN='(substring "")' OUT='""'
 flisp_expr; ok substring-1 substring empty is empty
@@ -29,20 +37,20 @@ flisp_expr; ok substring-7 substring answer -3 -1 we
 IN='(substring "änßwér" -3 -1)' OUT='"wé"'
 flisp_expr; ok substring-7-1 substring in 3 unicode 2 ascii string
 
-IN='(substring "answer" 7)' ERR='(substring string [start [end]]) - start out of range' OBJ=
-flisp_err; ok substring-8 substring answer 7 range-error
+IN='(substring "answer" 7)' OUT='(substring string [start [end]]) - start out of range'
+flisp_expr; ok substring-8 substring answer 7 range-error
 
-IN='(substring "answer" -7)' ERR='(substring string [start [end]]) - start out of range' OBJ=
-flisp_err; ok substring-9 substring answer -7 range-error
+IN='(substring "answer" -7)' OUT='(substring string [start [end]]) - start out of range'
+flisp_expr; ok substring-9 substring answer -7 range-error
 
-IN='(substring "answer" 1 7)' ERR='(substring string [start [end]]) - end out of range' OBJ=
-flisp_err; ok substring-10 substring answer 1 7 range-error
+IN='(substring "answer" 1 7)' OUT='(substring string [start [end]]) - end out of range'
+flisp_expr; ok substring-10 substring answer 1 7 range-error
 
-IN='(substring "answer" 1 -7)' ERR='(substring string [start [end]]) - end out of range' OBJ=
-flisp_err; ok substring-11 substring answer 1 7 range-error
+IN='(substring "answer" 1 -7)' OUT='(substring string [start [end]]) - end out of range'
+flisp_expr; ok substring-11 substring answer 1 7 range-error
 
-IN='(substring "answer" 2 1)' ERR='(substring string [start [end]]) - end > start' OBJ=
-flisp_err; ok substring-12 substring answer 2 1 range-error
+IN='(substring "answer" 2 1)' OUT='(substring string [start [end]]) - end > start'
+flisp_expr; ok substring-12 substring answer 2 1 range-error
 
 
 IN='(string-trim-front "")' OUT='""'

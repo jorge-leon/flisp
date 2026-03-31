@@ -1,5 +1,8 @@
 #!/bin/sh
-# leg20231128
+#
+# fLisp test suite runner
+#
+# leg20231128, CC 1.0
 #
 # Poor mans unit test framework
 #
@@ -126,31 +129,24 @@ ok () {
 
 # - - -
 
-# Filter line range: start end
+# Filter line range: last-n count
 range () {
-    local START=${1:-1}
-    local END=$2
-    local LN=0
-#    while read LINE; do
-#	LN=$((LN+1))
-#	if [ $LN -ge $START ] && [ $LN -le $END ]; then
-#	    echo "$LINE"
-#	fi
-    #    done
-    sed -n $START,${END}p
+    local LAST=${1:-1}
+    local COUNT=${2:-1}
+    tail -$LAST | head -$COUNT
 }
 
 # pipe expr $PREPARE, then $IN to fLisp, extract $1 last values of
 # output, default 1. Filters trailing 't.  Compare output with $OUT
 flisp_expr () {
     local T_RC
-    local START=${1:-${START_LINE:-1}}
     T_OUT="$(echo -n "$PREPARE $IN" | $FLISP 2>&1)"
     T_RC=$?
-    F_OUT="$(echo "$T_OUT" | range $START ${2:-$START})"
+    F_OUT="$(echo "$T_OUT" | range $1 $2)"
     [ "$F_OUT" = "$OUT" ]
 }
 flisp_err () {
+    echo replace flisp_err with flisp_expr >&2; exit 1
     local T_RC
     T_OUT=$(echo -n "$PREPARE $IN" | $FLISP 2>&1)
     T_RC=$?

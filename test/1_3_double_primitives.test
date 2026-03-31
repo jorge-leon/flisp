@@ -1,15 +1,17 @@
-#!./test # -*- mode: sh -*-
+#!./test.sh # -*- mode: sh -*-
 #
-# test fLisp double extension
-# leg20231128: Femto
+# fLisp test double extension
+#
+# leg20231128, CC 1.0
+#
 
 export FLISP=../fl
 unset FLISP_DEBUG
 PREPARE="(extension 'double)"
 
-#export FLISP_DEBUG=f.log
+export FLISP_DEBUG=f.log
 export FLISP_SIZE=$((20*1024*1024))
-export START_LINE=2
+
 
 tap 1
 IN='(d+ #d2.72 #d3.14)' OUT="#D401770A3D70A3D71"

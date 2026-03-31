@@ -1,7 +1,9 @@
-#!./test # -*- mode: sh -*-
+#!./test.sh # -*- mode: sh -*-
 #
-# test executable and fLisp functionality
-# leg20231128: Femto
+# fLisp test string extension
+#
+# leg20231128, CC0 1.0
+#
 
 export FLISP=../fl
 unset FLISP_DEBUG
@@ -10,7 +12,6 @@ PREPARE="(extension 'string)"
 
 export FLISP_DEBUG=../f.log
 export FLISP_SIZE=$((20*1024*1024))
-export START_LINE=2
 
 tap 18
 

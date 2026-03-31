@@ -1,6 +1,8 @@
 #!./test.sh # -*- mode: sh -*-
 #
-# test executable and fLisp functionality
+# fLisp test executable and fLisp core
+#
+# leg20260331, CC0 1.0
 #
 
 export FLISP=../fl

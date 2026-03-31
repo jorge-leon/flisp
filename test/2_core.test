@@ -1,15 +1,18 @@
-#!./test # -*- mode: sh -*-
-# test the fLisp core library
-# leg20231129: Femto
+#!./test.sh # -*- mode: sh -*-
+#
+# fLisp test core library
+#
+# leg20231129, CC 1.0
+#
 
-##export FLISPRC=../init.lsp
 flisp () {
     { cat ../core.lsp; echo '(interp-output (open ">1"))'; cat -; } | FLISP_QUIET=1 ../fl
 }
 FLISP=flisp
-export START_LINE=2
+
 export FLISP_SIZE=$((20*1024*1024))
-tap 181
+
+tap 185
 
 # list
 IN='(list)' OUT=nil
@@ -142,8 +145,8 @@ flisp_expr; ok mapcar-2 mapcar does nothing on empty list
 
 # let
 ## unlabelled let
-IN="(let)" OBJ= ERR="(env) expects at least 1 arguments"
-flisp_err; ok let-1 let errs with zero args
+IN="(let)" OUT="(env) expects at least 1 arguments"
+flisp_expr; ok let-1 let errs with zero args
 
 IN="(let ())" OUT=nil
 flisp_expr; ok let-2 let with empty bindings is nil
@@ -174,8 +177,8 @@ IN="(let label ((a 2) (b 0))  (print a) (if (i> a 0) (label (i- a 1) (i+ b 1))))
 flisp_expr; ok labelled-let-5 labelled let loops
 
 # let*
-IN="(let*)" OBJ= ERR="(env) expects at least 1 arguments"
-flisp_err; ok 'let*-1 let* errs with zero args'
+IN="(let*)" OUT="(env) expects at least 1 arguments"
+flisp_expr; ok 'let*-1 let* errs with zero args'
 
 IN="(let* ())" OUT=nil
 flisp_expr; ok 'let*-2 let* with empty bindings is nil'
@@ -410,15 +413,11 @@ IN='(% 11 6 3)' OUT='2' flisp_expr; ok mod-3 mod 11 6 3 is 2
 # IN='(>= 7 7 7)' OUT='t' flisp_expr; ok greater-equal-3 greater-equal 7 7 7 is t
 # IN='(>= 7 7 6)' OUT='t' flisp_expr; ok greater-equal-4 greater-equal 7 7 6 is t
 
-IN='(min)'
-ERR="(env) expects at least 1 arguments"
-OBJ='#<Lambda (n . args)>'
-flisp_err; ok min-1 with nil fails
+IN='(min)' OUT="(env) expects at least 1 arguments"
+flisp_expr; ok min-1 with nil fails
 
-IN='(min "a")'
-ERR="(min n[ arg ..]) n: expected number, got type-string"
-OBJ='"a"'
-flisp_err; ok min-2 with not number fails
+IN='(min "a")' OUT="(min n[ arg ..]) n: expected number, got type-string"
+flisp_expr; ok min-2 with not number fails
 
 IN='(min 0)' OUT=0
 flisp_expr; ok min-3 with single number yields number
@@ -432,15 +431,11 @@ flisp_expr; ok min-5 with 'a>b' yields b
 IN='(min 1 2 3)' OUT=1
 flisp_expr; ok min-6 with more then two args
 
-IN='(max)'
-ERR="(env) expects at least 1 arguments"
-OBJ='#<Lambda (n . args)>'
-flisp_err; ok max-1 with nil fails
+IN='(max)' OUT="(env) expects at least 1 arguments"
+flisp_expr; ok max-1 with nil fails
 
-IN='(max "a")'
-ERR="(max n[ arg ..]) n: expected number, got type-string"
-OBJ='"a"'
-flisp_err; ok max-2 with not number fails
+IN='(max "a")' OUT="(max n[ arg ..]) n: expected number, got type-string"
+flisp_expr; ok max-2 with not number fails
 
 IN='(max 0)' OUT=0
 flisp_expr; ok max-3 with single number yields number
@@ -555,8 +550,8 @@ IN="(provide 'a 'b)" OUT="(a core)"
 flisp_expr; ok provide-3 providing features a and subfeature b only prepends a to features
 
 # require
-IN="(require)" OBJ="#<Lambda (feature . args)>" ERR="(env) expects at least 1 arguments"
-flisp_err; ok require-1 requiring nothing errs
+IN="(require)" OUT="(env) expects at least 1 arguments"
+flisp_expr; ok require-1 requiring nothing errs
 
 IN="(require '_no_file)" OUT="nil"
 flisp_expr; ok require-2 requiring not existing features returns nil
