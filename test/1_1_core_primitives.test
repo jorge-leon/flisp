@@ -7,7 +7,7 @@
 
 export FLISP=../fl
 export FLISP_INTERACTIVE=0
-FLISP_DEBUG=../f.log
+export FLISP_DEBUG=../f.log
 unset PREPARE
 
 export FLISP_SIZE=$((20*1024*1024))
@@ -18,7 +18,7 @@ tap 186
 ok flisp-1 flisp exists and is executable;
 
 IN= OUT="fLisp 0.17α1"
-FLISP_INTERACTIVE=1 flisp_expr 1 1; ok flisp-2 empty input succeeds
+FLISP_INTERACTIVE=1 flisp_expr 2 1; ok flisp-2 empty input succeeds
 
 # reader
 IN='(' OUT='#<Error read-incomplete: "unexpected end of stream while reading list", nil>'
@@ -128,7 +128,7 @@ IN="(bind t var1 3) ((lambda () (bind nil var1 2) t)) var1" OUT=3
 flisp_expr; ok bind-6 local bind does not set outer variable.
 
 IN="(bind t var1 3) ((lambda () (bind t var1 2) t)) var1" OUT=2
-flisp_expr 3; ok bind-7 global bind does set outer variable.
+flisp_expr; ok bind-7 global bind does set outer variable.
 
 IN='(progn)' OUT=nil
 flisp_expr; ok progn-1 no args evaluate to nil
@@ -185,7 +185,7 @@ flisp_expr; ok cond-14 fail if not called with a cons
 IN='(cond "a" ())' OUT="#<Error wrong-type-argument: \"(cond clause ..) - clause is not a list\", \"a\">"
 flisp_expr; ok cond-15 fail if clause is not a cons
 
-IN='(cond (nil . "a"))' OUT="#<Error invalid-value: \"read error while reading expression in list\", 'cond'>"
+IN='(cond (nil . "a"))' OUT='#<Error wrong-type-argument: "(cond (pred action) ..) action is not a list", (nil . "a")>'
 flisp_expr; ok cond-16 fail if clause is cons with car nil \# TODO Fix list reader to allow "(nil . o)"
 
 IN='(cond (t . t))' OUT="#<Error wrong-type-argument: \"(cond (pred action) ..) action is not a list\", (t . t)>"
@@ -433,7 +433,7 @@ flisp_expr; ok elements-5-4 list with negative start within list
 IN="(elements '(a b c) -7)" OUT='(a b c)'
 flisp_expr; ok elements-5-5 list with negative start before list start
 
-IN="(elements '(a b c) -2 -1)" OUT='(b c)'
+IN="(elements '(a b c) -2 -1)" OUT='(b)'
 flisp_expr; ok elements-5-6 list with negative start and end within list
 
 IN="(elements '(a b c) 1 1)" OUT='nil'
@@ -463,7 +463,7 @@ flisp_expr; ok elements-6-5 string with negative start index
 IN='(elements "abc" -7)'  OUT='"abc"'
 flisp_expr; ok elements-5-1 string with negative start index before string
 
-IN='(elements "abc" -2 -1)'  OUT='"bc"'
+IN='(elements "abc" -2 -1)'  OUT='"b"'
 flisp_expr; ok elements-5-1 string with negative start and end index within string
 
 IN='(elements "abc" 1 1)'  OUT='""'
@@ -519,7 +519,7 @@ IN='(file-info (open "abc" "<"))' OUT='("<STRING" "abc" -1)'
 flisp_expr; ok file-info-1 file-info of memory stream contains string
 
 IN='(close (bind t f (open "" ">"))) (file-info f)' OUT='(">STRING" nil nil)'
-flisp_expr 2; ok file-info-2 file-info of closed memory stream contains nil
+flisp_expr; ok file-info-2 file-info of closed memory stream contains nil
 
 IN='(read (open "1" "<"))' OUT="1"
 flisp_expr; ok read-1 read memory input stream \# TODO this works with "x", so it seems to be an issue with scratchpad and integer conversion

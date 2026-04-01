@@ -1184,8 +1184,8 @@ Object *readList(Object *interp, FILE *fd)
             ch = streamPeek(fd);
             if (!isSymbolChar(ch, 10)) {
                 if (ch == EOF) { if (ferror(fd))  READER_IO("while reading dotted list");  else READER_EOF("while reading dotted list"); }
-                if (last == nil)
-                    return newError(interp, invalid_read_syntax, nil, "unexpected dot at start of list");
+                //if (last == nil)
+                //    return newError(interp, invalid_read_syntax, nil, "unexpected dot at start of list");
                 if ((ch = peekNext(interp, fd)) == ')')
                     return newError(interp, invalid_read_syntax, nil, "expected object at end of dotted list");
                 GC_CHECKPOINT;
@@ -2158,48 +2158,67 @@ Object *firstConsElements(Object *interp, size_t n, Object *cons)
     }
     GC_RETURN(reverseList(interp, *gcList));
 }
+int64_t flisp_list_length(Object *interp, Object *list)
+{
+    int64_t i;
+    for (i = 0; list->type == type_cons; list = list->cdr)  i++;
+    if (i)
+        return (list == nil) ? i : ++i;
+    return 0;
+}
 /** (elements object[ start[ end]]) => list of contained objects, sub-array of string, string range */
 Object *primitiveElements(Object *interp, Object **args, Object **env, size_t nArgs)
 {
-    int64_t i = 0, j,  end = FLISP_ARG1->length;
+    int64_t i = 0, j,  end;
 
-    if (FLISP_ARG1->size == 0)  return nil;
-
-    if (FLISP_ARG1->length == 0)  end = FLISP_ARG1->size;
-
+    Object *o = FLISP_ARG1, *t = o->type;
+    if (t == type_string)
+        end = o->size - 1;
+    else if (t == type_cons)
+        end = -1; //end = flisp_list_length(o);
+    else if (t == type_vector)
+        end = o->length;
+    else if (t == type_values)
+        ;
+    else
+        return newError(interp, wrong_type_argument, o, "(elements object[ start[ end]]) - object non of string, list, vector");
+    
     j = end;
 
     if (nArgs > 1) {
         FLISP_ASSERT(FLISP_ARG2, type_integer, "(elements object[ start[ end]]) - start");
         i = FLISP_ARG2->value;
-        if (FLISP_ARG1->type != type_cons) {
-            if (i < 0) i += end;
-            if (i >= end) i = end;
-        }
+        if (t == type_cons)  j = end = flisp_list_length(interp, o);
+        if (i < 0)  i += end;
+        if (i > end) i = end;
     }
     if (nArgs > 2) {
         j = (FLISP_ARG3->value);
-        if (FLISP_ARG1->type != type_cons && j < 0) j += end;
+        if (j < 0) j += end;
     }
+
     if (i < 0) i = 0;
-    if (j < 0) j = 0;
-    if (j >= end) j = end;
-
-    if (i == end)  return nil;
-    if (i > end && FLISP_ARG1->type != type_cons)
-        return newError(interp, range_error, FLISP_ARG2, "(object-list object[ start[ end]]) - start > end: [%lu, %lu]", i, end);
-
-    if (FLISP_ARG1->length == 0)
+    if (end != -1) { /* list w/o end parameter */
+        if (i > j)
+            return newError(interp, range_error, FLISP_ARG2, "(elements object[ start[ end]]) - start > end: [%lu, %lu)", i, j);
+        if (j < 0) j = 0;
+        if (j > end) j = end;
+    }
+    
+    if (i == j) {
+        if (t == type_string)
+            return flisp_empty_string;
+        return nil;
+    }
+    if (t == type_string)
         return newStringWithLength(interp, &FLISP_ARG1->string[i], j-i);
 
-    if (FLISP_ARG1->type == type_cons) {
-        Object *e = FLISP_ARG1;
+    if (t == type_cons) {
         j -= i;
-        while (i-- && e->type == type_cons)
-            e = e->cdr;
-        fl_debug(interp, "firstConsElements(cons), rest: %lu, %lu\n", j, end);
-        if (nArgs <= 2) return e;
-        return firstConsElements(interp, j, e);
+        while (i-- && o->type == type_cons)
+            o = o->cdr;
+        if (nArgs <= 2) return o;
+        return firstConsElements(interp, j, o);
     }
 
     GC_CHECKPOINT;
