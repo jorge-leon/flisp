@@ -28,7 +28,7 @@
  */
 Object *posixFflush(Object *interp, Object** args, Object **env, size_t nArgs)
 {
-    FILE *fd = interp->output->fd;
+    FILE *fd = FLISP_INTERP.output->fd;
 
     if (nArgs)
         if (FLISP_ARG1 == t)
@@ -63,7 +63,7 @@ Object *posixFseek(Object *interp, Object** args, Object **env, size_t nArgs)
     Object *stream = FLISP_ARG1;
 
     if (stream == nil) {
-        stream = interp->input;
+        stream = FLISP_INTERP.input;
         if (stream->fd == NULL)
             return newError(interp, invalid_value, stream, "(fseek stream offset[ relativep]) - input stream not set");
     } else {
@@ -98,7 +98,7 @@ Object *posixFseek(Object *interp, Object** args, Object **env, size_t nArgs)
  */
 Object *posixFtell(Object *interp, Object** args, Object **env, size_t nArgs)
 {
-    Object *stream = interp->input;
+    Object *stream = FLISP_INTERP.input;
     off_t pos;
 
     if (nArgs)
@@ -120,7 +120,7 @@ Object *posixFtell(Object *interp, Object** args, Object **env, size_t nArgs)
  */
 Object *posixFeof(Object *interp, Object** args, Object **env, size_t nArgs)
 {
-    Object *stream = interp->input;
+    Object *stream = FLISP_INTERP.input;
 
     if (nArgs)
         stream = FLISP_ARG1;
@@ -138,7 +138,7 @@ Object *posixFgetc(Object *interp, Object** args, Object **env, size_t nArgs)
 {
     char s[] = "\0\0";
     int c;
-    Object *stream = interp->input;
+    Object *stream = FLISP_INTERP.input;
 
     if (nArgs) {
         stream = FLISP_ARG1;
@@ -175,7 +175,7 @@ Object *posixFgetc(Object *interp, Object** args, Object **env, size_t nArgs)
 Object *posixFungetc(Object *interp, Object** args, Object **env, size_t nArgs)
 {
     int c;
-    Object *stream = interp->input;
+    Object *stream = FLISP_INTERP.input;
 
     FLISP_ASSERT(FLISP_ARG1, type_integer, "(fungetc char[ stream] - char)");
     c = (int)FLISP_ARG2->value;
@@ -209,7 +209,7 @@ Object *posixFgets(Object *interp, Object** args, Object **env, size_t nArgs)
 {
     Object *string = nil;
     char *input;
-    Object *stream = interp->input;
+    Object *stream = FLISP_INTERP.input;
 
     if (nArgs) {
         stream = FLISP_ARG1;
@@ -344,7 +344,7 @@ Object *posixFstat(Object *interp, Object** args, Object **env, size_t nArgs)
  */
 Object *posixFttyP(Object *interp, Object** args, Object **env, size_t nArgs)
 {
-    FILE* fd = interp->input->fd;
+    FILE* fd = FLISP_INTERP.input->fd;
     if (nArgs)
         fd = FLISP_ARG1->fd;
     return (isatty(fileno(fd))) ? t : nil;

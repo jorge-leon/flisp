@@ -93,7 +93,7 @@ typedef struct Memory {
     void *fromSpace, *toSpace;
 } Memory;
 
-typedef struct InterpreterObjects {
+typedef struct InterpreterObject {
     Object *input;
     Object *output;
     Object *stderr;
@@ -102,9 +102,11 @@ typedef struct InterpreterObjects {
     Object *symbols;
     Object *global;
     Object *gcTop;
-
     Memory *memory;
-} InterpreterObjects;
+    bool trace_read : 1;
+    bool trace_primitives : 1;
+    bool gc_always : 1;
+} InterpreterObject;
 
 typedef struct ExtensionObject {
     Object *name;
@@ -123,19 +125,8 @@ struct Object {
         struct { Object *error; Object *message; Object *culprit; }; // Error
         struct { Object *path; FILE *fd; char *buf; size_t len; };        // Stream
         StreamObject stream;
-        struct {
-            Object *input;
-            Object *output;
-            Object *stderr;
-            Object *debug;
-            Object *extensions;
-            Object *symbols;
-            Object *global;
-            Object *gcTop;
-            
-            Memory *memory;
-        };
         ExtensionObject extension;
+        InterpreterObject self;
     };
 };
 
@@ -224,14 +215,14 @@ extern bool addCharToBuf(Object *, int);
 #define GC_PASTE2(name, id)  GC_PASTE1(name, id)
 #define GC_UNIQUE(name)      GC_PASTE2(name, __LINE__)
 
-#define GC_CHECKPOINT Object *gcTop = interp->gcTop
-#define GC_RELEASE interp->gcTop = gcTop
+#define GC_CHECKPOINT Object *gcTop = interp->self.gcTop
+#define GC_RELEASE interp->self.gcTop = gcTop
 extern Object *gcReturn(Object *, Object *, Object *);
 #define GC_RETURN(expr)  return gcReturn(interp, gcTop, expr)
 
 #define GC_TRACE(name, init)                                            \
-    Object GC_UNIQUE(gcTrace) = { .type = type_cons, .car = init, .cdr = interp->gcTop }; \
-    interp->gcTop = &GC_UNIQUE(gcTrace);                                \
+    Object GC_UNIQUE(gcTrace) = { .type = type_cons, .car = init, .cdr = interp->self.gcTop }; \
+    interp->self.gcTop = &GC_UNIQUE(gcTrace);                                \
     Object **name = &GC_UNIQUE(gcTrace).car;
 
 /*  do while dispatcher */
@@ -253,6 +244,8 @@ void fl_debug(Object *, char *, ...);
         return newError(interp, wrong_type_argument, PARAM,     \
             SIGNATURE " expected %s, got: %s", TYPE->string, PARAM->type->string)
 
+
+#define FLISP_INTERP interp->self
 #endif
 /*
  * Local Variables:

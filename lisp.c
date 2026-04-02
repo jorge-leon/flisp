@@ -97,8 +97,6 @@ Object *flisp_debug =  &(Object) {
     .len = 0
 };
 
-bool gc_always = false;
-
 Object init_oom_message =     { .length = 0, .string = "failed to allocate memory for the interpreter" };
 Object object_oom_message = { .length = 0, .string = "failed to allocate memory for object" };
 Object fmt_oom_message =      { .length = 0, .string = "failed to allocate memory for the writer" };
@@ -237,18 +235,18 @@ void fl_debug(Object *, char *format, ...)
  */
 void fl_debug(Object *interp, char *format, ...)
 {
-    if (interp->debug->fd == NULL)
+    if (FLISP_INTERP.debug->fd == NULL)
         return;
 
     va_list(args);
     va_start(args, format);
-    if (vfprintf(interp->debug->fd, format, args) < 0) {
+    if (vfprintf(FLISP_INTERP.debug->fd, format, args) < 0) {
         va_end(args);
-        (void)fprintf(interp->debug->fd,
+        (void)fprintf(FLISP_INTERP.debug->fd,
                       "fatal: failed to print debug message %s: %s", format, strerror(errno));
     }
     va_end(args);
-    (void)fflush(interp->debug->fd);
+    (void)fflush(FLISP_INTERP.debug->fd);
 }
 
 
@@ -318,8 +316,8 @@ Object *gcReturn(Object *interp, Object *gcTop, Object *result)
  *
  */
 bool gcCollectableObject(Object *interp, Object *object) {
-    return (object >= (Object *) interp->memory->fromSpace &&
-            object < (Object *) ((char *)interp->memory->fromSpace + interp->memory->fromOffset));
+    return (object >= (Object *) FLISP_INTERP.memory->fromSpace &&
+            object < (Object *) ((char *)FLISP_INTERP.memory->fromSpace + FLISP_INTERP.memory->fromOffset));
 }
 
 /** gcMoveObject - save a single object from garbage collection
@@ -347,10 +345,10 @@ Object *gcMoveObject(Object *interp, Object *object, gcStats *stats)
     stats->moved++;
 
     // copy object to to-space
-    Object *forward = (Object *) ((char *)interp->memory->toSpace + interp->memory->toOffset);
+    Object *forward = (Object *) ((char *)FLISP_INTERP.memory->toSpace + FLISP_INTERP.memory->toOffset);
     size_t size = sizeof(ObjectHeader) + object->size;
     memcpy(forward, object, size);
-    interp->memory->toOffset += size;
+    FLISP_INTERP.memory->toOffset += size;
 
 #if DEBUG_GC
     if (object->type == type_stream)
@@ -381,20 +379,20 @@ void gc(Object *interp)
     size_t i;
 
     fl_debug(interp, "collecting garbage\n");
-    size_t free = (COUNTFMT) interp->memory->capacity - interp->memory->fromOffset;
+    size_t free = (COUNTFMT) FLISP_INTERP.memory->capacity - FLISP_INTERP.memory->fromOffset;
     fl_debug(interp, "memory: %lu/%lu, free %ld/(%lu)\n",
-             (COUNTFMT) interp->memory->fromOffset, (COUNTFMT) interp->memory->capacity,
+             (COUNTFMT) FLISP_INTERP.memory->fromOffset, (COUNTFMT) FLISP_INTERP.memory->capacity,
              free - EXCEPTION_MEM_RESERVE, free
         );
-    interp->memory->toOffset = 0;
+    FLISP_INTERP.memory->toOffset = 0;
 #if DEBUG_GC
     fl_debug(interp, "gc trace\n");
 #endif
-    for (object = interp->gcTop; object != nil; object = object->cdr) {
+    for (object = FLISP_INTERP.gcTop; object != nil; object = object->cdr) {
         object->car = gcMoveObject(interp, object->car, &stats);
     }
 #if DEBUG_GC
-    fl_debug(interp, "moving %lu root objects\n", interp->length);
+    fl_debug(interp, "moving %lu root objects\n", FLISP_INTERP.length);
 #endif
     for (i = 0; i < interp->length; i++)
         /* Note: pending interp = Object */
@@ -407,8 +405,8 @@ void gc(Object *interp)
 #endif
 
     // iterate over objects in to-space and move all objects they reference
-    for (object = interp->memory->toSpace;
-         object < (Object *) ((char *)interp->memory->toSpace + interp->memory->toOffset);
+    for (object = FLISP_INTERP.memory->toSpace;
+         object < (Object *) ((char *)FLISP_INTERP.memory->toSpace + FLISP_INTERP.memory->toOffset);
          object = (Object *) ((char *)object + sizeof(ObjectHeader) + object->size)) {
 
         if (object->size != 0)
@@ -416,21 +414,21 @@ void gc(Object *interp)
                 object->objects[i] = gcMoveObject(interp, object->objects[i], &stats);
     }
     // swap from- and to-space
-    void *swap = interp->memory->fromSpace;
-    interp->memory->fromSpace = interp->memory->toSpace;
-    interp->memory->toSpace = swap;
+    void *swap = FLISP_INTERP.memory->fromSpace;
+    FLISP_INTERP.memory->fromSpace = FLISP_INTERP.memory->toSpace;
+    FLISP_INTERP.memory->toSpace = swap;
 
     /* report before overwriting offset difference */
     fl_debug(interp,  "collected %lu objects, skipped %lu, constants %lu, saved %lu bytes\n",
              (COUNTFMT) stats.moved, (COUNTFMT) stats.skipped, (COUNTFMT) stats.constant,
-             (COUNTFMT) interp->memory->fromOffset - interp->memory->toOffset);
-    free = (COUNTFMT) interp->memory->capacity - interp->memory->toOffset;
+             (COUNTFMT) FLISP_INTERP.memory->fromOffset - FLISP_INTERP.memory->toOffset);
+    free = (COUNTFMT) FLISP_INTERP.memory->capacity - FLISP_INTERP.memory->toOffset;
     fl_debug(interp, "memory: %lu/%lu, free: %ld/(%lu)\n",
-             (COUNTFMT) interp->memory->toOffset, (COUNTFMT) interp->memory->capacity,
+             (COUNTFMT) FLISP_INTERP.memory->toOffset, (COUNTFMT) FLISP_INTERP.memory->capacity,
              free - EXCEPTION_MEM_RESERVE, free
         );
 
-    interp->memory->fromOffset = interp->memory->toOffset;
+    FLISP_INTERP.memory->fromOffset = FLISP_INTERP.memory->toOffset;
 }
 
 
@@ -459,27 +457,25 @@ Object *memoryAllocObject(Object *interp, Object *type, size_t size)
     size_t memory = blocks * FLISP_MEMORY_INC_SIZE;
 
     /* If not done already allocate to space */
-    if (!interp->memory->fromSpace) {
-        if (memory > interp->memory->capacity)
-            interp->memory->capacity = memory;
-        fl_debug(interp, "memoryAllocObject: allocate fromSpace: %zu bytes\n", interp->memory->capacity);
-        if (MAP_FAILED == (interp->memory->fromSpace = mmap(NULL, interp->memory->capacity,
+    if (!FLISP_INTERP.memory->fromSpace) {
+        if (memory > FLISP_INTERP.memory->capacity)
+            FLISP_INTERP.memory->capacity = memory;
+        fl_debug(interp, "memoryAllocObject: allocate fromSpace: %zu bytes\n", FLISP_INTERP.memory->capacity);
+        if (MAP_FAILED == (FLISP_INTERP.memory->fromSpace = mmap(NULL, FLISP_INTERP.memory->capacity,
                                                             PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)))
             fl_fatal("OOM, allocating from space, exiting\n", 64);
-        interp->memory->fromOffset = 0;
+        FLISP_INTERP.memory->fromOffset = 0;
         goto allocateObject;
     }
     /* Run garbage collection if capacity exceeded */
     if (
-        (interp->memory->fromOffset + size + EXCEPTION_MEM_RESERVE >= interp->memory->capacity)
-#if DEBUG_GC_ALWAYS
-        || gc_always
-#endif
+        (FLISP_INTERP.memory->fromOffset + size + EXCEPTION_MEM_RESERVE >= FLISP_INTERP.memory->capacity)
+        || FLISP_INTERP.gc_always
         ) {
         fl_debug(interp, "memoryAllocObject: need %lu bytes more then available, requesting garbage collection\n", (COUNTFMT) size);
         /* If not done already allocate to space */
-        if (!interp->memory->toSpace) {
-            if (MAP_FAILED == (interp->memory->toSpace = mmap(NULL, interp->memory->capacity,
+        if (!FLISP_INTERP.memory->toSpace) {
+            if (MAP_FAILED == (FLISP_INTERP.memory->toSpace = mmap(NULL, FLISP_INTERP.memory->capacity,
                                                  PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS,
                                                  -1, 0)))
                 fl_fatal("OOM allocating to space, exiting\n", 65);
@@ -487,7 +483,7 @@ Object *memoryAllocObject(Object *interp, Object *type, size_t size)
         gc(interp);
     }
     /* Check if we now have enough space */
-    if (interp->memory->fromOffset + size + EXCEPTION_MEM_RESERVE < interp->memory->capacity)
+    if (FLISP_INTERP.memory->fromOffset + size + EXCEPTION_MEM_RESERVE < FLISP_INTERP.memory->capacity)
         goto allocateObject;
 
     fl_debug(interp, "memoryAllocObject: still %lu bytes more needed, increasing memory by %lu\n",
@@ -495,32 +491,32 @@ Object *memoryAllocObject(Object *interp, Object *type, size_t size)
         );
     /* Increase to space */
     void *new;
-    if (MAP_FAILED == (new = mmap(NULL, interp->memory->capacity + memory,
+    if (MAP_FAILED == (new = mmap(NULL, FLISP_INTERP.memory->capacity + memory,
                                   PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0))) {
         /* Note: fake that we have more memory return an error and then hope the best. */
-        interp->memory->capacity+= EXCEPTION_MEM_RESERVE;
+        FLISP_INTERP.memory->capacity+= EXCEPTION_MEM_RESERVE;
         return newError(interp, gc_error, out_of_memory, "OOM reallocating toSpace: %s", strerror(errno));
     }
-    if (munmap(interp->memory->toSpace, interp->memory->capacity) == -1) {
-        interp->memory->capacity+= EXCEPTION_MEM_RESERVE;
+    if (munmap(FLISP_INTERP.memory->toSpace, FLISP_INTERP.memory->capacity) == -1) {
+        FLISP_INTERP.memory->capacity+= EXCEPTION_MEM_RESERVE;
         return newError(interp, gc_error, out_of_memory, "munmap(toSpace) failed: %s", strerror(errno));
     }
-    interp->memory->toSpace = new;
-    interp->memory->capacity += memory;
-    interp->memory->toOffset = 0;
+    FLISP_INTERP.memory->toSpace = new;
+    FLISP_INTERP.memory->capacity += memory;
+    FLISP_INTERP.memory->toOffset = 0;
     gc(interp);
-    if (munmap(interp->memory->toSpace, interp->memory->capacity - memory) == -1) {
-        interp->memory->capacity+= EXCEPTION_MEM_RESERVE;
+    if (munmap(FLISP_INTERP.memory->toSpace, FLISP_INTERP.memory->capacity - memory) == -1) {
+        FLISP_INTERP.memory->capacity+= EXCEPTION_MEM_RESERVE;
         return newError(interp, gc_error, out_of_memory, "munmap(fromSpace) failed: %s", strerror(errno));
     }
-    interp->memory->toSpace = NULL;
+    FLISP_INTERP.memory->toSpace = NULL;
 
 allocateObject:
     ;
     /* Allocate object in from-space */
-    Object *object = (Object *) ((char *)interp->memory->fromSpace + interp->memory->fromOffset);
+    Object *object = (Object *) ((char *)FLISP_INTERP.memory->fromSpace + FLISP_INTERP.memory->fromOffset);
     object->type = type;
-    interp->memory->fromOffset += size;
+    FLISP_INTERP.memory->fromOffset += size;
 
     return object;
 }
@@ -650,7 +646,6 @@ Object *newClosure(Object *interp, Object *type, Object ** args, Object **env)
     if (o != nil && o->type != type_symbol)
         return newError(interp, o, wrong_type_argument, "(%s params body) - param is not a symbol");
 
-    /* Note: check with GC_ALWAYS */
     o = flisp_ext_obj(interp, type, &nil, 3, 0);
     CHECK_OOM(o);
     o->objects[0] = (*args)->car;
@@ -756,7 +751,7 @@ Object *newString(Object *interp, char *string)
 
 Object *flisp_find_symbol(Object *interp, char *string, size_t length)
 {
-    for (Object *symbols = interp->symbols; symbols != nil; symbols = symbols->cdr)
+    for (Object *symbols = FLISP_INTERP.symbols; symbols != nil; symbols = symbols->cdr)
         if (symbols->car->size == length + 1 && strncmp(symbols->car->string, string, length) == 0)
             return symbols->car;
     return NULL;
@@ -772,7 +767,7 @@ Object *newSymbolWithLength(Object *interp, char *string, size_t length)
     (*gcSymbol)->length = 0;
     strncpy((*gcSymbol)->string, string, length);
     (*gcSymbol)->string[length] = '\0';
-    interp->symbols = newCons(interp, gcSymbol, &interp->symbols);
+    FLISP_INTERP.symbols = newCons(interp, gcSymbol, &FLISP_INTERP.symbols);
     if IS_OOM(*gcSymbol) GC_RETURN(*gcSymbol);
     GC_RELEASE;
     return *gcSymbol;
@@ -1382,7 +1377,7 @@ Object *readExpr(Object *interp, FILE *fd)
 Object *primitiveRead(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     Object *eofv = nil;
-    FILE *fd = interp->input->fd;
+    FILE *fd = FLISP_INTERP.input->fd;
 
     GC_CHECKPOINT;
     if (nArgs) {
@@ -1573,16 +1568,16 @@ Object *evalList(Object *interp, Object **args, Object **env)
 void x(Object *interp, Object **args, Object **env)
 {
     fl_debug(interp, "trying\n");
-    interp->result = evalExpr(interp, &FLISP_ARG1, env);
-    flisp_write_object(interp->debug->fd, interp->result, true);
+    FLISP_INTERP.result = evalExpr(interp, &FLISP_ARG1, env);
+    flisp_write_object(FLISP_INTERP.debug->fd, FLISP_INTERP.result, true);
 }
 Object *evalCatch(Object *interp, Object **args, Object **env)
 {
     jmp_buf exceptionEnv, *prevEnv;
 
-    prevEnv = interp->catch;
-    interp->catch = &exceptionEnv;
-    interp->exception = nil;
+    prevEnv = FLISP_INTERP.catch;
+    FLISP_INTERP.catch = &exceptionEnv;
+    FLISP_INTERP.exception = nil;
     GC_CHECKPOINT;
     GC_TRACE(gcTag, FLISP_ARG2);
     if (setjmp(exceptionEnv)) {
@@ -1590,22 +1585,22 @@ Object *evalCatch(Object *interp, Object **args, Object **env)
     } else {
         x(interp, args, env);
         /* do { */
-        /*     interp->result = evalExpr(interp, &(*args)->car, env); */
+        /*     FLISP_INTERP.result = evalExpr(interp, &(*args)->car, env); */
         /* } while(0); */
     }
     GC_RELEASE;
-    if (interp->exception->car == *gcTag)
-        interp->result = interp->exception->cdr->car;
+    if (FLISP_INTERP.exception->car == *gcTag)
+        FLISP_INTERP.result = FLISP_INTERP.exception->cdr->car;
     else {
         fl_debug(interp, "not matched\n");
         /* do { */
-        /*     longjmp(*interp->catch, 2); */
+        /*     longjmp(*FLISP_INTERP.catch, 2); */
         /* } while(0); */
     }
     fl_debug(interp, "result: ");
-    flisp_write_object(interp->debug->fd, interp->result, true);
-    interp->catch = prevEnv;
-    return interp->result;
+    flisp_write_object(FLISP_INTERP.debug->fd, FLISP_INTERP.result, true);
+    FLISP_INTERP.catch = prevEnv;
+    return FLISP_INTERP.result;
 }
 #endif
 
@@ -1711,14 +1706,14 @@ Object *evalExpr(Object *interp, Object ** object, Object **env)
                                             primitive->argsType->string,
                                             args->car->type->string
                                 );
-#if FLISP_TRACE
-                fl_debug(interp, "trace: (%s", primitive->name);
-                for (args = *gcArgs; args != nil; args = args->cdr) {
-                    fl_debug(interp, " ");
-                    flisp_write_object(interp->debug->fd, args->car, true);
+                if (FLISP_INTERP.trace_primitives) {
+                    fl_debug(interp, "trace: (%s", primitive->name);
+                    for (args = *gcArgs; args != nil; args = args->cdr) {
+                        fl_debug(interp, " ");
+                        flisp_write_object(FLISP_INTERP.debug->fd, args->car, true);
+                    }
+                    fl_debug(interp, ")\n");
                 }
-                fl_debug(interp, ")\n");
-#endif
                 GC_RETURN(primitive->eval(interp, gcArgs, gcEnv, nArgs));
             }
         } else {
@@ -2062,7 +2057,7 @@ Object *flisp_write_object(FILE *fd, Object *object, bool readably)
 Object *primitiveWrite(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     bool readably = false;
-    FILE *fd = interp->output->fd;
+    FILE *fd = FLISP_INTERP.output->fd;
 
     if (nArgs > 1) {
         readably = (FLISP_ARG2 != nil);
@@ -2251,9 +2246,9 @@ Object *primitiveError(Object *interp, Object **args, Object **env, size_t nArgs
 __attribute__((noreturn))
 Object *primitiveThrow(Object *interp, Object **args, Object **env, size_t nArgs)
 {
-    interp->exception = *args;
+    FLISP_INTERP.exception = *args;
     do {
-        longjmp(*interp->catch, 2);
+        longjmp(*FLISP_INTERP.catch, 2);
     } while(0);
 }
 #endif
@@ -2606,7 +2601,7 @@ Object *primitiveLoadExtension(Object *interp, Object **args, Object **env, size
 {
     Object *extensions, *name = FLISP_ARG1;
 
-    for (extensions = interp->extensions; extensions != nil; extensions = extensions->cdr) {
+    for (extensions = FLISP_INTERP.extensions; extensions != nil; extensions = extensions->cdr) {
         if (extensions->car->type == type_extension
             && strcmp(extensions->car->extension.name->string, name->string) == 0) {
             if (extensions->car->extension.version != nil)
@@ -2625,9 +2620,9 @@ Object *flisp_register_extension(Object *interp, char *name, ExtensionInit init)
     GC_CHECKPOINT;
     GC_TRACE(gcObject, newExtension(interp, name, init));
     if (IS_OOM(*gcObject)) GC_RETURN(*gcObject);
-    *gcObject = newCons(interp, gcObject, &interp->extensions);
+    *gcObject = newCons(interp, gcObject, &FLISP_INTERP.extensions);
     if (IS_OOM(*gcObject)) GC_RETURN(*gcObject);
-    GC_RETURN(interp->extensions = *gcObject);
+    GC_RETURN(FLISP_INTERP.extensions = *gcObject);
 }
 
 // Interpreter introspection and configuration
@@ -2660,22 +2655,43 @@ Object *primitiveInterpGc(Object *interp, Object **args, Object **env, size_t nA
 Object *primitiveInterpInput(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     if (nArgs)
-        interp->input = FLISP_ARG1;
-    return interp->input;
+        FLISP_INTERP.input = FLISP_ARG1;
+    return FLISP_INTERP.input;
 }
 /** (interp-output [ stream]]) - query or set interpreter output stream */
 Object *primitiveInterpOutput(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     if (nArgs)
-        interp->output = FLISP_ARG1;
-    return interp->output;
+        FLISP_INTERP.output = FLISP_ARG1;
+    return FLISP_INTERP.output;
 }
 /** (interp-debug [ stream]]) - query or set interpreter debug stream */
 Object *primitiveInterpDebug(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     if (nArgs)
-        interp->debug = FLISP_ARG1;
-    return interp->debug;
+        FLISP_INTERP.debug = FLISP_ARG1;
+    return FLISP_INTERP.debug;
+}
+/** (interp-gc-always [ p]]) - query or set gc stress flag */
+Object *primitiveInterpGcAlways(Object *interp, Object **args, Object **env, size_t nArgs)
+{
+    if (nArgs)
+        FLISP_INTERP.gc_always = FLISP_ARG1 != nil;
+    return FLISP_INTERP.gc_always ? t : nil;
+}
+/** (interp-trace-read [ p]]) - query or set trace-read flag */
+Object *primitiveInterpTraceRead(Object *interp, Object **args, Object **env, size_t nArgs)
+{
+    if (nArgs)
+        FLISP_INTERP.trace_read = FLISP_ARG1 != nil;
+    return FLISP_INTERP.trace_read ? t : nil;
+}
+/** (interp-trace-primitives [ p]]) - query or set trace-primitives flag */
+Object *primitiveInterpTracePrimitives(Object *interp, Object **args, Object **env, size_t nArgs)
+{
+    if (nArgs)
+        FLISP_INTERP.trace_primitives = FLISP_ARG1 != nil;
+    return FLISP_INTERP.trace_primitives ? t : nil;
 }
 
 // MAIN ///////////////////////////////////////////////////////////////////////
@@ -2687,11 +2703,11 @@ Object *flisp_register_constant(Object *interp, Object *symbol, Object *value)
     symbol->length = 0;
     if (value == NULL)
         value = symbol;
-    if (FLISP_IS_ERR(envSet(interp, &symbol, &value, &interp->global, true)))
+    if (FLISP_IS_ERR(envSet(interp, &symbol, &value, &FLISP_INTERP.global, true)))
         return flisp_static_error(out_of_memory, &object_oom_message);
-    Object *cons = newCons(interp, &symbol, &interp->symbols);
+    Object *cons = newCons(interp, &symbol, &FLISP_INTERP.symbols);
     CHECK_ERR(cons);
-    interp->symbols = cons;
+    FLISP_INTERP.symbols = cons;
     return nil;
 }
 
@@ -2716,7 +2732,7 @@ Object *flisp_register_primitive(Object *interp, char *name,
     Object *p = newPrimitive(interp, primitive);
     if (IS_OOM(p))  GC_RETURN(p);
     GC_TRACE(gcP, p);
-    Object *e = envSet(interp, gcSymbol, gcP, &interp->global, true);
+    Object *e = envSet(interp, gcSymbol, gcP, &FLISP_INTERP.global, true);
     GC_RELEASE;
     CHECK_ERR(e);
     return *gcP;
@@ -2792,6 +2808,9 @@ Object *flisp_core_init(Object *interp, Object *extension)
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-input",  0,  1, type_stream,    primitiveInterpInput));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-output", 0,  1, type_stream,    primitiveInterpOutput));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-debug",  0,  1, type_stream,    primitiveInterpDebug));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-gc-always",0,1, nil,            primitiveInterpGcAlways));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-trace-read",0,1, nil,           primitiveInterpTraceRead));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-trace-primitives",0,1, nil,     primitiveInterpTracePrimitives));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-gc",     0,  0, nil,            primitiveInterpGc));
 
         (*gcExt)->extension.version = newString(interp, FL_VERSION);
@@ -2890,35 +2909,35 @@ Object *flisp_new(
     Object *interp;
     Object *e = nil, *var;
 
-    interp = malloc(sizeof(ObjectHeader) + sizeof(InterpreterObjects)+20);
+    interp = malloc(sizeof(ObjectHeader) + sizeof(InterpreterObject)+20);
     if (interp == NULL) return flisp_static_error(out_of_memory, &init_oom_message);
 
     flisp_debug->type = type_stream;
     flisp_debug->fd = debug;
     flisp_debug->path = debug_output;
-    interp->debug = flisp_debug;
+    FLISP_INTERP.debug = flisp_debug;
 
     Memory *memory = newMemory((size < FLISP_MEMORY_INC_SIZE) ? FLISP_MEMORY_INC_SIZE :size);
     if (memory == NULL)
         return flisp_static_error(out_of_memory, &init_oom_message);
 
     interp->type = type_interpreter;
-    interp->size = sizeof(InterpreterObjects);
-    interp->length = sizeof(InterpreterObjects)/sizeof(Object *);
+    interp->size = sizeof(InterpreterObject);
+    interp->length = sizeof(InterpreterObject)/sizeof(Object *);
 
-    interp->memory = memory;
+    FLISP_INTERP.memory = memory;
 
+    FLISP_INTERP.trace_read = false;
+    FLISP_INTERP.trace_primitives = false;
+    FLISP_INTERP.gc_always = false;
+    
     /* scratchpad */
     scratchpad->string = NULL;
     scratchpad->capacity = 0;
     scratchpad->size = 0;
 
 #if 0
-    interp->catch = &interp->exceptionEnv;
-#endif
-
-#if DEBUG_GC_ALWAYS
-    gc_always = true;
+    FLISP_INTERP.catch = &FLISP_INTERP.exceptionEnv;
 #endif
 
     /* Fundamentals */
@@ -2926,34 +2945,34 @@ Object *flisp_new(
     type_cons->type = type_symbol;
     type_env->type = type_symbol;
 
-    interp->gcTop = nil;
+    FLISP_INTERP.gcTop = nil;
     do {
-        FLISP_UNLESS_ERR(interp->symbols = newCons(interp, &nil, &nil));
-        FLISP_UNLESS_ERR(interp->global = newEnv(interp, &nil, &nil));
+        FLISP_UNLESS_ERR(FLISP_INTERP.symbols = newCons(interp, &nil, &nil));
+        FLISP_UNLESS_ERR(FLISP_INTERP.global = newEnv(interp, &nil, &nil));
         FLISP_WHILE_OK(initRootEnv(interp));
 
         /* debug stream */
-        FLISP_WHILE_OK(flisp_register_constant(interp, debug_output, interp->debug));
+        FLISP_WHILE_OK(flisp_register_constant(interp, debug_output, FLISP_INTERP.debug));
 
         /* input stream */
-        FLISP_UNLESS_ERR(interp->input = newStreamObject(interp, input, "*standard-input*"));
+        FLISP_UNLESS_ERR(FLISP_INTERP.input = newStreamObject(interp, input, "*standard-input*"));
         FLISP_UNLESS_ERR(var = newSymbol(interp, "*standard-input*"));
-        FLISP_UNLESS_ERR(envSet(interp, &var, &interp->input, &interp->global, true));
+        FLISP_UNLESS_ERR(envSet(interp, &var, &FLISP_INTERP.input, &FLISP_INTERP.global, true));
 
         /* output stream */
-        FLISP_UNLESS_ERR(interp->output = newStreamObject(interp, output, "*standard-output*"));
+        FLISP_UNLESS_ERR(FLISP_INTERP.output = newStreamObject(interp, output, "*standard-output*"));
         FLISP_UNLESS_ERR(var = newSymbol(interp, "*standard-output*"));
-        FLISP_UNLESS_ERR(envSet(interp, &var, &interp->output, &interp->global, true));
+        FLISP_UNLESS_ERR(envSet(interp, &var, &FLISP_INTERP.output, &FLISP_INTERP.global, true));
 
         /* error stream */
-        FLISP_UNLESS_ERR(interp->stderr = newStreamObject(interp, error, "*standard-error*"));
+        FLISP_UNLESS_ERR(FLISP_INTERP.stderr = newStreamObject(interp, error, "*standard-error*"));
         FLISP_UNLESS_ERR(var = newSymbol(interp, "*standard-error*"));
-        FLISP_UNLESS_ERR(envSet(interp, &var, &interp->stderr, &interp->global, true));
+        FLISP_UNLESS_ERR(envSet(interp, &var, &FLISP_INTERP.stderr, &FLISP_INTERP.global, true));
 
         /* declare and load the core primitives */
-        interp->extensions = nil;
+        FLISP_INTERP.extensions = nil;
         FLISP_UNLESS_ERR(flisp_register_extension(interp, "core", flisp_core_init));
-        FLISP_UNLESS_ERR(flisp_core_init(interp, interp->extensions->car));
+        FLISP_UNLESS_ERR(flisp_core_init(interp, FLISP_INTERP.extensions->car));
     } while (0);
     if (FLISP_IS_ERR(e)) {
         flisp_destroy(interp);
@@ -2968,7 +2987,7 @@ Object *flisp_new(
             /* Add argv0 to the environment */
             FLISP_UNLESS_ERR(*gcVal = newString(interp, *argv));
             FLISP_UNLESS_ERR(var = newSymbol(interp, "argv0"));
-            FLISP_UNLESS_ERR(envSet(interp, &var, gcVal, &interp->global, true));
+            FLISP_UNLESS_ERR(envSet(interp, &var, gcVal, &FLISP_INTERP.global, true));
 
             /* Add argv to the environement */
             *gcVal = nil;
@@ -2981,7 +3000,7 @@ Object *flisp_new(
             if (FLISP_IS_ERR(e)) break;
             var = newSymbol(interp, "argv");
             if (FLISP_IS_ERR(var)) { e = var; break; }
-            FLISP_UNLESS_ERR(envSet(interp, &var, gcVal, &interp->global, true));
+            FLISP_UNLESS_ERR(envSet(interp, &var, gcVal, &FLISP_INTERP.global, true));
         } while (0);
     }
     GC_RELEASE;
@@ -3001,25 +3020,32 @@ Object *flisp_new(
  */
 void flisp_destroy(Object *interp)
 {
-    if (interp->memory->fromSpace)
-        (void)munmap(interp->memory->fromSpace, interp->memory->capacity);
+    if (FLISP_INTERP.memory->fromSpace)
+        (void)munmap(FLISP_INTERP.memory->fromSpace, FLISP_INTERP.memory->capacity);
 
-    if (interp->memory->toSpace)
-        (void)munmap(interp->memory->toSpace, interp->memory->capacity);
+    if (FLISP_INTERP.memory->toSpace)
+        (void)munmap(FLISP_INTERP.memory->toSpace, FLISP_INTERP.memory->capacity);
 
-    if (interp->debug->fd)
-        fclose(interp->debug->fd);
-    free(interp->memory);
+    if (FLISP_INTERP.debug->fd)
+        fclose(FLISP_INTERP.debug->fd);
+    free(FLISP_INTERP.memory);
     free(interp);
 }
 
 Object *flisp_eval_expr(Object *interp, Object *object)
 {
-    return evalExpr(interp, &object, &interp->global);
+    return evalExpr(interp, &object, &FLISP_INTERP.global);
 }
 Object *flisp_read_expr(Object *interp)
 {
-    return readExpr(interp, interp->input->fd);
+    Object *e = readExpr(interp, FLISP_INTERP.input->fd);
+    
+    if (FLISP_INTERP.trace_read) {
+        fl_debug(interp, "trace: ");
+        flisp_write_object(FLISP_INTERP.debug->fd, e, true);
+        fl_debug(interp, "\n");
+    }
+    return e;
 }
 
 Object *flisp_eval_input(Object *interp, bool readably)
@@ -3031,13 +3057,13 @@ Object *flisp_eval_input(Object *interp, bool readably)
         if (FLISP_IS_ERR(object))  break;
         object = flisp_eval_expr(interp, object);
         if (FLISP_IS_ERR(object))  break;
-        flisp_write_object(interp->output->fd, object, readably);
-        if (interp->output->fd) fputs("\n", interp->output->fd);
+        flisp_write_object(FLISP_INTERP.output->fd, object, readably);
+        if (FLISP_INTERP.output->fd) fputs("\n", FLISP_INTERP.output->fd);
         fflush(0);
     }
     if (object->error != end_of_file) {
-        flisp_write_object(interp->stderr->fd, object, readably);
-        if (interp->stderr->fd) fputs("\n", interp->stderr->fd);
+        flisp_write_object(FLISP_INTERP.stderr->fd, object, readably);
+        if (FLISP_INTERP.stderr->fd) fputs("\n", FLISP_INTERP.stderr->fd);
     }
     fflush(0);
     return object;

@@ -9,7 +9,7 @@ export FLISP=../fl
 export FLISP_INTERACTIVE=0
 export FLISP_DEBUG=../f.log
 unset PREPARE
-
+export PREPARE="(interp-gc-always t)"
 export FLISP_SIZE=$((20*1024*1024))
 
 tap 199
@@ -192,7 +192,7 @@ IN='(cond "a" ())' OUT="#<Error wrong-type-argument: \"(cond clause ..) - clause
 flisp_expr; ok cond-15 fail if clause is not a cons
 
 IN='(cond (nil . "a"))' OUT='#<Error wrong-type-argument: "(cond (pred action) ..) action is not a list", (nil . "a")>'
-flisp_expr; ok cond-16 fail if clause is cons with car nil \# TODO Fix list reader to allow "(nil . o)"
+flisp_expr; ok cond-16 fail if clause is cons with car nil
 
 IN='(cond (t . t))' OUT="#<Error wrong-type-argument: \"(cond (pred action) ..) action is not a list\", (t . t)>"
 flisp_expr; ok cond-17 fail if t and clause action is not a list

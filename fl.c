@@ -90,13 +90,13 @@ int main(int argc, char **argv)
 
     Object *result = nil;
     for (;;) {
-        if (interactive)  write_string(interp->output->fd, "> ");
+        if (interactive)  write_string(FLISP_INTERP.output->fd, "> ");
         fflush(NULL);
 
         result = flisp_eval_input(interp, !interactive);
         if (result->type == type_error) {
             if (result->error == end_of_file) {
-                if (interactive) write_string(interp->output->fd, "\n");
+                if (interactive) write_string(FLISP_INTERP.output->fd, "\n");
                 return 0;
             }
             if (!interactive) return 1;
