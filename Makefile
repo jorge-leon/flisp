@@ -53,7 +53,7 @@ double.o: double.c double.h lisp.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
 
 fl: fl.o lisp.o $(OBJ)
-	$(LD) $(LDFLAGS) -o $@ $^ -lm
+	$(LD) $(LDFLAGS) -o $@ $^ -lm -lc
 
 flisp: fl init.lsp
 

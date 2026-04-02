@@ -92,9 +92,9 @@ Object *flisp_empty_vector =        &(Object) { .size =  0, .length = 0  };
 Object *flisp_debug =  &(Object) {
     .size = sizeof(ObjectHeader) + sizeof(StreamObject),
     .length = 1,
-    .fd = NULL,
-    .buf = NULL,
-    .len = 0
+    .stream.fd = NULL,
+    .stream.buf = NULL,
+    .stream.len = 0
 };
 
 Object init_oom_message =     { .length = 0, .string = "failed to allocate memory for the interpreter" };
@@ -161,7 +161,7 @@ bool addCharToPad(Scratchpad *pad, int c)
 }
 bool assurePad(Scratchpad *pad, size_t size)
 {
-    if (!pad->capacity || pad->size < size) {
+    if (pad->capacity <= size) {
         pad->capacity = size + BUFSIZ;
         if ((pad->string = realloc(pad->string, pad->capacity)) == NULL)
             return false;
@@ -197,6 +197,7 @@ char *fmtInteger(Scratchpad *pad, int64_t integer, int64_t base, char *map, char
     char *i = pad->string;
 
     if (base < 2 || base > 36)  return (char *)-1; /* range_error */
+    initPad(pad);
     if (!assurePad(pad, INTEGER_PAD_SIZE+1))  return NULL; /* out_of_memory */
 
     if ((negative = integer < 0))  integer = -integer;
@@ -810,17 +811,17 @@ Object *newStreamObject(Object *interp, FILE *fd, char *path)
 {
     GC_CHECKPOINT;
     GC_TRACE(gcPath, newString(interp, path));
-    Object *stream = flisp_ext_obj(interp, type_stream, gcPath, 1,
+    Object *object = flisp_ext_obj(interp, type_stream, gcPath, 1,
                                    sizeof(FILE*) +
                                    sizeof(char*) +
                                    sizeof(size_t));
     GC_RELEASE;
-    CHECK_OOM(stream);
-    stream->fd = fd;
-    stream->buf = NULL;
-    stream->len = 0;
+    CHECK_OOM(object);
+    object->stream.fd = fd;
+    object->stream.buf = NULL;
+    object->stream.len = 0;
 
-    return stream;
+    return object;
 }
 
 Object *newExtension(Object *interp, char *name, ExtensionInit init)
@@ -1366,13 +1367,13 @@ Object *readExpr(Object *interp, FILE *fd)
 Object *primitiveRead(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     Object *eofv = nil;
-    FILE *fd = FLISP_INTERP.input->fd;
+    FILE *fd = FLISP_STANDARD_INPUT.fd;
 
     GC_CHECKPOINT;
     if (nArgs) {
         if (FLISP_ARG1 != nil) {
             FLISP_ASSERT(FLISP_ARG1, type_stream, "(read[ stream[ eofv]]) - stream)");
-            fd = FLISP_ARG1->fd;
+            fd = FLISP_ARG1->stream.fd;
         }
     }
     if (nArgs > 1)  eofv = FLISP_ARG2;
@@ -1381,7 +1382,7 @@ Object *primitiveRead(Object *interp, Object **args, Object **env, size_t nArgs)
     Object *result = readExpr(interp, fd);
     GC_RELEASE;
 
-    if (FLISP_IS_EOF(result) && *gcEofv == nil)  return *gcEofv;
+    if (FLISP_IS_EOF(result) && *gcEofv != nil)  return *gcEofv;
     return result;
 }
 
@@ -1459,39 +1460,40 @@ Object *evalProgn(Object *interp, Object **args, Object **env)
  */
 Object *evalCond(Object *interp, Object **args, Object **env)
 {
+#define CLAUSE (*gcArgs)->car
+#define PRED   CLAUSE->car
+#define ACTION CLAUSE->cdr
+    Object *result;
+    
     GC_CHECKPOINT;
     GC_TRACE(gcArgs, *args);
     while((*gcArgs != nil)) {
 
-        Object *clause = (*gcArgs)->car;
+        if (CLAUSE == nil)  goto next_clause;
 
-        if (clause == nil)  goto next_clause;
+        if (FLISP_IS_ERR(CLAUSE)) GC_RETURN(CLAUSE);
 
-        if (clause->type == type_error) GC_RETURN(clause);
-
-        if (clause->type != type_cons)
-            return newError(interp, wrong_type_argument, clause,
+        if (CLAUSE->type != type_cons)
+            return newError(interp, wrong_type_argument, CLAUSE,
                             "(cond clause ..) - clause is not a list");
 
-        Object *action = clause->cdr;
-        if (action != nil && action->type != type_cons)
-            return newError(interp, wrong_type_argument, clause, "(cond (pred action) ..) action is not a list");
-        if (action->type == type_error) GC_RETURN(action);
+        if (ACTION != nil && ACTION->type != type_cons)
+            return newError(interp, wrong_type_argument, CLAUSE, "(cond (pred action) ..) action is not a list");
+        if (ACTION->type == type_error) GC_RETURN(ACTION);
 
-        Object *pred = clause->car;
-        if (pred->type == type_error)  GC_RETURN(pred);
+        if (PRED->type == type_error)  GC_RETURN(PRED);
 
-        if (pred == nil)  goto next_clause;
+        if (PRED == nil)  goto next_clause;
 
-        pred = evalExpr(interp, &pred, env);
-        if (pred->type == type_error)  GC_RETURN(pred);
+        result = evalExpr(interp, &PRED, env);
+        if (FLISP_IS_ERR(result))  GC_RETURN(result);
 
-        if (pred == nil) goto next_clause;
+        if (result == nil) goto next_clause;
 
-        if (action == nil)  GC_RETURN(pred);
+        if (ACTION == nil)  GC_RETURN(result);
 
-        Object *result = (action->type == type_cons)
-            ? evalProgn(interp, &action, env) : evalExpr(interp, &action, env);
+        result = (ACTION->type == type_cons)
+            ? evalProgn(interp, &ACTION, env) : evalExpr(interp, &ACTION, env);
         GC_RETURN(result);
     next_clause:
         (*gcArgs) = (*gcArgs)->cdr;
@@ -1558,7 +1560,7 @@ void x(Object *interp, Object **args, Object **env)
 {
     fl_debug(interp, "trying\n");
     FLISP_INTERP.result = evalExpr(interp, &FLISP_ARG1, env);
-    flisp_write_object(FLISP_INTERP.debug->fd, FLISP_INTERP.result, true);
+    flisp_write_object(FLISP_DEBUG_OUTPUT.fd, FLISP_INTERP.result, true);
 }
 Object *evalCatch(Object *interp, Object **args, Object **env)
 {
@@ -1587,7 +1589,7 @@ Object *evalCatch(Object *interp, Object **args, Object **env)
         /* } while(0); */
     }
     fl_debug(interp, "result: ");
-    flisp_write_object(FLISP_INTERP.debug->fd, FLISP_INTERP.result, true);
+    flisp_write_object(FLISP_DEBUG_OUTPUT.fd, FLISP_INTERP.result, true);
     FLISP_INTERP.catch = prevEnv;
     return FLISP_INTERP.result;
 }
@@ -1699,7 +1701,7 @@ Object *evalExpr(Object *interp, Object ** object, Object **env)
                     fl_debug(interp, "trace: (%s", primitive->name);
                     for (args = *gcArgs; args != nil; args = args->cdr) {
                         fl_debug(interp, " ");
-                        flisp_write_object(FLISP_INTERP.debug->fd, args->car, true);
+                        flisp_write_object(FLISP_DEBUG_OUTPUT.fd, args->car, true);
                     }
                     fl_debug(interp, ")\n");
                 }
@@ -2046,16 +2048,16 @@ Object *flisp_write_object(FILE *fd, Object *object, bool readably)
 Object *primitiveWrite(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     bool readably = false;
-    FILE *fd = FLISP_INTERP.output->fd;
+    FILE *fd = FLISP_STANDARD_OUTPUT.fd;
 
     if (nArgs > 1) {
         readably = (FLISP_ARG2 != nil);
     }
     if (nArgs > 2) {
         FLISP_ASSERT(FLISP_ARG3, type_stream, "(write o [p [fd]]) - fd");
-        if (FLISP_ARG3->fd == NULL)
+        if (FLISP_ARG3->stream.fd == NULL)
             return newError(interp, invalid_value, nil, "(write o[ p [fd]) - fd already closed");
-        fd = FLISP_ARG3->fd;
+        fd = FLISP_ARG3->stream.fd;
     }
     flisp_write_object(fd, FLISP_ARG1, readably);
     return FLISP_ARG1;
@@ -2391,11 +2393,11 @@ Object *integerFmt(Object *interp, Object **args, Object **env, size_t nArgs)
  */
 Object *file_outputMemStream(Object *interp)
 {
-    Object *stream = newStreamObject(interp, NULL, ">STRING");
-    if (NULL == (stream->fd = open_memstream(&stream->buf, &stream->len)))
+    Object *object = newStreamObject(interp, NULL, ">STRING");
+    if (NULL == (object->stream.fd = open_memstream(&object->stream.buf, &object->stream.len)))
         return newError(interp, out_of_memory, nil, "failed to open_memstream() for memory output stream: %s", strerror(errno));
-    fflush(stream->fd); // Note: sets stream->buf and stream->len to initial values.
-    return stream;
+    fflush(object->stream.fd); // Note: sets stream->buf and stream->len to initial values.
+    return object;
 }
 /** file_inputMemStream - convert string to Lisp stream object
  *
@@ -2414,14 +2416,14 @@ Object *file_inputMemStream(Object *interp, char *string)
         return newError(interp, out_of_memory, nil, "failed to allocate string buffer for memory input stream: %s", strerror(errno));
     strncpy(buf, string, len);
     buf[len] = '\0';
-    Object *stream = newStreamObject(interp, NULL, "<STRING");
-    stream->buf = buf;
-    stream->len = len;
-    if (NULL == (stream->fd = fmemopen(stream->buf, stream->len, "r"))) {
-        free(stream->buf);
+    Object *object = newStreamObject(interp, NULL, "<STRING");
+    object->stream.buf = buf;
+    object->stream.len = len;
+    if (NULL == (object->stream.fd = fmemopen(object->stream.buf, object->stream.len, "r"))) {
+        free(object->stream.buf);
         return newError(interp, out_of_memory, nil, "failed to fmemopen string for memory input stream: %s", strerror(errno));
     }
-    return stream;
+    return object;
 }
 /** file_fopen() - returns a stream object for the interpreter
  *
@@ -2500,12 +2502,15 @@ Object *file_fopen(Object *interp, char *path, char* mode) {
  */
 Object *primitiveFopen(Object *interp, Object **args, Object **env, size_t nArgs)
 {
+    char *path = strdup(FLISP_ARG1->string);
     char *mode = "r";
 
     if (nArgs > 1)
-        mode = FLISP_ARG2->string;
+        mode = strdup(FLISP_ARG2->string);
 
-    Object *stream = file_fopen(interp, FLISP_ARG1->string, mode);
+    Object *stream = file_fopen(interp, path, mode);
+    free(path);
+    if (nArgs > 1)  free(mode);
     CHECK_OOM(stream);
     return stream;
 }
@@ -2517,15 +2522,15 @@ Object *primitiveFopen(Object *interp, Object **args, Object **env, size_t nArgs
  *
  * returns: 0 on success, else errno of fclose()
  */
-int file_fclose(Object *interp, Object *stream)
+int file_fclose(Object *interp, Object *object)
 {
-    fflush(stream->fd);
-    int result = fclose(stream->fd) ? errno : 0;
-    stream->fd = NULL;
-    if (stream->buf != NULL) {
-        free(stream->buf);
-        stream->buf = NULL;
-        stream->len = 0;
+    fflush(object->stream.fd);
+    int result = fclose(object->stream.fd) ? errno : 0;
+    object->stream.fd = NULL;
+    if (object->stream.buf != NULL) {
+        free(object->stream.buf);
+        object->stream.buf = NULL;
+        object->stream.len = 0;
     }
     return result;
 }
@@ -2541,7 +2546,7 @@ Object *primitiveFclose(Object *interp, Object**args, Object **env, size_t nArgs
 {
     int result;
 
-    if (FLISP_ARG1->fd == NULL)
+    if (FLISP_ARG1->stream.fd == NULL)
         return newError(interp, invalid_value, FLISP_ARG1, "(fclose stream) - stream already closed");
     if ((result = file_fclose(interp, FLISP_ARG1)))
         return newError(interp, io_error, FLISP_ARG1, "(fclose stream) - failed to close: %s", strerror(result));
@@ -2551,10 +2556,10 @@ Object *primitiveFclose(Object *interp, Object**args, Object **env, size_t nArgs
 Object *primitiveFinfo(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     GC_CHECKPOINT;
-    GC_TRACE(gcObject, (FLISP_ARG1->fd == NULL) ?
-             nil : newInteger(interp, (int64_t)fileno(FLISP_ARG1->fd)));
+    GC_TRACE(gcObject, (FLISP_ARG1->stream.fd == NULL) ?
+             nil : newInteger(interp, (int64_t)fileno(FLISP_ARG1->stream.fd)));
     *gcObject = newCons(interp, gcObject, &nil);
-    GC_TRACE(gcBuffer, (FLISP_ARG1->buf == NULL) ? nil : newString(interp, FLISP_ARG1->buf));
+    GC_TRACE(gcBuffer, (FLISP_ARG1->stream.buf == NULL) ? nil : newString(interp, FLISP_ARG1->stream.buf));
     *gcObject = newCons(interp, gcBuffer, gcObject);
     GC_RETURN(newCons(interp, &FLISP_ARG1->stream.path, gcObject));
 }
@@ -2866,6 +2871,7 @@ Memory *newMemory(size_t size)
     memory->capacity = size;
     memory->fromSpace = NULL;
     memory->toSpace = NULL;
+    memory->fromOffset = 0;
 
     return memory;
 }
@@ -2902,8 +2908,8 @@ Object *flisp_new(
     if (interp == NULL) return flisp_static_error(out_of_memory, &init_oom_message);
 
     flisp_debug->type = type_stream;
-    flisp_debug->fd = debug;
-    flisp_debug->path = debug_output;
+    flisp_debug->stream.fd = debug;
+    flisp_debug->stream.path = debug_output;
     FLISP_INTERP.debug = flisp_debug;
 
     Memory *memory = newMemory((size < FLISP_MEMORY_INC_SIZE) ? FLISP_MEMORY_INC_SIZE :size);
@@ -3015,8 +3021,8 @@ void flisp_destroy(Object *interp)
     if (FLISP_INTERP.memory->toSpace)
         (void)munmap(FLISP_INTERP.memory->toSpace, FLISP_INTERP.memory->capacity);
 
-    if (FLISP_INTERP.debug->fd)
-        fclose(FLISP_INTERP.debug->fd);
+    if (FLISP_DEBUG_OUTPUT.fd)
+        fclose(FLISP_DEBUG_OUTPUT.fd);
     free(FLISP_INTERP.memory);
     free(interp);
 }
@@ -3027,11 +3033,11 @@ Object *flisp_eval_expr(Object *interp, Object *object)
 }
 Object *flisp_read_expr(Object *interp)
 {
-    Object *e = readExpr(interp, FLISP_INTERP.input->fd);
+    Object *e = readExpr(interp, FLISP_STANDARD_INPUT.fd);
     
     if (FLISP_INTERP.trace_read) {
         fl_debug(interp, "trace: ");
-        flisp_write_object(FLISP_INTERP.debug->fd, e, true);
+        flisp_write_object(FLISP_DEBUG_OUTPUT.fd, e, true);
         fl_debug(interp, "\n");
     }
     return e;
@@ -3046,13 +3052,13 @@ Object *flisp_eval_input(Object *interp, bool readably)
         if (FLISP_IS_ERR(object))  break;
         object = flisp_eval_expr(interp, object);
         if (FLISP_IS_ERR(object))  break;
-        flisp_write_object(FLISP_INTERP.output->fd, object, readably);
-        if (FLISP_INTERP.output->fd) fputs("\n", FLISP_INTERP.output->fd);
+        flisp_write_object(FLISP_STANDARD_OUTPUT.fd, object, readably);
+        if (FLISP_STANDARD_OUTPUT.fd) fputs("\n", FLISP_STANDARD_OUTPUT.fd);
         fflush(0);
     }
     if (object->error != end_of_file) {
-        flisp_write_object(FLISP_INTERP.stderr->fd, object, readably);
-        if (FLISP_INTERP.stderr->fd) fputs("\n", FLISP_INTERP.stderr->fd);
+        flisp_write_object(FLISP_STDERR.fd, object, readably);
+        if (FLISP_STDERR.fd) fputs("\n", FLISP_STDERR.fd);
     }
     fflush(0);
     return object;

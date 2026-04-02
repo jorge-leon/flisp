@@ -123,7 +123,6 @@ struct Object {
         struct { Object *parent; Object *vars; Object *vals; };           // Environment
         char string[PATH_MAX];                                            // String, Symbol
         struct { Object *error; Object *message; Object *culprit; }; // Error
-        struct { Object *path; FILE *fd; char *buf; size_t len; };        // Stream
         StreamObject stream;
         ExtensionObject extension;
         InterpreterObject self;
@@ -246,7 +245,10 @@ void fl_debug(Object *, char *, ...);
 
 
 #define FLISP_INTERP interp->self
-#define FLISP_DEBUG_OUTPUT interp->self.debug->stream
+#define FLISP_STANDARD_INPUT  interp->self.input->stream
+#define FLISP_STANDARD_OUTPUT interp->self.output->stream
+#define FLISP_STDERR          interp->self.stderr->stream
+#define FLISP_DEBUG_OUTPUT    interp->self.debug->stream
 #endif
 /*
  * Local Variables:

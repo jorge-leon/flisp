@@ -9,7 +9,7 @@ export FLISP=../fl
 export FLISP_INTERACTIVE=0
 export FLISP_DEBUG=../f.log
 unset PREPARE
-//export PREPARE="(interp-gc-always t)"
+export PREPARE="(interp-gc-always t)"
 export FLISP_SIZE=$((20*1024*1024))
 
 tap 199
@@ -559,7 +559,7 @@ IN='(close (bind t f (open "" ">"))) (file-info f)' OUT='(">STRING" nil nil)'
 flisp_expr; ok file-info-2 file-info of closed memory stream contains nil
 
 IN='(read (open "1" "<"))' OUT="1"
-flisp_expr; ok read-1 read memory input stream \# TODO this works with "x", so it seems to be an issue with scratchpad and integer conversion
+flisp_expr; ok read-1 read memory input stream
 
 IN="(read *standard-input* 'EOF)" OUT="EOF"
 flisp_expr; ok read-2 read with eof marker
