@@ -118,7 +118,7 @@ ok () {
 	echo "input   : " "$IN"
 	echo "expected: " "$OUT"
 	echo "got     : " "$F_OUT"
-	printf "raw: %s" "$T_OUT" 
+	printf "raw: %s\n" "$T_OUT" 
     fi
     
     [ "$TEST" = "$BREAK" ] && {

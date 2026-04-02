@@ -44,7 +44,7 @@ IN='(system "true")' OUT='0'
 flisp_expr; ok file-system-1 shell command true returns successfully
 
 IN='(system "/..,")' OUT=32512
-flisp_expr 3; ok file-system-2 not existing shell command fails
+flisp_expr; ok file-system-2 not existing shell command fails
 
 IN='(getenv "HOME")' OUT="\"$HOME\""
 flisp_expr; ok file-getenv-1 known variable returns value string

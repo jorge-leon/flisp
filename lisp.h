@@ -80,7 +80,7 @@ typedef struct ObjectHeader {
     FLISP_SIMPLE_OBJECT_STRUCT;
 } ObjectHeader;
 
-typedef struct streamObject {
+typedef struct StreamObject {
     Object *path;
     FILE *fd;
     char *buf;
@@ -246,6 +246,7 @@ void fl_debug(Object *, char *, ...);
 
 
 #define FLISP_INTERP interp->self
+#define FLISP_DEBUG_OUTPUT interp->self.debug->stream
 #endif
 /*
  * Local Variables:

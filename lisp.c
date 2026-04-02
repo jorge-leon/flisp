@@ -235,18 +235,18 @@ void fl_debug(Object *, char *format, ...)
  */
 void fl_debug(Object *interp, char *format, ...)
 {
-    if (FLISP_INTERP.debug->fd == NULL)
+    if (FLISP_DEBUG_OUTPUT.fd == NULL)
         return;
 
     va_list(args);
     va_start(args, format);
-    if (vfprintf(FLISP_INTERP.debug->fd, format, args) < 0) {
+    if (vfprintf(FLISP_DEBUG_OUTPUT.fd, format, args) < 0) {
         va_end(args);
-        (void)fprintf(FLISP_INTERP.debug->fd,
+        (void)fprintf(FLISP_DEBUG_OUTPUT.fd,
                       "fatal: failed to print debug message %s: %s", format, strerror(errno));
     }
     va_end(args);
-    (void)fflush(FLISP_INTERP.debug->fd);
+    (void)fflush(FLISP_DEBUG_OUTPUT.fd);
 }
 
 
@@ -350,17 +350,6 @@ Object *gcMoveObject(Object *interp, Object *object, gcStats *stats)
     memcpy(forward, object, size);
     FLISP_INTERP.memory->toOffset += size;
 
-#if DEBUG_GC
-    if (object->type == type_stream)
-        fl_debug(interp, "moved stream %p, path %p/%s %s to %p\n",
-                 (void *)object, (void *)object->path, object->path->string,
-                 object->path->type->string, (void *)forward
-            );
-    else if (object->type == type_symbol)
-        fl_debug(interp, "moved symbol %s\n", object->string);
-    else
-        fl_debug(interp, "moved object %p of type %s\n", (void*)object, object->type->string);
-#endif
     // mark object as moved and set forwarding pointer
     object->type = type_moved;
     object->forward = forward;
@@ -1926,14 +1915,14 @@ Object *writeStringReadably(FILE *fd, char *string)
     }
     return writeChar(fd, '"');
 }
-Object *writeStream(FILE *fd, Object *stream)
+Object *writeStream(FILE *fd, Object *object)
 {
     Object *e = nil;
     do {
         FLISP_WHILE_OK(writeString(fd, "#<Stream "));
-        FLISP_WHILE_OK(writeHex(fd, (uintptr_t) stream->fd, 0));
+        FLISP_WHILE_OK(writeHex(fd, (uintptr_t) object->stream.fd, 0));
         FLISP_WHILE_OK(writeChar(fd, ' '));
-        FLISP_WHILE_OK(writeString(fd, stream->path->string));
+        FLISP_WHILE_OK(writeString(fd, object->stream.path->string));
         FLISP_WHILE_OK(writeChar(fd, '>'));
     } while (0);
     return e;
@@ -2567,7 +2556,7 @@ Object *primitiveFinfo(Object *interp, Object **args, Object **env, size_t nArgs
     *gcObject = newCons(interp, gcObject, &nil);
     GC_TRACE(gcBuffer, (FLISP_ARG1->buf == NULL) ? nil : newString(interp, FLISP_ARG1->buf));
     *gcObject = newCons(interp, gcBuffer, gcObject);
-    GC_RETURN(newCons(interp, &(FLISP_ARG1->path), gcObject));
+    GC_RETURN(newCons(interp, &FLISP_ARG1->stream.path, gcObject));
 }
 
 /* Strings */
