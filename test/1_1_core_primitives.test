@@ -12,7 +12,7 @@ unset PREPARE
 
 export FLISP_SIZE=$((20*1024*1024))
 
-tap 186
+tap 199
 
 [ -x $FLISP ]
 ok flisp-1 flisp exists and is executable;
@@ -90,8 +90,8 @@ flisp_expr; ok reader-13 read dotted pair
 IN="'(0 1 . 2)" OUT='(0 1 . 2)'
 flisp_expr; ok reader-14 read dotted list
 
-IN="'(0 1 . " OUT="#<Error read-incomplete: \"unexpected end of stream while reading dotted list\", nil>"
-flisp_expr; ok reader-14-1 dotted list w/o end paren \# TODO review - double error
+IN="'(0 1 . " OUT="#<Error read-incomplete: \"unexpected end of stream while reading expression in dotted list\", nil>"
+flisp_expr; ok reader-14-1 dotted list w/o end paren
 
 IN="'(0 1 . 2 3)" OUT="#<Error invalid-read-syntax: \"unexpected object at end of dotted list\", nil>"
 flisp_expr; ok reader-15 read dotted list with extra element
@@ -100,9 +100,15 @@ IN="'(0 1 .)" OUT="#<Error invalid-read-syntax: \"expected object at end of dott
 flisp_expr; ok reader-16 read dotted list without cdr
 
 IN="'(nil . t)" OUT="(nil . t)"
-flisp_expr; ok reader-16-1 read dotted list where nil precedes dot \# TODO fix reader
+flisp_expr; ok reader-16-1 read dotted list where nil precedes dot
 
-IN="'(" OUT="#<Error read-incomplete: \"unexpected end of stream while reading list\", nil>"
+IN="'( . t)" OUT="#<Error invalid-read-syntax: \"unexpected dot at start of list\", nil>"
+flisp_expr; ok reader-16-2 read dotted list where nil precedes dot
+
+IN="'(t . )" OUT="#<Error invalid-read-syntax: \"expected object at end of dotted list\", nil>"
+flisp_expr; ok reader-16-3 read dotted list without object at end
+
+IN="(" OUT="#<Error read-incomplete: \"unexpected end of stream while reading list\", nil>"
 flisp_expr; ok reader-17 read list without end
 
 # Special forms
@@ -474,6 +480,37 @@ flisp_expr; ok elements-5-1 string with negative start equal end
 
 IN='(elements "abc" 0 7)'  OUT='"abc"'
 flisp_expr; ok elements-5-1 string with end beyond string
+
+IN='(elements #d3.14)'  OUT=nil
+flisp_expr; ok elements-6 double has no elements
+
+IN='(elements i+)'  OUT=nil
+flisp_expr; ok elements-7 primitive has no elements
+
+IN='(elements (car (elements (interp) 0 1)))' OUT='("*standard-input*")'
+flisp_expr; ok elements-8-1 interpreters have elements
+
+IN='(elements (car (car (elements (interp) 4 5))))' OUT='("posix" nil)'
+flisp_expr; ok elements-8-2 extensions have elements
+
+IN='(elements (lambda args body) 0 2)' OUT='(args (body))'
+flisp_expr; ok elements-9 lambdas have elements
+
+IN='(elements (macro args body) 0 2)' OUT='(args (body))'
+flisp_expr; ok elements-10 macros have elements
+
+IN='(elements :answer)' OUT='"answer"'
+flisp_expr; ok elements-12 symbols behave like strings
+
+IN='(elements foo)' OUT='(invalid-value "unbound symbol" foo)'
+flisp_expr; ok elements-13 errors have elements
+
+IN='(elements *standard-input*)' OUT='("*standard-input*")'
+flisp_expr; ok elements-14 streams elements is the path
+
+IN='(cdr (elements ((lambda (foo) (env)) "bar")))' OUT='((foo) ("bar"))'
+flisp_expr; ok elements-15 environments have elements
+
 
 IN="(vector 1 2 3)" OUT="#<Vector 3>"
 flisp_expr; ok vector-1 vector of 3

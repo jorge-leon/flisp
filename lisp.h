@@ -94,14 +94,16 @@ typedef struct Memory {
 } Memory;
 
 typedef struct InterpreterObjects {
-    Object *symbols;
-    Object *global;
-    Object *gcTop;
-    Object *debug;
     Object *input;
     Object *output;
     Object *stderr;
+    Object *debug;
     Object *extensions;
+    Object *symbols;
+    Object *global;
+    Object *gcTop;
+
+    Memory *memory;
 } InterpreterObjects;
 
 typedef struct ExtensionObject {
@@ -122,14 +124,14 @@ struct Object {
         struct { Object *path; FILE *fd; char *buf; size_t len; };        // Stream
         StreamObject stream;
         struct {
-            Object *symbols;
-            Object *global;
-            Object *gcTop;
-            Object *debug;
             Object *input;
             Object *output;
             Object *stderr;
+            Object *debug;
             Object *extensions;
+            Object *symbols;
+            Object *global;
+            Object *gcTop;
             
             Memory *memory;
         };
@@ -155,6 +157,7 @@ extern Object *flisp_find_symbol(Object *, char*, size_t);
 
 /* Extensions */
 #define FLISP_IS_ERR(OBJECT) ((OBJECT)->type == type_error)
+#define FLISP_IS_EOF(OBJECT) (FLISP_IS_ERR(OBJECT) && (OBJECT)->error == end_of_file)
 extern Object *flisp_register_extension(Object *, char *, ExtensionInit);
 
 extern Object *flisp_register_constant(Object *, Object *, Object *);

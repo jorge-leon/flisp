@@ -526,7 +526,6 @@ allocateObject:
 }
 
 #define CHECK_ERR(OBJECT) if FLISP_IS_ERR(OBJECT) return OBJECT
-#define IS_EOF(OBJECT) (FLISP_IS_ERR(OBJECT) && (OBJECT)->error == end_of_file)
 /* Note: for speed reasons we should use a single static error object and compare pointers */
 #define IS_OOM(OBJECT) (FLISP_IS_ERR(OBJECT) && (OBJECT)->error == gc_error)
 #define CHECK_OOM(OBJECT) if IS_OOM(OBJECT) return OBJECT
@@ -1172,6 +1171,7 @@ Object *readList(Object *interp, FILE *fd)
 {
     Object *last = nil;
     Object *list = nil;
+    bool start = true;
 
     for (;;) {
         initPad(scratchpad);
@@ -1184,14 +1184,18 @@ Object *readList(Object *interp, FILE *fd)
             ch = streamPeek(fd);
             if (!isSymbolChar(ch, 10)) {
                 if (ch == EOF) { if (ferror(fd))  READER_IO("while reading dotted list");  else READER_EOF("while reading dotted list"); }
-                //if (last == nil)
-                //    return newError(interp, invalid_read_syntax, nil, "unexpected dot at start of list");
+                if (start)
+                    return newError(interp, invalid_read_syntax, nil, "unexpected dot at start of list");
+
                 if ((ch = peekNext(interp, fd)) == ')')
                     return newError(interp, invalid_read_syntax, nil, "expected object at end of dotted list");
+
                 GC_CHECKPOINT;
                 GC_TRACE(gcList, list);
                 last = readExpr(interp, fd);
                 GC_RELEASE;
+                if (FLISP_IS_EOF(last))
+                    READER_EOF("while reading expression in dotted list");
                 if (FLISP_IS_ERR(last))
                     return newError(interp, invalid_value, last, "read error while reading expression in dotted list");
                 ch = peekNext(interp, fd);
@@ -1215,6 +1219,7 @@ Object *readList(Object *interp, FILE *fd)
             GC_RELEASE;
             last = *gcLast;
         }
+        start = false;
     }
 }
 /** readUnary - return an unary operator together with the next
@@ -1392,7 +1397,7 @@ Object *primitiveRead(Object *interp, Object **args, Object **env, size_t nArgs)
     Object *result = readExpr(interp, fd);
     GC_RELEASE;
 
-    if (IS_EOF(result) && *gcEofv == nil)  return *gcEofv;
+    if (FLISP_IS_EOF(result) && *gcEofv == nil)  return *gcEofv;
     return result;
 }
 
@@ -2172,16 +2177,14 @@ Object *primitiveElements(Object *interp, Object **args, Object **env, size_t nA
     int64_t i = 0, j,  end;
 
     Object *o = FLISP_ARG1, *t = o->type;
-    if (t == type_string)
+    if (t == type_string || t == type_symbol)
         end = o->size - 1;
     else if (t == type_cons)
-        end = -1; //end = flisp_list_length(o);
-    else if (t == type_vector)
-        end = o->length;
-    else if (t == type_values)
-        ;
+        end = -1; // Later: end = flisp_list_length(o);
+    else if (o->size == 0) // simple object
+        return nil;
     else
-        return newError(interp, wrong_type_argument, o, "(elements object[ start[ end]]) - object non of string, list, vector");
+        end = o->length;
     
     j = end;
 
@@ -2206,11 +2209,11 @@ Object *primitiveElements(Object *interp, Object **args, Object **env, size_t nA
     }
     
     if (i == j) {
-        if (t == type_string)
+        if (t == type_string || t == type_symbol)
             return flisp_empty_string;
         return nil;
     }
-    if (t == type_string)
+    if (t == type_string || t == type_symbol)
         return newStringWithLength(interp, &FLISP_ARG1->string[i], j-i);
 
     if (t == type_cons) {
@@ -2628,26 +2631,14 @@ Object *flisp_register_extension(Object *interp, char *name, ExtensionInit init)
 }
 
 // Interpreter introspection and configuration
-/* Note:
- * - Maybe move this to an extension, where each sub command cmd is
- *   named interp-cmd to smplify code and type checks.
- * - flisp must load this to be able to redirect stdin etc.
- * - No tests yet.
- */
 
 /** (interp) - return interpreter object */
 Object *primitiveInterp(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     return interp;
 }
-/** (interp-symbols - return interpreter symbols */
-Object *primitiveInterpSymbols(Object *interp, Object **args, Object **env, size_t nArgs)
-{
-    return (interp->symbols);
-}
-/** (interp-env) - return the current environemnt */
-/* Note: (elements (interp-env)) within a lambda segfaults, as well as returning the global environment within a lambda */
-Object *primitiveInterpEnv(Object *interp, Object **args, Object **env, size_t nArgs)
+/** (env) - return current environment */
+Object *primitiveEnv(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     return *env;
 }
@@ -2663,11 +2654,6 @@ Object *primitiveInterpGc(Object *interp, Object **args, Object **env, size_t nA
     /* Note: let the garbage collector receive an integer, indicating how much to increase/remove/set the memory capacity */
     gc(interp);
     return nil;
-}
-/** (interp-extensions - return the list of extensions of the interpreter  */
-Object *primitiveInterpExtensions(Object *interp, Object **args, Object **env, size_t nArgs)
-{
-    return interp->extensions;
 }
 
 /** (interp-input [ stream]]) - query or set interpreter input stream */
@@ -2758,6 +2744,7 @@ Object *flisp_core_init(Object *interp, Object *extension)
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "consp",         1,  1, nil,            primitiveConsP));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "nreverse",      1,  1, nil,            primitiveNreverse));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "intern",        1,  1, type_string,    primitiveIntern));
+        /* Note: can be replaced by (elements symbol) */
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "symbol-name",   1,  1, type_symbol,    primitiveSymbolName));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "same",          2,  2, nil,            primitiveSame));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "car",           1,  1, nil,            primitiveCar  /* Note: nil|cons */ ));
@@ -2800,15 +2787,12 @@ Object *flisp_core_init(Object *interp, Object *extension)
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "string-compare",2,  2, type_string,    stringCompare));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "extension",     1,  1, type_symbol,    primitiveLoadExtension));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-version",0,  0, nil,            primitiveInterpVersion));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp",        0,  0, nil,            primitiveInterp));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "env",           0,  0, nil,            primitiveEnv));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-input",  0,  1, type_stream,    primitiveInterpInput));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-output", 0,  1, type_stream,    primitiveInterpOutput));
-        /* Introspection */
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp",           0,  0, nil,            primitiveInterp));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-env",       0,  0, nil,            primitiveInterpEnv));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-extensions",0,  0, nil,            primitiveInterpExtensions));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-symbols",   0,  0, nil,            primitiveInterpSymbols));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-gc",        0,  0, nil,            primitiveInterpGc));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-debug",     0,  1, type_stream,    primitiveInterpDebug));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-debug",  0,  1, type_stream,    primitiveInterpDebug));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-gc",     0,  0, nil,            primitiveInterpGc));
 
         (*gcExt)->extension.version = newString(interp, FL_VERSION);
     } while (0);
