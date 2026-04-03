@@ -9,14 +9,14 @@
 (defun nthcdr (i l)
   (cond
     ((not (integerp i))
-     (throw wrong-type-argument
+     (error wrong-type-argument
        (concat "(nthcdr i l) - i expected type-integer, got: " (type-of i))
        i))
-    ((< i 0) (throw range-error "negative index" i))
+    ((< i 0) (error range-error "negative index" i))
     ((null l) nil)
     ((= 0 i) l)
    ((not (consp l))
-    (throw wrong-type-argument
+    (error wrong-type-argument
       (concat "(nthcdr i l) - l expected type-cons, got: " (type-of l))
       l ))
     (t (nthcdr (- i 1) (cdr l)))))
@@ -47,7 +47,7 @@
 ;;; property lists
 
 (defun prop-get (l k . p)
-  (cond ((not (consp l)) (throw :invalid-value "(prop-get l k[ p]) - l is not a list" l)))
+  (cond ((not (consp l)) (error :invalid-value "(prop-get l k[ p]) - l is not a list" l)))
   (setq p (cond (p (car p)) (t eq)))
   (cond
      ((p (car l) k)

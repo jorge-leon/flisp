@@ -40,6 +40,36 @@ Object *stringCodeLength(Object *interp, Object **args, Object **env, size_t nAr
     return newInteger(interp, len);
 }
 
+/** flisp_string_length() - number of Unicode characters in string
+ *
+ * @param interp .. interpreter where to create the result
+ * @param string .. string in which to count encoded characters.
+ * @param len    .. maximum number of char's to check.
+ *
+ * @returns: count of encoded characters, i.e. len of UTF-8 encoded unicode string.
+ * @errors: invalid-value when string is not utf-8 encoded.
+ */
+size_t flisp_string_length(char *string, size_t len)
+{
+    size_t n = 0, i = 0, l = 0;
+
+    while (string[i] != '\0' && i < len) {
+        l = flisp_code_length(string[i]);
+        if (l == 0)  return -1;
+        i += l;
+        n++;
+    }
+    return n;
+}
+
+Object *stringLength(Object *interp, Object **args, Object **env, size_t nArgs)
+{
+    int64_t length = flisp_string_length(FLISP_ARG1->string, FLISP_ARG1->size);
+    return (length == -1)
+        ? newError(interp, invalid_value, nil, "(string-length string) - string not utf-8 encoded")
+        : newInteger(interp, length);
+}
+
 /** flisp_char_offset() - char offset of code point at Unicode string index
  *
  * @param interp .. Interpreter where to create the result
@@ -72,36 +102,17 @@ Object *stringCharOffset(Object *interp, Object **args, Object **env, size_t nAr
     FLISP_ASSERT(FLISP_ARG1, type_string, "(char-offset string index) - string");
     FLISP_ASSERT(FLISP_ARG2, type_integer, "(char-offset string index) - index");
 
-    return flisp_char_offset(interp, FLISP_ARG1->string, FLISP_ARG2->value);
-}
-
-/** flisp_string_length() - number of Unicode characters in string
- *
- * @param interp .. interpreter where to create the result
- * @param string .. string in which to count encoded characters.
- * @param len    .. maximum number of char's to check.
- *
- * @returns: count of encoded characters, i.e. len of UTF-8 encoded unicode string.
- * @errors: invalid-value when string is not utf-8 encoded.
- */
-Object *flisp_string_length(Object *interp, Object *string, size_t len)
-{
-    size_t n = 0, i = 0, l = 0;
-
-    while (string->string[i] != '\0' && i < len) {
-        l = flisp_code_length(string->string[i]);
-        if (l == 0)
-            return newError(interp, invalid_value, string, "flisp_char_count(): string not utf-8 encoded");
-        i += l;
-        n++;
+    int64_t index = FLISP_ARG2->value;
+    
+    if (index < 0) {
+        int64_t end = flisp_string_length(FLISP_ARG1->string, FLISP_ARG1->size);
+        index += end;
+        if (index < 0)
+            return newInteger(interp, 0);
     }
-    return newInteger(interp, n);
+    return flisp_char_offset(interp, FLISP_ARG1->string, index);
 }
 
-Object *stringLength(Object *interp, Object **args, Object **env, size_t nArgs)
-{
-    return flisp_string_length(interp, FLISP_ARG1, FLISP_ARG1->size);
-}
 
 /** flisp_code_char() - convert Unicode code point to character.
  *
@@ -215,14 +226,20 @@ Object *stringSearch(Object *interp, Object **args, Object **env, size_t nArgs)
     pos = strstr(FLISP_ARG2->string, FLISP_ARG1->string);
     if (pos == NULL)  return nil;
 
-    return flisp_string_length(interp, FLISP_ARG2, pos - FLISP_ARG2->string);
+    int64_t length = flisp_string_length(FLISP_ARG2->string, pos - FLISP_ARG2->string);
+    return (length == -1)
+        ? newError(interp, invalid_value, nil, "(string-search match string) - string not utf-8 encoded")
+        : newInteger(interp, length);
 }
 
 /** strspn */
 Object *stringStrspn(Object *interp, Object** args, Object **env, size_t nArgs)
 {
     int64_t i = strspn(FLISP_ARG1->string, FLISP_ARG2->string);
-    return flisp_string_length(interp, FLISP_ARG1, i);
+    i = flisp_string_length(FLISP_ARG1->string, i);
+    return (i == -1)
+        ? newError(interp, invalid_value, nil, "(strspn string match) - string not utf-8 encoded")
+        : newInteger(interp, i);
 }
 
 
@@ -230,7 +247,10 @@ Object *stringStrspn(Object *interp, Object** args, Object **env, size_t nArgs)
 Object *stringStrcspn(Object *interp, Object** args, Object **env, size_t nArgs)
 {
     int64_t i = strcspn(FLISP_ARG1->string, FLISP_ARG2->string);
-    return flisp_string_length(interp, FLISP_ARG1, i);
+    i = flisp_string_length(FLISP_ARG1->string, i);
+    return (i == -1)
+        ? newError(interp, invalid_value, nil, "(strcspn string match) - string not utf-8 encoded")
+        : newInteger(interp, i);
 }
 
 Object *flisp_string_init(Object *interp, Object *extension)

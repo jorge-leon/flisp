@@ -28,6 +28,10 @@ flisp_expr; ok char-offset-1  offset into ascii string is index
 IN='(char-offset "änßwer" 4)' OUT=6
 flisp_expr; ok char-offset-2  offset into utf-8 string is greater then index
 
+IN='(char-offset "änßwer" -3)' OUT=5
+flisp_expr; ok char-offset-3  negative offset into utf-8 string counts from end
+
+
 IN='(string-length "")' OUT="0" flisp_expr; ok string-length-1 length of emtpy string is 0
 IN='(string-length "answer")' OUT="6" flisp_expr; ok string-length-2  length of answer string is 6
 IN='(string-length "änßwér")' OUT="6" flisp_expr; ok string-length-3  length of 3 unicode 3 ascii string is 6

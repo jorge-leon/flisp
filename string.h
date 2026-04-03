@@ -15,7 +15,7 @@ extern Object *flisp_string_init(Object *, Object *);
 
 extern size_t flisp_code_length(char);
 extern Object *flisp_char_offset(Object *, char *, size_t);
-extern Object *flisp_string_length(Object *, Object *, size_t);
+extern size_t flisp_string_length(char *, size_t);
 extern int64_t flisp_char_code(char *);
 extern size_t flisp_code_char(int64_t, char *);
 

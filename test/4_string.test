@@ -20,7 +20,7 @@ IN='(substring "answer")' OUT='"answer"'
 flisp_expr; ok substring-2 substring answer is answer
 
 IN='(substring "answer" 3)' OUT='"wer"'
-flisp_expr; ok substring-3 substring answer 3 wer \# TODO substring is b0rked
+flisp_expr; ok substring-3 substring answer 3 wer
 
 IN='(substring "answer" -2)' OUT='"er"'
 flisp_expr; ok substring-4 substring answer -2 er
@@ -37,19 +37,19 @@ flisp_expr; ok substring-7 substring answer -3 -1 we
 IN='(substring "änßwér" -3 -1)' OUT='"wé"'
 flisp_expr; ok substring-7-1 substring in 3 unicode 2 ascii string
 
-IN='(substring "answer" 7)' OUT='(substring string [start [end]]) - start out of range'
-flisp_expr; ok substring-8 substring answer 7 range-error
+IN='(substring "answer" 7)' OUT='""'
+flisp_expr; ok substring-8 substring answer  start beyond end is empty string
 
-IN='(substring "answer" -7)' OUT='(substring string [start [end]]) - start out of range'
-flisp_expr; ok substring-9 substring answer -7 range-error
+IN='(substring "answer" -7)' OUT='"answer"'
+flisp_expr; ok substring-9 substring answer start before start is complete string
 
-IN='(substring "answer" 1 7)' OUT='(substring string [start [end]]) - end out of range'
-flisp_expr; ok substring-10 substring answer 1 7 range-error
+IN='(substring "answer" 1 7)' OUT='"nswer"'
+flisp_expr; ok substring-10 substring answer end beyond end is rest
 
-IN='(substring "answer" 1 -7)' OUT='(substring string [start [end]]) - end out of range'
-flisp_expr; ok substring-11 substring answer 1 7 range-error
+IN='(substring "answer" 1 -7)' OUT='#<Error range-error: "(elements object[ start[ end]]) - start > end: [1, 0)", 1>'
+flisp_expr; ok substring-11 substring answer 1 -7 range-error
 
-IN='(substring "answer" 2 1)' OUT='(substring string [start [end]]) - end > start'
+IN='(substring "answer" 2 1)' OUT='#<Error range-error: "(elements object[ start[ end]]) - start > end: [2, 1)", 2>'
 flisp_expr; ok substring-12 substring answer 2 1 range-error
 
 

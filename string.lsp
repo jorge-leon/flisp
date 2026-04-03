@@ -9,18 +9,17 @@
 
 ;; (substring string[ start [end]])
 (defun substring (string . args)
-  (if-not args string
-	  (let ((start (car args)) (end (when (consp (cdr args) (cadr args)))))
-	    (if-not (same (type-of start) type-integer)
-		    (error wrong-type-argument
-			   "(substring string[ start [end]]) - start expected type-integer, got"
-			   (type-of start) )
-		    (if (null end) (elements string (char-offset string start))
-			(if-not (same (type-of end) type-integer)
-				(error wrong-type-argument
-				       "(substring string[ start [end]]) - end expected type-integer, got:"
-				       (type-of end) )
-				(elements (char-offset string start) (char-offset string end)) ))))))
+  (cond
+    ((null args) string)
+    ((and (integerp (car args)) (cdr args) (integerp (cadr args)))
+     (elements string (char-offset string (car args)) (char-offset string (cadr args))) )
+    ((integerp (car args))
+     (elements string (char-offset string (car args))) )
+    (t
+     (error wrong-type-argument
+	    (if (integerp (car args))
+		"(substring string[ start [end]]) - end expected type-integer, got"
+		"(substring string[ start [end]]) - start expected type-integer, got" )))))
 
 ;; trim all spaces from front of a string
 (defun string-trim-front(s)

@@ -174,10 +174,10 @@
 (defun string-to-number (string)
   (let* ((f (open string "<"))
 	 (n (read f))
-	 (t (type-of n)) )
+	 (type (type-of n)) )
     (close f)
-    (if (numberp n) n
-	(error invalid-value (concat "(string-to-number string) - string expected number, got: " t) n) )))
+    (if (numberp n)  n
+	(error invalid-value (concat "(string-to-number string) - string expected number, got: " type) n) )))
 
 (defun string-equal (s1 s2)  (i=0 (string-compare s1 s2)))
 
@@ -273,7 +273,7 @@
 (defun length (o)
   (cond
     ((null o) 0)
-    ((stringp o) (string-length o))
+    ((stringp o) (i- (object-size o) 1))
     ((consp o)
      (fold-left (lambda (x y) (i+ x 1)) 0 o))
     ((vectorp o) (object-length o))
