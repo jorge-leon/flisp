@@ -103,6 +103,7 @@ typedef struct InterpreterObject {
     Object *global;
     Object *gcTop;
     Memory *memory;
+    int64_t countdown;
     bool trace_read : 1;
     bool trace_primitives : 1;
     bool gc_always : 1;

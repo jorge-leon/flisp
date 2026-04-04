@@ -13,7 +13,7 @@ PREPARE="(extension 'string)"
 export FLISP_DEBUG=../f.log
 export FLISP_SIZE=$((20*1024*1024))
 
-tap 18
+tap 20
 
 
 IN='(code-length "a")' OUT=1

@@ -218,7 +218,8 @@
   (cond ((null list))
 	((predicate start (car list)) (fold-leftp predicate (car list) (cdr list)))))
 
-(cond ((errorp d=) ;; only integer operations available
+;;; Note: errorp does not work, since (type-of error) returns type-symbol
+(cond (t               ;;;(errorp d=)) ;; only integer operations available
        (defun + args (fold-left i+ 0 args))
        (defun - args (nfold     i- 0 args))
        (defun * args (fold-left i* 1 args))
