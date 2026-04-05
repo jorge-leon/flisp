@@ -4,18 +4,12 @@
 
 ## Next
 
-- Cleanup cerf: not so easy to do, but now easier with dynamic primitive loading.
-  - create evalApply and readCons on startup after registering readPrimitve and evalPrimitive
-    then use it in cerf().
-- Make logging mask, and suppress catch messages by default
-- Implement more `(interp subcommand[arg..])` introspection and configuration commands.
-  - (interp error[ fd])
-  - (interp types[ type..]) => list of types
-  - (interp body lambda|macro)
-- Add read and eval tracing.
-
 ## Future
 
+- Objects host their writer (and reader?) and are pluggable.
+- RPN micro reader
+- Remove all printf, make own buffering and remove stdio
+- Make memory allocated parametrizable, allocate constants in separate mmap.
 - Implement backquote and friends.
   - The reader already implements '`', ',' and ',@' as `quasiquote`, `unquote`
     and `splice-unquote`.
@@ -33,6 +27,30 @@
     (r).
 - Test more then one interpreter.
 - ? CSP between interpreters?
+
+## fLisp 0.17
+- Make workable flisp command line utility as shell script and rework repl.
+- Remove argv0 and argv from flisp_new(), inject them at startup
+- More testing, stress-testing
+- Femto integration
+
+## flisp 0.17α
+- No exceptions/throw/catch, errors are signalled by returning an error object.
+- `flisp_eval_input()` replaces `flisp_eval`, no direct string evaluation.
+  anymore, return value is result, can be error object.
+- Built-in extended objects: interpreter, extension, values (experimental).
+- evalExpr() cycles countdown counter.
+- gc, gc-always, read trace, primitive trace accessible from Lisp.
+- Builtin integer to text converter, also exposed as (ifmt)
+- Writer doesn't use printf anymore
+- Error handling almost w/o printf
+- Reader partially rewritten.
+- Reader macros, aka #, some basic macros.
+- UTF-8 moved to string extension.
+- More flisp_* C-macros and exported functions
+- (elements), (object-length) and (object-size) primitives as foundation for
+  several higher level functions.
+- Fixes in memory allocator and stream code.
 
 ## flisp 0.16
 - Extensible Lisp Object structure.

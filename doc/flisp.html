@@ -25,7 +25,7 @@
   influences. <i>fLisp</i> originates from <a href="https://github.com/matp/tiny-lisp">Tiny-Lisp by matp</a> (pre
   2014), was integrated into <a href="https://github.com/hughbarney/femto">Femto</a> by Hugh Barney (pre 2016) and
   extended by Georg Lehner since 2023. Read more about fLisp's history.</p>
-  <p>This document is the reference manual for <i>fLisp</i> version 0.16 or later (<a href="flisp.md">Markdown</a>). If
+  <p>This document is the reference manual for <i>fLisp</i> version 0.17 or later (<a href="flisp.md">Markdown</a>). If
   you want to learn about Lisp programming use other resources eg.</p>
   <ul>
     <li>The <a href="https://lisp-lang.org">Common Lisp</a> web site,
@@ -38,7 +38,7 @@
       <a href="https://www.scheme.org/">The Scheme Programming Language</a>.
     </li>
   </ul>
-  <p>Other documentation topics:</p>
+  <p>Other documentation topics on <i>fLisp</i>:</p>
   <ul>
     <li>
       <a href="develop.html">Development</a> of and with <i>fLisp</i> (<a href="development.md">Markdown</a>)
@@ -50,7 +50,6 @@
       <a href="implementation.html">Implementation</a> Details (<a href="markdown.md">Markdown</a>)
     </li>
   </ul>
-  <p>This manual refers to version 0.14 or later of fLisp.</p>
   <h3 id="toc">Table of Contents</h3>
   <ol>
     <li>
@@ -166,7 +165,7 @@
     <dt>Integer:</dt>
     <dd><var>i</var> <var>j</var> <var>k</var></dd>
     <dt>Double:</dt>
-    <dd><var>x</var> <var>y</var> <var>z</var></dd>
+    <dd><var>d</var> <var>x</var> <var>y</var> <var>z</var></dd>
     <dt>Any numeric type:</dt>
     <dd><var>n</var> <var>n1</var> <var>n2</var></dd>
     <dt>Symbol:</dt>
@@ -212,8 +211,7 @@
   </ol>
   <p><a href="#flisp_primitives">Core functions</a> of the language - called <dfn>primitives</dfn> - operate on
   built-in <a href="#objects_and_data_types">object types</a>. <i>fLisp</i> can be extended with C-libraries to provide
-  additional functions. With respect to the interpreter processing extension functions behave the same as core
-  functions.</p>
+  additional primitives.</p>
   <h4 id="syntax">Syntax</h4>
   <p>Program text is written as a sequence of symbolic expressions - <abbr><dfn>sexp</dfn></abbr>'s - in parenthesized
   form. A <a href="https://en.wikipedia.org/wiki/S-expression">sexp</a> is either a single symbol or a sequence of
@@ -238,6 +236,8 @@
     <dt><code>\</code></dt>
     <dd>Escape character. When reading a string, the next character is read as character, even if it is special to the
     reader.</dd>
+    <dt>#</dt>
+    <dd>Introduces a reader macro.</dd>
     <dt><code>;</code></dt>
     <dd>Comment character. When the reader encounters a semicolon it ignores it and all characters up to the next
     newline.</dd>
@@ -251,10 +251,9 @@
     its elements are inserted element by element.</dd>
   </dl>
   <p>Note: <code>quasiquote</code>, <code>unquote</code> and <code>unquote-splice</code> are not yet implemented in
-  <i>fLisp</i> 0.14.</p>
-  <p>Numbers are read and written in decimal notation. If the fLisp interpreter with floating point support is used
-  floating point numbers are recognized if a sequence of digit contains a dot (.). Exponent notation is not supported
-  by the reader.</p>
+  <i>fLisp</i> 0.17.</p>
+  <p>Numbers are read and written in decimal notation. IEEE double floating point numbers can be read via the #d reader
+  macro.</p>
   <p>A list of objects has the form:</p>
   <blockquote>
     <code>([<var>element</var>&nbsp;..])</code>
@@ -263,7 +262,7 @@
   <blockquote>
     <code>(<var>name</var> [<var>param</var>&nbsp;..])</code>
   </blockquote>
-  <p>There are two predefined objects. Their symbols are:</p>
+  <p>Several symbols are predefined to evaluate to themself. The two most important ones are:</p>
   <dl>
     <dt><code>nil</code></dt>
     <dd>represents: the empty list: <code>()</code>, the end of a list marker or the false value in logical
@@ -277,25 +276,45 @@
     <dt><dfn>integer</dfn></dt>
     <dd>64 bit singed integer.</dd>
     <dt>double</dt>
-    <dd>Double precission IEEE floating point number. Only available in fLisp interpreters with double support.</dd>
+    <dd>Double precission IEEE floating point number.</dd>
     <dt><dfn>string</dfn></dt>
     <dd>Character array. UTF-8 aware.</dd>
     <dt><dfn>cons</dfn></dt>
-    <dd>Object holding two pointers to objects.</dd>
+    <dd>Object holding two pointers to objects. Used to represent lists.</dd>
     <dt><dfn>symbol</dfn></dt>
     <dd>String with restricted character set: <code>[A-Z][0-9][a-z]!#$%&amp;*+-./:&lt;=&gt;?@^_~</code></dd>
-    <dd>In contrast to strings symbols are unique. Two string objects with the same character string can be different
+    <dd>In contrast to strings symbols are unique. Two string objects with the same characters&nbsp;can be different
     objects.</dd>
     <dt><dfn>lambda</dfn></dt>
     <dd>Anonymous function with parameter evaluation.</dd>
     <dt><dfn>macro</dfn></dt>
     <dd>Anonymous function without parameter evaluation.</dd>
+    <dt><dfn>error</dfn></dt>
+    <dd>Error signaling objects.</dd>
     <dt><dfn>stream</dfn></dt>
-    <dd>An input/output stream.</dd>
+    <dd>An input and/or output stream.</dd>
+    <dt><dfn>vector</dfn></dt>
+    <dd>An n-tuple of objects.</dd>
+    <dt><dfn>values</dfn></dt>
+    <dd>A "frozen" list of objects - experimental.</dd>
+    <dt><dfn>interpreter</dfn></dt>
+    <dd>Holds all objects relevant for the execution of fLisp.</dd>
+    <dt><dfn>extension</dfn></dt>
+    <dd>Presents an available and/or loaded extensions.</dd>
+    <dt><dfn>primitive</dfn></dt>
+    <dd>Presents a built-in function.</dd>
   </dl>
   <p>Objects are immutable; functions either create new objects or return existing ones, with the single exception of
-  the <code>nreverse</code> funciton, which is included for speed.</p>
+  the <code>nreverse</code> funciton, which is included for speed. The interpreter object can be manipulated by
+  <code>(interp-</code><var>*</var><code>)</code> functions.</p>
   <p>Characters do not have their own type. A single character is represented by a <i>string</i> with length one.</p>
+  <p>Integers, doubles and primitives are <dfn>simple</dfn> objects. They have a size property of zero. All other types
+  are <var>extensible</var> objects. They have a size and a length property. The <dfn>size</dfn> is the amount of
+  (additional) memory used and the <dfn>length</dfn> is the number of contained Lisp objects. Strings and symbols have
+  zero length, with them,&nbsp;<var>size</var> indicates the number of characters occupied plus one.</p>
+  <p>User provided extensions can define their own object types. Extensible objects are completely covered by the
+  garbage collection process, their contained Lisp objects are accessed by
+  the&nbsp;<code>elements&nbsp;</code>primitive.</p>
   <h4 id="evaluation">Environments, Functions, Evaluation</h4>
   <p>All operations of the interpreter take place in an environment. An <dfn>environment</dfn> is a collection of named
   objects. The object names are of type <i>symbol</i>. An object in an environment is said to be <dfn>bound</dfn> to
@@ -303,9 +322,9 @@
   the&nbsp;<dfn>variable</dfn>&nbsp;<var>name</var>.</p>
   <p>Environments can have a parent. Each <i>fLisp</i> interpreter starts with a <dfn>root</dfn> environment without a
   parent, this is also called the&nbsp;<dfn>global</dfn>&nbsp;environment.</p>
-  <p><i>lambda</i> and <i>macro</i> objects are functions. They have a parameter list and a sequence of sexp's as body.
-  When functions are invoked a new environment is created as child of the current environment. Functions receive zero
-  or more objects from the caller. These are bound one by one to the symbols in the parameter list in the new
+  <p><i>lambda</i> and <i>macro</i> objects are closures. They have a parameter list and a sequence of sexp's as body.
+  When closures are invoked a new environment is created as child of the current environment. Closures receive zero or
+  more objects from the caller. These are bound one by one to the symbols in the parameter list in the new
   environment.</p>
   <p><i>lambda</i>s return the result of evaluating the body in the new environment.</p>
   <p><i>macro</i>s first evaluate the body in the calling environment. The resulting sexp is evaluated in the new
@@ -315,10 +334,10 @@
   in the environments from which the lambda or macro was invoked. The symbol of the first found binding is then
   replaced by its bound object.</p>
   <h4 id="exceptions">Error handling</h4>
-  <p>Whenever fLisp encounters an error an exception is thrown. Exceptions have an <dfn>error type</dfn> symbol a human
-  readable <dfn>error message</dfn> and the <dfn>object in error</dfn>, which is nil with generic errors. fLisp does
-  not implement stack backtracking. Exceptions are either caught on the top level of an evaluation or by a <a href=
-  "#interp_ops"><code>catch</code></a> statement.</p>
+  <p><i>fLisp</i> primitives return an error object upon abnormal conditions, when <i>fLisp</i> runs out of memory or
+  encounters in input/output error. Errors have an&nbsp;<dfn>error type</dfn> symbol, a human readable <dfn>error
+  message</dfn> and the <dfn>object in error</dfn>, also called <dfn>culprit.</dfn>&nbsp; With generic error conditions
+  culprit is set to <code>nil</code>.</p>
   <p>The following error type symbols are defined and used internally:</p>
   <ul>
     <li>Read:
@@ -349,37 +368,43 @@
       </ul>
     </li>
   </ul>
-  <p>Exceptions can be thrown via the <a href="#interp_ops"><code>throw</code></a> function. As long as applicable use
-  one of the existing error codes with <code>throw</code>&nbsp;instead of creating new ones.</p>
-  <p><i>fLisp</i> outputs an error message formated like</p>
+  <p>These builtin error types evaluate to themself and are defined as constants.</p>
+  <p>Lambas or macros can return custom error objects via the <var>error</var>&nbsp;primitive. Whenever applicable use
+  one of the existing error types instead of creating new ones.</p>
+  <p><i>fLisp</i>&nbsp;presents error messages to the user in the following format:</p>
   <blockquote>
-    <code>error: <var>symbol</var>: '<var>object</var>'&nbsp;<var>message</var></code>
+    <code>error:<var>type</var>:&nbsp;<var>message:&nbsp;</var>'<var>object</var>'</code>
   </blockquote>
-  <p>where <var>symbol</var> is the error symbol,&nbsp;<var>object</var> is the serialization of the object causing the
+  <p>where <var>type</var> is the error type,&nbsp;<var>object</var> is the serialization of the object causing the
   error. <var>message</var> is the error message.</p>
   <h4 id="globals">Global Variables</h4>
   <p>When an fLisp interpreter is created the following symbols are bound in the root environment:</p>
   <dl>
-    <dt><code>*INPUT*</code></dt>
-    <dd>Is bound to the initial input stream or to <code>nil</code> if there is none.</dd>
-    <dt><code>*OUTPUT*</code></dt>
-    <dd>Is bound to the initial output stream, or to <code>nil</code> if there is none.</dd>
-    <dt><code>argv</code></dt>
-    <dd>Is bound to a list of all command line arguments of the invoking program in order. Each element is of type
-    string.</dd>
-    <dt><code>argv0</code></dt>
-    <dd>Is bound to the name of the invoking program. It is of type string.</dd>
-    <dt><code>script_dir</code></dt>
-    <dd>Is bound to either the hard coded path to the Lisp libraries or the contents of the environment variable
-    <code>FLISPLIB</code>.</dd>
+    <dt><code>*standard-input*</code></dt>
+    <dd>The initial input stream..</dd>
+    <dt><code>*standard-output*</code></dt>
+    <dd>The initial output stream, or&nbsp;<code>nil</code> if there is none.</dd>
+    <dt><code>*standard-error*</code></dt>
+    <dd>The initial error output stream, or <code>nil</code> if there is none.</dd>
+    <dt>*debug-output*</dt>
+    <dd>The initial debug output stream, or <code>nil</code> if there is none.</dd>
+    <dt><s><code>argv</code></s></dt>
+    <dd><s>Is bound to a list of all command line arguments of the invoking program in order. Each element is of type
+    string.</s></dd>
+    <dt><s><code>argv0</code></s></dt>
+    <dd><s>Is bound to the name of the invoking program. It is of type string.</s></dd>
+    <dt><s><code>script_dir</code></s></dt>
+    <dd><s>Is bound to either the hard coded path to the Lisp libraries or the contents of the environment variable
+    <code>FLISPLIB</code>.</s></dd>
   </dl>
   <nav>
     <a href="#toc">^</a>
   </nav>
-  <h3 id="primitives"><i>fLisp</i> Primitives</h3>
-  <p><i>fLisp</i> counts with a minimal set of built-in functions called <dfn>primitives</dfn>. The complete
-  <i>fLisp</i> language is then built on top of this primitives.</p>
-  <p>In the following sub section the documentation of primitives is grouped by the type of objects they operate
+  <h3 id="primitives"><i>fLisp</i>&nbsp;core Primitives</h3>
+  <p>The built-in primitives of&nbsp;<i>fLisp</i> are divided into a minimal pre-loaded core&nbsp;primitives set,&nbsp;
+  and the optional <i>double</i>, <i>string</i> and <i>posix</i> extensions. The complete <i>fLisp</i> language is
+  built on top of the core and string primitives.</p>
+  <p>In the following sub section the core primitives are documented, grouped by the type of objects they operate
   on.</p>
   <h4 id="interp_ops">Interpreter Operations</h4>
   <dl>
@@ -397,13 +422,15 @@
       <var>action</var> the value of <var>pred</var> is returned, otherwise <code>(progn <var>action</var> ..)</code>
       is returned and no more <var>clause</var>s are evaluated.</p>
     </dd>
-    <dt><code>(bind <var>symbol</var> <var>value</var>[ <var>globalp</var>)</code> ⇒ <var>value</var> <u>f</u></dt>
+    <dt><code>(bind <var>globalp&nbsp;</var><var>symbol</var>[&nbsp;<var>value</var>[ symbol ..]])</code> ⇒
+    <var>value</var> <u>f</u></dt>
     <dd>
-      <p>Create or update <var>symbol</var> and bind it to <var>value</var>. Return value. First <var>symbol</var> is
-      looked up in the current environment, then recursively in the parent environments. If it is not found, it is
-      created in the current environment as long as <var>globalp</var> is <code>nil</code> or omitted. If
-      <var>globalp</var> is not <code>nil</code> <var>symbol</var> is always created in the global (top level)
-      environment.</p>
+      <p>Create or update each&nbsp;<var>symbol</var>&nbsp;in turn and bind it to the
+      corresponding&nbsp;<var>value</var>&nbsp;or <code>nil</code> if <var>value</var>&nbsp;is not present.&nbsp;Return
+      the last <var>value</var> or nil. First <var>symbol</var> is looked up in the current environment, then
+      recursively in the parent environments. If it is not found, it is created in the current environment
+      when&nbsp;<var>globalp</var> is <code>nil</code>. If <var>globalp</var> is not <code>nil</code> <var>symbol</var>
+      is created in the global (top level) environment.</p>
     </dd>
     <dt><code>(lambda <var>params</var> <var>body</var>)</code> ⇒ <var>lambda</var></dt>
     <dd>
@@ -426,43 +453,14 @@
     <dd>
       <p>Returns <var>expr</var> without evaluating it.</p>
     </dd>
+    <dt>&nbsp;</dt>
     <dt><code>(eval <var>expr</var>)</code> ⇒ <i>o</i></dt>
     <dd>Evaluates <var>expr</var> and returns the result.</dd>
+    <dt>&nbsp;</dt>
+    <dd>&nbsp;</dd>
     <dt><code>(error <var>type</var> <var>message</var>[ <var>culprit</var>])</code> ⇒ <i>o</i></dt>
+    <dt>&nbsp;</dt>
     <dd>Creates an error object. <var>culprit</var> is the object suspected to have caused the error.</dd>
-    <dt><code>(catch <var>expr</var>)</code> ⇒&nbsp;<var>errinfo</var> <u>D</u></dt>
-    <dd>
-      <p>Evaluates <var>expr</var> and returns a list with three elements:</p>
-      <dl>
-        <dt><var>error_type</var></dt>
-        <dd><code>nil</code> on success or an error type symbol.</dd>
-        <dt><var>message</var></dt>
-        <dd>A human readable error message.</dd>
-        <dt><var>object</var></dt>
-        <dd>The result of the the expression or the object in error.</dd>
-      </dl>
-    </dd>
-    <dt><code>(throw <var>result</var> <var>message</var>[&nbsp;<var>object</var>])</code> <u>D</u></dt>
-    <dd>Throws an exception, stopping any further evaluation. <var>result</var> is the error type symbol,
-    <var>message</var> is a human readable error string and <var>object</var> is the object in error, if any.</dd>
-    <dt><code>(interp <var>cmd</var>[ <var>arg</var>..])</code> <u>f</u></dt>
-    <dd>Interpreter introspection. The following commands are available</dd>
-    <dd><code>(interp :version)</code> ⇒ <var>string</var> .. returns the version string of fLisp.</dd>
-    <dt>&nbsp;</dt>
-    <dd><code>(interp :debug|input|output[ <var>fd</var>])</code> ⇒ <var>stream</var> .. returns and optionally
-    sets&nbsp;the debug, input or output stream of the interpreter.<br />
-    <code>(interp :global)</code>&nbsp; ⇒ <i>env</i>.. returns the global environment.</dd>
-    <dd><code>(interp :size <var>object</var>)</code>&nbsp; ⇒ <i>size</i>.. returns the extension size allocated for
-    <var>object</var>. For symbols and strings this is one more than strlen() of the string/name.</dd>
-    <dt>&nbsp;</dt>
-    <dt>&nbsp;</dt>
-    <dd><code>(interp :env[ <var>field</var>[ <var>env</var>]])</code>&nbsp; ⇒ <i>o</i>.. returns the
-    current&nbsp;environment,&nbsp;one of its fields given as symbols <code>parent</code>, <code>vars</code>,
-    <code>vals</code>, or the given field of the given environemnt <var>env</var>.</dd>
-    <dt>&nbsp;</dt>
-    <dt>&nbsp;</dt>
-    <dt>&nbsp;</dt>
-    <dt>&nbsp;</dt>
   </dl>
   <h4 id="in_out">Input / Output and Others</h4>
   <dl>
@@ -509,22 +507,39 @@
       stream <var>fd</var> is given output is written to the given stream else to the output stream. <code>write</code>
       returns the <var>object</var>.</p>
     </dd>
-    <dt>&nbsp;</dt>
+    <dt><code>(interp)</code></dt>
+    <dd>Return the current interpreter object.</dd>
+    <dt><code>(env)</code></dt>
+    <dd>Return the current environment object.</dd>
+    <dt><code>(interp-gc)</code></dt>
+    <dd>Invoke the garbage collector</dd>
+    <dt><code>(interp-trace-read[ <var>p</var>])</code></dt>
+    <dd>Query or set the interpreter read trace flag.</dd>
+    <dt><code>(interp-trace-primitives[ <var>p</var>])</code></dt>
+    <dd>Query or set the interpreter primitives trace flag.</dd>
+    <dt><code>(interp-countdown[ <var>i</var>])</code></dt>
+    <dd>Query or set the interpreter countdown counter. The evaluator will return an error after i cycles, if i is set
+    to not-zero.</dd>
+    <dd>&nbsp;</dd>
   </dl>
   <h4 id="object_ops">Object Operations</h4>
   <dl>
     <dt><code>(null <var>object</var>)</code> ⇒ <var>p</var></dt>
     <dd>Returns <code>t</code> if <var>object</var> is <code>nil</code>, otherwise <code>nil</code>.&nbsp;</dd>
+    <dt><code>(same <var>o1</var> <var>o2</var>)</code></dt>
+    <dd>Returns non-<code>nil</code> if <var>o1</var> and <var>o2</var> are the same object.</dd>
+    <dt><code>(zerop <var>i</var>)</code></dt>
+    <dd>Returns non nil if integer i is zero.</dd>
     <dt><code>(type-of <var>object</var>)</code> ⇒ <var>symbol</var></dt>
     <dd>Returns the type symbol of <var>object</var>.</dd>
     <dt><code>(consp <var>object</var>)</code> ⇒ <i>p</i></dt>
-    <dd>Returns <code>t</code> if <var>object</var> is of type cons, otherwise <code>nil</code>.</dd>
+    <dd>Returns <code>t</code> if <var>object</var> is of type <code>cons</code>, otherwise <code>nil</code>.</dd>
     <dt><code>(nreverse <var>l</var>)</code> ⇒ <var>l'</var></dt>
     <dd>Destructively reverses list <var>l</var> and returns it.</dd>
     <dt><code>(intern <var>string</var>)</code> ⇒ <var>symbol</var></dt>
     <dd>Returns the symbol with name <var>string</var>. If the symbol does not exist yet it is created.</dd>
-    <dt><code>(symbol-name <var>object</var>)</code> ⇒ <var>string</var></dt>
-    <dd>If <var>object</var> is of type symbol return its value as string.</dd>
+    <dt><s><code>(symbol-name <var>object</var>)</code> ⇒ <var>string</var></s></dt>
+    <dd><s>If <var>object</var> is of type symbol return its value as string.</s></dd>
     <dt><code>(cons <var>car</var> <var>cdr</var>)</code> ⇒ <i>cons</i></dt>
     <dd>Returns a new cons with the first object set to the value of <var>car</var> and the second to the value of
     <var>cdr</var>.</dd>
@@ -534,6 +549,21 @@
     <dd>Returns the second object of <var>cons</var>.</dd>
     <dt><code>(same <var>a</var> <var>b</var>)</code> ⇒ <var>p</var> <u>f</u></dt>
     <dd>Returns <code>t</code> if <var>a</var> and <var>b</var> are the same object, <code>nil</code> otherwise.</dd>
+  </dl>
+  <dl>
+    <dt><code>(vector <var>o</var>[ <var>o</var>&nbsp;..])</code></dt>
+    <dd>Returns a vector containing all given objects.</dd>
+    <dt><code>(elements&nbsp;<var>o</var>[ <var>start</var>[&nbsp;e<var>nd</var>]])</code></dt>
+    <dd>If o is an extensible object&nbsp;returns a list of all objects contained in <var>o</var>. If <var>o</var> is a
+    string or symbol returns the string of <var>o</var>. If <var>o</var> is a list it returns the list. If
+    <var>start</var> is given it indicates the first object or character to return, if <var>end</var> is given it
+    indicates the&nbsp;object or character after the last one to return. start and end are zero-based indexes into the
+    list,&nbsp;string or&nbsp;object.&nbsp;If any of them is&nbsp;negative&nbsp;they are counted from the end of the
+    list,&nbsp;string or object.</dd>
+    <dt><code>(object-size <var>o</var>)</code></dt>
+    <dt>Returns the size property of <var>o</var>.</dt>
+    <dt><code>(object-length <var>o</var>)</code></dt>
+    <dd>Returns the length property of <var>o</var>.</dd>
   </dl>
   <h4 id="arithmetic_ops">Arithmetic Operations</h4>
   <p><i>fLisp</i> provides binary 64 bit integer arithmetic. n-ary operations with type coercion are provided in the
@@ -579,24 +609,13 @@
   </dl>
   <h4 id="string_ops">String Operations</h4>
   <dl>
+    <dt><code>(string-append <var>s1</var> <var>s2</var>)</code> ⇒ <i>string</i>&nbsp;<u>f</u></dt>
+    <dd>Returns a new string consisting of the concatenation of <var>string1</var> with <var>string2</var>.</dd>
+    <dt>&nbsp;</dt>
     <dt><code>(string-compare&nbsp;<var>s1</var> <var>s2</var>)</code> ⇒ <i>i</i>&nbsp;<u>f</u></dt>
     <dd>Returns <code>0</code> if strings <var>s1</var> and <var>s2</var> are the same, a negative intetger if s1 is
     less then s2, a positive integer otherwise. See strcmp(3).</dd>
-    <dt><code>(string-length <var>string</var>)</code> ⇒ <var>i</var>&nbsp;<u>f</u></dt>
-    <dd>Returns the length of <var>string</var> as a <i>number</i>.</dd>
-    <dt><code>(string-append <var>s1</var> <var>s2</var>)</code> ⇒ <i>string</i>&nbsp;<u>f</u></dt>
-    <dd>Returns a new string consisting of the concatenation of <var>string1</var> with <var>string2</var>.</dd>
-    <dt><code>(substring <var>string</var>[ <var>start</var> [<var>end</var>]])</code> ⇒
-    <i>string</i>&nbsp;<u>f</u></dt>
-    <dd>
-      <p>Returns the sub string from <var>string</var> which starts with the character at index <var>start</var> and
-      before index <var>end</var>. String indexes are zero based, negative indexes count from the end of
-      <var>string</var>. If <var>end</var> is not given it defaults to the end of <var>string</var>. If
-      <var>start</var> is not given, it defaults to the start of <var>string</var>.</p>
-    </dd>
-    <dt><code>(string-search <var>needle</var> <var>haystack</var>)</code> <u>C</u></dt>
-    <dd>Returns the position of string&nbsp;<var>needle</var> if it is contained in string&nbsp;<var>haystack</var>,
-    otherwise <code>nil</code>.</dd>
+    <dt>&nbsp;</dt>
     <dt>&nbsp;</dt>
   </dl>
   <nav>
@@ -833,8 +852,20 @@
     <dd>Returns the index of the first character in <var>string</var> which is not contained in the string
     <var>chars</var>.</dd>
     <dt><code>(strcspn&nbsp;<var>string</var> <var>chars</var>)</code> ⇒ <i>i</i>&nbsp;<u>f</u></dt>
+    <dd>&nbsp;</dd>
     <dd>Returns the index of the first character in&nbsp;<var>string</var>&nbsp;which is containted&nbsp;in the string
     <var>chars</var>.</dd>
+    <dt><code>(string-length <var>string</var>)</code> ⇒ <var>i</var>&nbsp;<u>f</u></dt>
+    <dd>Returns the length of <var>string</var> as a <i>number</i>.</dd>
+    <dt>&nbsp;</dt>
+    <dt>&nbsp;</dt>
+    <dd>&nbsp;</dd>
+    <dt><code>(string-search <var>needle</var> <var>haystack</var>)</code> <u>C</u></dt>
+    <dd>Returns the&nbsp;position of string&nbsp;<var>needle</var> if it is contained in
+    string&nbsp;<var>haystack</var>, otherwise <code>nil</code>.</dd>
+    <dt><code>(strspn&nbsp;<var>string</var> <var>set</var>)</code> <u>f</u></dt>
+    <dd>Returns the first&nbsp;position in <var>string</var> which does not contain any of the characters in
+    <var>set</var>.</dd>
   </dl>
   <h4 id="posix">POSIX Extension</h4>
   <p>This extension contains a collection of wrappers to libc functions acording to the POSIX standards.</p>
@@ -959,6 +990,14 @@
   </nav>
   <h4 id="string_lib">String Library</h4>
   <dl>
+    <dt><code>(substring <var>string</var>[ <var>start</var> [<var>end</var>]])</code> ⇒
+    <i>string</i>&nbsp;<u>f</u></dt>
+    <dd>
+      <p>Returns the sub string from <var>string</var> which starts with the character at index <var>start</var> and
+      before index <var>end</var>. String indexes are zero based, negative indexes count from the end of
+      <var>string</var>. If <var>end</var> is not given it defaults to the end of <var>string</var>. If
+      <var>start</var> is not given, it defaults to the start of <var>string</var>.</p>
+    </dd>
     <dt><code>(string-trim-front <var>s</var>)</code> ⇒ <var>s'</var></dt>
     <dd>Remove all space characters at the start of <var>s</var>.</dd>
     <dt><code>(string-trim-back <var>s</var>)</code> ⇒ <var>s'</var></dt>
@@ -1006,32 +1045,32 @@
   </dl>
   <p><a href="#toc">^</a></p>
   <h3 id="flisp"><code>flisp</code> Command Line Interpreter</h3>
-  <p>Two binaries are built: <code>flisp</code> and <code>flispd</code>. They behave identical with the exception, that
-  <code>flispd</code> integrates the <i>double</i> extension while <code>flisp</code> does not. Both integrate the
-  <i>string</i> and the <i>posix</i> extension.</p>
-  <h4>Environment Variables</h4>
-  <p>The command line interpreter <code>flisp</code> reads a single Lisp file on startup. The default path
+  <p>The binary <code>fl</code> implements a minimalistic REPL, it only preloads the core primitives. The
+  <code>flisp</code> shell script is a wrapper around <code>fl</code> which loads the <code>core</code> library and can
+  be used for Lisp scripting.</p>
+  <h4><mark>Environment Variables</mark></h4>
+  <p><mark>The command line interpreter <code>flisp</code> reads a single Lisp file on startup. The default path
   is&nbsp;<code>/usr/local/share/flisp/init.lsp</code>. but can be modified at compile time. It can be overwritten at
-  runtime with the variable <code>FLISPRC</code>.</p>
-  <p><code>FLISP_DEBUG</code> can be set to a file name. If <code>flisp</code> succeeds opening the file for writing
-  this file is used as default for output and debug. If not given, output of the evaluation of the startup file is
-  suppressed alltogether.</p>
-  <p>The environment variable <code>FLISP_SIZE</code> can be set to the amount of initial memory for the Lisp object
-  space. If not set or 0, fLisp dynamically allocates memory in chunks of eight kilobyte. This increment can be
-  modified at compile time.</p>
-  <h4><code>init.lsp</code></h4>
-  <p>The provided startup file includes the <code>core.lsp</code> library. This allows to load Lisp files from the
-  library with the&nbsp;&nbsp;<code>require</code>&nbsp;function.</p>
-  <p>After loading the core library, <code>init.lsp</code> tries to load the file
+  runtime with the variable <code>FLISPRC</code>.</mark></p>
+  <p><mark><code>FLISP_DEBUG</code> can be set to a file name. If <code>flisp</code> succeeds opening the file for
+  writing this file is used as default for output and debug. If not given, output of the evaluation of the startup file
+  is suppressed alltogether.</mark></p>
+  <p><mark>The environment variable <code>FLISP_SIZE</code> can be set to the amount of initial memory for the Lisp
+  object space. If not set or 0, fLisp dynamically allocates memory in chunks of eight kilobyte. This increment can be
+  modified at compile time.</mark></p>
+  <h4><mark><code>init.lsp</code></mark></h4>
+  <p><mark>The provided startup file includes the <code>core.lsp</code> library. This allows to load Lisp files from
+  the library with the&nbsp;&nbsp;<code>require</code>&nbsp;function.</mark></p>
+  <p><mark>After loading the core library, <code>init.lsp</code> tries to load the file
   <code>~/.config/flisp/init.lsp</code>. Errors are printed to the debug output. Then the interpreter output is set to
-  <code>stdout</code>.</p>
-  <p>If command line arguments are given, each of them is interpreted as a Lisp file to load.</p>
-  <p>Otherwise a simple read-eval-print-loop is invoked, which reads Lisp code from <code>stdin</code>, prints results
-  on <code>stdout</code> and exceptions on <code>stderr</code>. If <code>stdin</code> is a TTY a startup message is
-  printed and than the string <q><code>&gt;&nbsp;</code></q>&nbsp;is printed as prompt.</p>
-  <h4>fLisp as Script Language</h4>
-  <p>The <i>fLisp</i> binaries can be used for scripting. Put a shebang line with the path to the respective binary in
-  the first line of the script, e.g: <code>#!/usr/local/bin/flisp</code></p>
+  <code>stdout</code>.</mark></p>
+  <p><mark>If command line arguments are given, each of them is interpreted as a Lisp file to load.</mark></p>
+  <p><mark>Otherwise a simple read-eval-print-loop is invoked, which reads Lisp code from <code>stdin</code>, prints
+  results on <code>stdout</code> and exceptions on <code>stderr</code>. If <code>stdin</code> is a TTY a startup
+  message is printed and than the string <q><code>&gt;&nbsp;</code></q>&nbsp;is printed as prompt.</mark></p>
+  <h4><mark>fLisp as Script Language</mark></h4>
+  <p><mark>The <i>fLisp</i> binaries can be used for scripting. Put a shebang line with the path to the respective
+  binary in the first line of the script, e.g: <code>#!/usr/local/bin/flisp</code></mark></p>
   <p><a href="#toc">^</a></p>
   <dl>
     <!--

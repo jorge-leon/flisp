@@ -833,7 +833,6 @@ Object *newErrorFmt(Object *interp, Object *error, Object *culprit, char *format
             *gcMessage = newStringWithLength(interp, message, len);
     }
     GC_CHECK_ERR(*gcMessage);
-//    (*gcError)->error = *gcErrorType;
     (*gcError)->message = *gcMessage;
     (*gcError)->culprit = *gcCulprit;
     GC_RETURN(*gcError);
@@ -2133,6 +2132,7 @@ Object *primitiveIntern(Object *interp, Object **args, Object **env, size_t nArg
 {
     return newSymbol(interp, FLISP_ARG1->string);
 }
+/* Note: obsolete with (elements symbol) */
 Object *primitiveSymbolName(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     GC_CHECKPOINT;

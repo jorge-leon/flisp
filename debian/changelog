@@ -1,8 +1,11 @@
 flisp (0.17-alpha1) trixie; urgency=medium
 
-  Extensible objects, exception-less execution, loadable extensions
+  Extensible objects, vectors
+  Exception-less execution
+  Loadable extensions
+  Eval countdown
 
- -- Georg Lehner <jorge@magma-soft.at>  Sat, 21 Mar 2026 18:49:19 +0200
+ -- Georg Lehner <jorge@magma-soft.at>  Sun, 5 Apr 2026 20:48:35 +0200
 
 flisp (0.16-1) trixie; urgency=medium
 
