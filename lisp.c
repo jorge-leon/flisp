@@ -101,7 +101,7 @@ Object *flisp_debug =  &(Object) {
 
 Object init_oom_message =     { .length = 0, .string = "failed to allocate memory for the interpreter" };
 Object object_oom_message = { .length = 0, .string = "failed to allocate memory for object" };
-Object fmt_oom_message =      { .length = 0, .string = "failed to allocate memory for the writer" };
+Object fmt_oom_message =      { .length = 0, .string = "failed to allocate memory for the formatter" };
 Object fmt_invalid_base=      { .length = 0, .string = "invalid number base" };
 Object fmt_invalid_length =   { .length = 0, .string = "invalid formatting length" };
 Object eval_no_input =        { .length = 0, .string = "no input stream configured" };
@@ -173,14 +173,13 @@ bool assurePad(Scratchpad *pad, size_t size)
 bool addStringToPad(Scratchpad *pad, char *string)
 {
     size_t size = strlen(string);
-    if (!assurePad(pad, size+1))  return false;
-    (void)strcpy(pad->string, string);
+    if (!assurePad(pad, pad->size+size))  return false;
+    (void)strcpy(pad->string + pad->size, string);
     pad->size +=size;
     return true;
 }
 /** fmtInteger() - encode 64 bit integer as ascii string with base 2 to 36
  *
- * @param pad      .. Pad to use for the conversion
  * @param integer  .. Integer to convert
  * @param base     .. Number base to use
  * @param map      .. Conversion map to use
@@ -190,20 +189,18 @@ bool addStringToPad(Scratchpad *pad, char *string)
  * @return: index to first digit within pad or error: NULL = OOM, -1, -2  range error for base or length.
  */
 
-char *fmtInteger(Scratchpad *pad, int64_t integer, int64_t base, char *map, char pad_char, size_t length)
+char *fmtInteger(int64_t integer, int64_t base, char *map, char pad_char, size_t length)
 {
 #define INTEGER_PAD_SIZE 67
     /* in binary we need 64 characters plus an optional "0b" prefix and "-" sign*/
     bool negative;
     int64_t d = INTEGER_PAD_SIZE;
-    char *i = pad->string;
+    static char pad[INTEGER_PAD_SIZE];
+    char *i = pad;
 
     if (base < 2 || base > 36)  return (char *)-1; /* range_error */
-    initPad(pad);
-    if (!assurePad(pad, INTEGER_PAD_SIZE+1))  return NULL; /* out_of_memory */
 
     if ((negative = integer < 0))  integer = -integer;
-
 
     /* Note: reuse digit as counter for padding */
     while (d--)  *i++ = pad_char;
@@ -218,7 +215,7 @@ char *fmtInteger(Scratchpad *pad, int64_t integer, int64_t base, char *map, char
 
     if (length == -1)  return i;
     if (length == 0) { i-=2; *i = '0'; return i; }
-    if (length <= 67)  return &pad->string[67-length];
+    if (length <= 67)  return &pad[67-length];
     return (char *)-2;
 }
 
@@ -487,11 +484,11 @@ Object *memoryAllocObject(Object *interp, Object *type, size_t size)
                                   PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0))) {
         /* Note: fake that we have more memory return an error and then hope the best. */
         FLISP_INTERP.memory->capacity+= EXCEPTION_MEM_RESERVE;
-        return newError(interp, gc_error, out_of_memory, "OOM reallocating toSpace: %s", strerror(errno));
+        return newError2(interp, gc_error, out_of_memory, "OOM reallocating toSpace: ", strerror(errno));
     }
     if (munmap(FLISP_INTERP.memory->toSpace, FLISP_INTERP.memory->capacity) == -1) {
         FLISP_INTERP.memory->capacity+= EXCEPTION_MEM_RESERVE;
-        return newError(interp, gc_error, out_of_memory, "munmap(toSpace) failed: %s", strerror(errno));
+        return newError2(interp, gc_error, out_of_memory, "munmap(toSpace) failed: ", strerror(errno));
     }
     FLISP_INTERP.memory->toSpace = new;
     FLISP_INTERP.memory->capacity += memory;
@@ -499,7 +496,7 @@ Object *memoryAllocObject(Object *interp, Object *type, size_t size)
     gc(interp);
     if (munmap(FLISP_INTERP.memory->toSpace, FLISP_INTERP.memory->capacity - memory) == -1) {
         FLISP_INTERP.memory->capacity+= EXCEPTION_MEM_RESERVE;
-        return newError(interp, gc_error, out_of_memory, "munmap(fromSpace) failed: %s", strerror(errno));
+        return newError2(interp, gc_error, out_of_memory, "munmap(fromSpace) failed: ", strerror(errno));
     }
     FLISP_INTERP.memory->toSpace = NULL;
 
@@ -518,6 +515,7 @@ allocateObject:
 /* Note: for speed reasons we should use a single static error object and compare pointers */
 #define IS_OOM(OBJECT) (FLISP_IS_ERR(OBJECT) && (OBJECT)->error == gc_error)
 #define CHECK_OOM(OBJECT) if IS_OOM(OBJECT) return OBJECT
+#define GC_CHECK_OOM(OBJECT) if IS_OOM(OBJECT)  GC_RETURN(OBJECT)
 
 
 
@@ -624,15 +622,17 @@ Object *newCons(Object *interp, Object ** car, Object ** cdr)
 Object *newClosure(Object *interp, Object *type, Object ** args, Object **env)
 {
     Object *o;
-    char *type_string = (type == type_lambda) ? "lambda" : "macro";
 
-    /* Cover: (closure (a b ..) body) and (closure (a b . ?) body) */
+    /* Covers: (closure (a b ..) body) and (closure (a b . ?) body) */
     for (o = (*args)->car; o->type == type_cons;  o = o->cdr) {
         if (o->car->type != type_symbol)
-            return newError(interp, o->car, wrong_type_argument,
-                            "(%s params body) - param is not a symbol", type_string);
+            return newError2(interp, wrong_type_argument, o->car, 
+                               (type == type_lambda) ? "(lambda" : "(macro",
+                               " params body) - param is not a symbol");
         if (!gcCollectableObject(interp, o->car))
-            return newError(interp, o->car, invalid_value, "(%s params body) - param cannot be used as a parameter");
+            return newError2(interp, invalid_value, o->car,
+                            (type == type_lambda) ? "(lambda" : "(macro",
+                            " params body) - param cannot be used as a parameter");
     }
 
     /* Cover: (closure a body) and (closure (a b . c) body) */
@@ -660,12 +660,12 @@ Object *newEnv(Object *interp, Object ** func, Object ** vals)
         if (param == nil && val == nil) break;
         if (param != nil && param->type == type_symbol) break;
         if (val != nil && val->type != type_cons)
-            return newError(interp, wrong_type_argument, val, "(f args) - args[%d] is not a list", nArgs);
+            return newErrorI(interp, wrong_type_argument, val, "(f args) - args[", nArgs, "] is not a list");
         if (param == nil && val != nil)
-            return newError(interp, wrong_number_of_arguments, *vals, "(f args) - args, f expects at most %d arguments", nArgs);
+            return newErrorI(interp, wrong_number_of_arguments, *vals, "(f args) - args, f expects at most ", nArgs, " arguments");
         if (param != nil && val == nil) {
             for (; param->type == type_cons; param = param->cdr, ++nArgs);
-            return newError(interp, wrong_number_of_arguments, *vals, "(f args) - args, f expects at least %d arguments", nArgs);
+            return newErrorI(interp, wrong_number_of_arguments, *vals, "(f args) - args, f expects at least ", nArgs, " arguments");
         }
     }
     environment->parent = (*func)->env;
@@ -765,9 +765,47 @@ Object *newSymbol(Object *interp, char *string)
     return newSymbolWithLength(interp, string, strlen(string));
 }
 
+Object *newError(Object *interp, Object *error_type, Object *culprit, char *message)
+{
+    GC_CHECKPOINT;
+    GC_TRACE(gcErrorType, error_type);
+    GC_TRACE(gcCulprit, culprit);
+    GC_TRACE(gcMessage, newString(interp, message));
+    GC_CHECK_ERR(*gcMessage);
+    Object *error = flisp_ext_obj(interp, type_error, gcErrorType, 3, 0);
+    GC_RELEASE;
+    CHECK_OOM(error);
+    error->message = *gcMessage;
+    error->culprit = *gcCulprit;
+    return error;
+}
+
+/** Create error object with message composed of two strings */
+Object *newError2(Object *interp, Object *error_type, Object *culprit, char *mess1, char *mess2)
+{
+    initPad(scratchpad);
+    if (!addStringToPad(scratchpad, mess1)) return flisp_static_error(out_of_memory, &fmt_oom_message);
+    if (!addStringToPad(scratchpad, mess2)) return flisp_static_error(out_of_memory, &fmt_oom_message);
+    return newError(interp, error_type, culprit, scratchpad->string);
+}
+
+/** Create error object with message composed of string and integer */
+Object *newErrorI(Object *interp, Object *error_type, Object *culprit, char *mess1, int64_t integer, char *mess2)
+{
+    initPad(scratchpad);
+    if (!addStringToPad(scratchpad, mess1)) return flisp_static_error(out_of_memory, &fmt_oom_message);
+    char *i = fmtInteger(integer, 10, flisp_integer_char_map, ' ', -1);
+    if (!i) return flisp_static_error(out_of_memory, &fmt_oom_message);
+    /* Ommiting check base or pad range error i == -1 || i == -2 */
+    if (!addStringToPad(scratchpad, i)) return flisp_static_error(out_of_memory, &fmt_oom_message);
+    if (!addStringToPad(scratchpad, mess2)) return flisp_static_error(out_of_memory, &fmt_oom_message);
+    return newError(interp, error_type, culprit, scratchpad->string);
+}
+
+
 /* Note: replace vsnprintf() with scratchpad */
 #define FLISP_FORMAT_ERROR_MESSAGE "failed to format error message"
-Object *newError(Object *interp, Object *error, Object *culprit, char *format, ...)
+Object *newErrorFmt(Object *interp, Object *error, Object *culprit, char *format, ...)
 {
     size_t written;
     size_t len = sizeof(error_message);
@@ -1020,7 +1058,7 @@ int readWhile(Object *interp, FILE *fd, int (*predicate) (int, size_t), size_t b
 /* Object readers */
 
 #define READER_OOM(WHEN) return newError(interp, out_of_memory, nil, "OOM " WHEN)
-#define READER_IO(WHEN)  return newError(interp, out_of_memory, nil, "I/O error %s" WHEN, strerror(errno))
+#define READER_IO(WHEN)  return newError2(interp, out_of_memory, nil, "I/O error %s" WHEN, strerror(errno))
 #define READER_EOF(WHEN) return newError(interp, read_incomplete, nil,"unexpected end of stream "  WHEN)
 
 Object *readInteger(Object *interp, Scratchpad *pad)
@@ -1042,7 +1080,7 @@ Object *readDouble(Object *interp, Scratchpad *pad)
     errno = 0;
     double d = strtod(pad->string, NULL);
     if (errno == ERANGE)
-        return newError(interp, range_error, nil, "double out of range,: %f", d);
+        return newError2(interp, range_error, nil, "double out of range,: ", pad->string);
     // Note: purposely not dealing with NaN
     return newDouble(interp, d);
 }
@@ -1222,9 +1260,9 @@ Object *readUnary(Object *interp, FILE *fd, char *symbol)
 {
     if (peekNext(interp, fd) == EOF) {
         if (ferror(fd))
-           return newError(interp, io_error, nil, "I/O error while reading unary %s", symbol);
+           return newError2(interp, io_error, nil, "I/O error while reading unary ", symbol);
         else
-            return newError(interp, read_incomplete, nil, "unexpected end of stream while reading unary %s", symbol);
+            return newError2(interp, read_incomplete, nil, "unexpected end of stream while reading unary ", symbol);
     }
     GC_CHECKPOINT;
     GC_TRACE(gcSymbol, newSymbol(interp, symbol));
@@ -1284,9 +1322,9 @@ Object *doReaderMacro(Object *interp, FILE *fd)
         return number;
     }
     if (ch & 0x80)
-        return newError(interp, invalid_read_syntax, nil, "unknown read macro: #0x%02X", ch);
+        return newErrorFmt(interp, invalid_read_syntax, nil, "unknown read macro: #0x%02X", ch);
     else
-        return newError(interp, invalid_read_syntax, nil, "unknown read macro: #%c", ch);
+        return newErrorFmt(interp, invalid_read_syntax, nil, "unknown read macro: #%c", ch);
 }
 
 /** readExpr - return next lisp sexp object from stream or from interpreter input file
@@ -1350,9 +1388,9 @@ Object *readExpr(Object *interp, FILE *fd)
         }
         else
             if (ch & 0x80)
-                return newError(interp, invalid_read_syntax, nil, "unexpected character: 0x%02X", ch);
+                return newErrorFmt(interp, invalid_read_syntax, nil, "unexpected character: 0x%02X", ch);
             else
-                return newError(interp, invalid_read_syntax, nil, "unexpected character: '%c'", ch);
+                return newErrorFmt(interp, invalid_read_syntax, nil, "unexpected character: '%c'", ch);
     }
 }
 
@@ -1554,9 +1592,9 @@ Object *evalList(Object *interp, Object **args, Object **env)
         GC_TRACE(gcEnv, *env);
         GC_TRACE(gcCdr, (*args)->cdr);
         GC_TRACE(gcObject, evalExpr(interp, &(*args)->car, gcEnv));
-        GC_CHECK_ERR(*gcObject);
+        GC_CHECK_OOM(*gcObject);
         *gcCdr = evalList(interp, gcCdr, gcEnv);
-        GC_CHECK_ERR(*gcCdr);
+        GC_CHECK_OOM(*gcCdr);
         GC_RETURN(newCons(interp, gcObject, gcCdr));
     }
 }
@@ -1658,23 +1696,23 @@ Object *evalExpr(Object *interp, Object ** object, Object **env)
 
             for (args = *gcArgs; args != nil; args = args->cdr, nArgs++) {
                 if (args->type != type_cons)
-                    return newError(interp, wrong_type_argument, args,
+                    return newErrorFmt(interp, wrong_type_argument, args,
                                     "(%s args) - args is not a list, arg %d",
                                     primitive->name, nArgs);
                 if (args->car->type == type_moved || args->cdr->type == type_moved)
-                    return newError(interp, gc_error, args->car,
+                    return newErrorFmt(interp, gc_error, args->car,
                                     "(%s args) - arg %d is already disposed off",
                                     primitive->name, nArgs);
             }
             if (nArgs < primitive->nMinArgs)
-                return newError(interp, wrong_number_of_arguments, *gcFunc,
-                                "expects at least %d arguments", primitive->nMinArgs);
+                return newErrorI(interp, wrong_number_of_arguments, *gcFunc,
+                                 "expects at least ", primitive->nMinArgs, " arguments");
             if (nArgs > primitive->nMaxArgs && primitive->nMaxArgs >= 0)
-                return newError(interp, wrong_number_of_arguments, *gcFunc,
-                                "expects at most %d arguments", primitive->nMaxArgs);
+                return newErrorI(interp, wrong_number_of_arguments, *gcFunc,
+                                 "expects at most ", primitive->nMaxArgs, " arguments");
             if (primitive->nMaxArgs < 0 && nArgs % -primitive->nMaxArgs)
-                return newError(interp, wrong_number_of_arguments, *gcFunc,
-                                "expects a multiple of %d arguments", -primitive->nMaxArgs);
+                return newErrorI(interp, wrong_number_of_arguments, *gcFunc,
+                                "expects a multiple of ", -primitive->nMaxArgs, " arguments");
 
             switch ((uintptr_t)primitive->eval) {
             case PRIMITIVE_QUOTE:
@@ -1705,7 +1743,7 @@ Object *evalExpr(Object *interp, Object ** object, Object **env)
                 if (primitive->argsType != nil)
                     for (args = *gcArgs; args != nil; args = args->cdr, i++)
                         if (args->car->type != primitive->argsType)
-                            return newError(interp, wrong_type_argument, args->car, "(%s args) - arg %d expected %s, got: %s",
+                            return newErrorFmt(interp, wrong_type_argument, args->car, "(%s args) - arg %d expected %s, got: %s",
                                             primitive->name, i,
                                             primitive->argsType->string,
                                             args->car->type->string
@@ -1773,7 +1811,7 @@ Object *writeInteger(FILE *fd, int64_t value)
 {
     if (fd == NULL) return nil;
 
-    char *i = fmtInteger(scratchpad, value, 10, flisp_integer_char_map, 'd', -1);
+    char *i = fmtInteger(value, 10, flisp_integer_char_map, 'd', -1);
     if (i == NULL)
         return flisp_static_error(out_of_memory, &fmt_oom_message);
     if (i == (char *)-1) return flisp_static_error(range_error, &fmt_invalid_base);
@@ -1784,7 +1822,7 @@ Object *writeHex(FILE *fd, int64_t value, size_t length)
 {
     if (fd == NULL) return nil;
 
-    char *i = fmtInteger(scratchpad, value, 16, flisp_integer_char_map, 'X', length);
+    char *i = fmtInteger(value, 16, flisp_integer_char_map, 'X', length);
     if (i == NULL)
         return flisp_static_error(out_of_memory, &fmt_oom_message);
     return writeString(fd, i);
@@ -2202,7 +2240,7 @@ Object *primitiveElements(Object *interp, Object **args, Object **env, size_t nA
     if (i < 0) i = 0;
     if (end != -1) { /* list w/o end parameter */
         if (i > j)
-            return newError(interp, range_error, FLISP_ARG2, "(elements object[ start[ end]]) - start > end: [%lu, %lu)", i, j);
+            return newErrorFmt(interp, range_error, FLISP_ARG2, "(elements object[ start[ end]]) - start > end: [%lu, %lu)", i, j);
         if (j < 0) j = 0;
         if (j > end) j = end;
     }
@@ -2379,16 +2417,16 @@ Object *integerFmt(Object *interp, Object **args, Object **env, size_t nArgs)
         FLISP_ASSERT(FLISP_ARG5, type_integer, "(ifmt i [b [u [p [l]]]]) - l");
         length = FLISP_ARG5->value;
     }
-    i = fmtInteger(scratchpad, FLISP_ARG1->value, base, map, pad_char, length);
+    i = fmtInteger(FLISP_ARG1->value, base, map, pad_char, length);
 
     if (i == NULL)
         return newError(interp, out_of_memory, nil, "(ifmt ..) - failed to allocate format pad");
     if (i == (char *) -1)
-        return newError(interp, range_error, FLISP_ARG2,
-                        "(ifmt i [b [u [p [l]]]]) - b must be within [2, 36]: %ld", FLISP_ARG2->value);
+        return newErrorI(interp, range_error, FLISP_ARG2,
+                         "(ifmt i [b [u [p [l]]]]) - b must be within [2, 36]: ", FLISP_ARG2->value, "");
     if (i == (char *) -2)
-        return newError(interp, range_error, FLISP_ARG5,
-                        "(ifmt i [b [u [p [l]]]]) - l must be within [1, 67]: %ld", FLISP_ARG5->value);
+        return newErrorI(interp, range_error, FLISP_ARG5,
+                         "(ifmt i [b [u [p [l]]]]) - l must be within [1, 67]: ", FLISP_ARG5->value, "");
     return newString(interp, i);
 }
 
@@ -2408,7 +2446,7 @@ Object *file_outputMemStream(Object *interp)
 {
     Object *object = newStreamObject(interp, NULL, ">STRING");
     if (NULL == (object->stream.fd = open_memstream(&object->stream.buf, &object->stream.len)))
-        return newError(interp, out_of_memory, nil, "failed to open_memstream() for memory output stream: %s", strerror(errno));
+        return newError2(interp, out_of_memory, nil, "failed to open_memstream() for memory output stream: ", strerror(errno));
     fflush(object->stream.fd); // Note: sets stream->buf and stream->len to initial values.
     return object;
 }
@@ -2426,7 +2464,7 @@ Object *file_inputMemStream(Object *interp, char *string)
     size_t len = strlen(string);
     char *buf = malloc(len+1);
     if (NULL == buf)
-        return newError(interp, out_of_memory, nil, "failed to allocate string buffer for memory input stream: %s", strerror(errno));
+        return newError2(interp, out_of_memory, nil, "failed to allocate string buffer for memory input stream: ", strerror(errno));
     strncpy(buf, string, len);
     buf[len] = '\0';
     Object *object = newStreamObject(interp, NULL, "<STRING");
@@ -2434,7 +2472,7 @@ Object *file_inputMemStream(Object *interp, char *string)
     object->stream.len = len;
     if (NULL == (object->stream.fd = fmemopen(object->stream.buf, object->stream.len, "r"))) {
         free(object->stream.buf);
-        return newError(interp, out_of_memory, nil, "failed to fmemopen string for memory input stream: %s", strerror(errno));
+        return newError2(interp, out_of_memory, nil, "failed to fmemopen string for memory input stream: ", strerror(errno));
     }
     return object;
 }
@@ -2469,12 +2507,12 @@ Object *file_fopen(Object *interp, char *path, char* mode) {
 
     if (strcmp("<", mode) == 0) {
         if (nil == (stream = file_inputMemStream(interp, path)))
-            return newError(interp, io_error, nil, "failed to open string as memory input stream: %s", strerror(errno));
+            return newError2(interp, io_error, nil, "failed to open string as memory input stream: ", strerror(errno));
         return stream;
     }
     if (strcmp(">", mode) == 0) {
         if (nil == (stream = file_outputMemStream(interp)))
-            return newError(interp, io_error, nil, "failed to open memory output stream: %s", strerror(errno));
+            return newError2(interp, io_error, nil, "failed to open memory output stream: ", strerror(errno));
         return stream;
     }
     char c = path[0];
@@ -2483,9 +2521,9 @@ Object *file_fopen(Object *interp, char *path, char* mode) {
         errno = 0;
         long d = strtol(&path[1], &end, 0);
         if (errno || *end != '\0' || d < 0 || d > _POSIX_OPEN_MAX)
-            return newError(interp, invalid_value, nil, "invalid I/O stream number: %s", &path[1]);
+            return newError2(interp, invalid_value, nil, "invalid I/O stream number: %s", &path[1]);
         if (NULL == (fd = fdopen((int)d, c == '<' ? "r" : "a")))
-            return newError(interp, io_error, nil, "failed to open I/O stream %ld for %s", d, c == '<' ? "reading" : "writing");
+            return newErrorI(interp, io_error, nil, "failed to open I/O stream ", d, c == '<' ? "for reading" : "for writing");
     } else {
         fl_debug(interp, "fopen(%s, %s)\n", path, mode);
         fd = fopen(path, mode);
@@ -2498,7 +2536,7 @@ Object *file_fopen(Object *interp, char *path, char* mode) {
             case EISDIR:  err = is_directory; break;
             default:      err = io_error; break;
             }
-            return newError(interp, err, nil, "failed to open file '%s' with mode '%s': %s", path, mode, strerror(errno));
+            return newErrorFmt(interp, err, nil, "failed to open file '%s' with mode '%s': %s", path, mode, strerror(errno));
         }
     }
     return newStreamObject(interp, fd, path);
@@ -2562,7 +2600,7 @@ Object *primitiveFclose(Object *interp, Object**args, Object **env, size_t nArgs
     if (FLISP_ARG1->stream.fd == NULL)
         return newError(interp, invalid_value, FLISP_ARG1, "(fclose stream) - stream already closed");
     if ((result = file_fclose(interp, FLISP_ARG1)))
-        return newError(interp, io_error, FLISP_ARG1, "(fclose stream) - failed to close: %s", strerror(result));
+        return newError2(interp, io_error, FLISP_ARG1, "(fclose stream) - failed to close: ", strerror(result));
     return nil;
 }
 

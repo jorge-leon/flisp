@@ -43,7 +43,7 @@ Object *posixFflush(Object *interp, Object** args, Object **env, size_t nArgs)
         return newError(interp, invalid_value, FLISP_ARG1, "(fflush[ stream]) - output stream not set");
 
     if (fflush(fd) == EOF)
-        return newError(interp, io_error, FLISP_ARG1, "(fflush[ stream]) - fflush() failed: %s", strerror(errno));
+        return newError2(interp, io_error, FLISP_ARG1, "(fflush[ stream]) - fflush() failed: ", strerror(errno));
 
     return t;
 }
@@ -79,10 +79,10 @@ Object *posixFseek(Object *interp, Object** args, Object **env, size_t nArgs)
         whence = SEEK_END;
     result = fseeko(object->stream.fd, FLISP_ARG2->value, whence);
     if (result == -1)
-        return newError(interp, io_error, object, "(fseek stream offset) - fseeko() failed: %s", strerror(errno));
+        return newError2(interp, io_error, object, "(fseek stream offset) - fseeko() failed: ", strerror(errno));
 
     if ((pos = ftello(object->stream.fd)) == -1)
-        return newError(interp, io_error, object, "(fseek stream offset) - ftello() failed: %s", strerror(errno));
+        return newError2(interp, io_error, object, "(fseek stream offset) - ftello() failed: ", strerror(errno));
 
     return newInteger(interp, pos);
 }
@@ -108,7 +108,7 @@ Object *posixFtell(Object *interp, Object** args, Object **env, size_t nArgs)
         return newError(interp, invalid_value, object, "(ftell[ stream]) - stream already closed");
 
     if ((pos = ftello(object->stream.fd)) == -1)
-        return newError(interp, io_error, object, "(ftell[ stream]) - ftello() failed: %s", strerror(errno));
+        return newError2(interp, io_error, object, "(ftell[ stream]) - ftello() failed: ", strerror(errno));
 
     return newInteger(interp, pos);
 }
@@ -149,7 +149,7 @@ Object *posixFgetc(Object *interp, Object** args, Object **env, size_t nArgs)
     c = fgetc(object->stream.fd);
     if (c == EOF) {
         if (ferror(object->stream.fd))
-            return newError(interp, io_error, object, "(fgetc[ stream]) - stream I/O error: %s", strerror(errno));
+            return newError2(interp, io_error, object, "(fgetc[ stream]) - stream I/O error: ", strerror(errno));
         return end_of_file;
     }
     s[0] = (char)c;
@@ -219,7 +219,7 @@ Object *posixFgets(Object *interp, Object** args, Object **env, size_t nArgs)
     }
     input = malloc(INPUT_FMT_BUFSIZ);
     if(input == NULL)
-        return newError(interp, out_of_memory, object, "fgets() failed, %s", strerror(errno));
+        return newError2(interp, out_of_memory, object, "fgets() failed, ", strerror(errno));
 
     *input = '\0';
 
@@ -230,7 +230,7 @@ Object *posixFgets(Object *interp, Object** args, Object **env, size_t nArgs)
     }
     free(input);
     if (!feof(object->stream.fd))
-        return newError(interp, io_error, object, "fgets() failed: %s", strerror(errno));
+        return newError2(interp, io_error, object, "fgets() failed: ", strerror(errno));
     return end_of_file;
 }
 /** (fstat path[ linkp]) - get  information about file
@@ -272,15 +272,15 @@ Object *posixFstat(Object *interp, Object** args, Object **env, size_t nArgs)
     if (result == -1) {
         switch(errno) {
         case EACCES:
-            return newError(interp, permission_denied, FLISP_ARG1, "(fstat path[ linkp]): %s", strerror(errno));
+            return newError2(interp, permission_denied, FLISP_ARG1, "(fstat path[ linkp]): ", strerror(errno));
         case ENOENT:
         case ENOTDIR:
-            return newError(interp, not_found, FLISP_ARG1, "(fstat path[ linkp]): %s", strerror(errno));
+            return newError2(interp, not_found, FLISP_ARG1, "(fstat path[ linkp]): ", strerror(errno));
             break;
         case ENAMETOOLONG:
-            return newError(interp, FLISP_ARG1, invalid_value, "(fstat path[ linkp]): %s", strerror(errno));
+            return newError2(interp, FLISP_ARG1, invalid_value, "(fstat path[ linkp]): ", strerror(errno));
         }
-        return newError(interp, io_error, FLISP_ARG1, "(fstat path[ linkp]): l/stat() failed: %s", strerror(errno));
+        return newError2(interp, io_error, FLISP_ARG1, "(fstat path[ linkp]): l/stat() failed: ", strerror(errno));
     }
 
     /* (size _size_ type _type_ mode _mode_ uid _uid_ gid _gid_ ) */
@@ -376,19 +376,19 @@ Object *posixMkdir(Object *interp, Object** args, Object **env, size_t nArgs)
         switch(errno) {
         case EACCES:
         case EROFS:
-            return newError(interp, permission_denied, FLISP_ARG1,
-                                "(fmkdir path[ mode]): %s", strerror(errno));
+            return newError2(interp, permission_denied, FLISP_ARG1,
+                                "(fmkdir path[ mode]): ", strerror(errno));
         case EEXIST:
-            return newError(interp, FLISP_ARG1, file_exists,
-                                "(fmkdir path[ mode]): %s", strerror(errno));
+            return newError2(interp, FLISP_ARG1, file_exists,
+                                "(fmkdir path[ mode]): ", strerror(errno));
         case ENAMETOOLONG:
         case ENOENT:
         case ENOTDIR:
-            return newError(interp, invalid_value, FLISP_ARG1,
-                                "(fmkdir path[ mode]): %s", strerror(errno));
+            return newError2(interp, invalid_value, FLISP_ARG1,
+                                "(fmkdir path[ mode]): ", strerror(errno));
         }
-        return newError(interp, io_error, FLISP_ARG1,
-                            "(fmkdir path[ mode]): %s", strerror(errno));
+        return newError2(interp, io_error, FLISP_ARG1,
+                            "(fmkdir path[ mode]): ", strerror(errno));
     }
     return t;
 }
@@ -416,7 +416,7 @@ Object *posixPopen(Object *interp, Object** args, Object **env, size_t nArgs)
 
     if(nArgs > 1) {
         if (strcmp(FLISP_ARG2->string, "r") && strcmp(FLISP_ARG2->string, "w"))
-            return newError(interp, invalid_value, FLISP_ARG2,
+            return newError2(interp, invalid_value, FLISP_ARG2,
                       "(popen path[ mode]) - mode must be \"r\" or \"w\", got: %s",
                       FLISP_ARG2->string);
         mode = FLISP_ARG2->string;
@@ -424,7 +424,7 @@ Object *posixPopen(Object *interp, Object** args, Object **env, size_t nArgs)
 
     fd = popen(FLISP_ARG1->string, mode);
     if (fd == NULL)
-        return newError(interp, io_error, FLISP_ARG1, "(popen path[ mode]) - popen() failed: %s", strerror(errno));
+        return newError2(interp, io_error, FLISP_ARG1, "(popen path[ mode]) - popen() failed: ", strerror(errno));
 
     return newStreamObject(interp, fd, FLISP_ARG1->string);
 }
@@ -442,7 +442,7 @@ Object *posixPclose(Object *interp, Object** args, Object **env, size_t nArgs)
     int result = pclose(FLISP_ARG1->stream.fd);
 
     if (result == -1)
-        return newError(interp, io_error, FLISP_ARG1, "pclose() failed: %s", strerror(errno));
+        return newError2(interp, io_error, FLISP_ARG1, "pclose() failed: ", strerror(errno));
 
     return newInteger(interp, result);
 }
@@ -486,7 +486,7 @@ Object *posixGetcwd(Object *interp, Object **args, Object **env, size_t nArgs)
     char buf[PATH_MAX] = "";
 
     if (NULL == getcwd(buf, PATH_MAX))
-        return newError(interp, io_error, nil, "getcwd() failed: %s", strerror(errno));
+        return newError2(interp, io_error, nil, "getcwd() failed: ", strerror(errno));
     return newString(interp, buf);
 }
 

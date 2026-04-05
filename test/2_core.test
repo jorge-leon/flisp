@@ -5,8 +5,10 @@
 # leg20231129, CC 1.0
 #
 
+PREPARE=
+
 flisp () {
-    { cat ../core.lsp; echo '(interp-output (open ">1"))'; cat -; } | FLISP_QUIET=1 ../fl
+    { echo $PREPARE; cat ../core.lsp; echo '(interp-output (open ">1"))'; cat -; } | FLISP_QUIET=1 ../fl
 }
 FLISP=flisp
 
@@ -29,11 +31,11 @@ IN="(defmacro m (a b) (list 'list a b)) (m 1 2)" OUT='(1 2)'
 flisp_expr; ok defmacro-1  simple macroexpansion
 
 # conditionals
-IN="(if)" OUT='#<Error wrong-number-of-arguments: "(env f args) - args, f expects at least 2 arguments", nil>'
+IN="(if)" OUT='#<Error wrong-number-of-arguments: "(f args) - args, f expects at least 2 arguments", nil>'
 flisp_expr; ok if-1-1 no args errs
-IN="(if t)" OUT='#<Error wrong-number-of-arguments: "(env f args) - args, f expects at least 2 arguments", (t)>'
+IN="(if t)" OUT='#<Error wrong-number-of-arguments: "(f args) - args, f expects at least 2 arguments", (t)>'
 flisp_expr; ok if-1-2 only t errs
-IN="(if nil)" OUT='#<Error wrong-number-of-arguments: "(env f args) - args, f expects at least 2 arguments", (nil)>'
+IN="(if nil)" OUT='#<Error wrong-number-of-arguments: "(f args) - args, f expects at least 2 arguments", (nil)>'
 flisp_expr; ok if-1-3 only nil predicate errs
 
 IN="(if 'a 3 4)" OUT="3"
@@ -145,7 +147,7 @@ flisp_expr; ok mapcar-2 mapcar does nothing on empty list
 
 # let
 ## unlabelled let
-IN="(let)" OUT='#<Error wrong-number-of-arguments: "(env f args) - args, f expects at least 1 arguments", nil>'
+IN="(let)" OUT='#<Error wrong-number-of-arguments: "(f args) - args, f expects at least 1 arguments", nil>'
 flisp_expr; ok let-1 let errs with zero args
 
 IN="(let ())" OUT=nil
@@ -177,7 +179,7 @@ IN="(let label ((a 2) (b 0))  (print a) (if (i> a 0) (label (i- a 1) (i+ b 1))))
 flisp_expr; ok labelled-let-5 labelled let loops
 
 # let*
-IN="(let*)" OUT='#<Error wrong-number-of-arguments: "(env f args) - args, f expects at least 1 arguments", nil>'
+IN="(let*)" OUT='#<Error wrong-number-of-arguments: "(f args) - args, f expects at least 1 arguments", nil>'
 flisp_expr; ok 'let*-1 let* errs with zero args'
 
 IN="(let* ())" OUT=nil
@@ -394,7 +396,7 @@ IN='(- 1 2 3)' OUT='-4' flisp_expr; ok minus-4 minus 1 2 3 is -4
 IN='(*)' OUT='1' flisp_expr; ok times-1 times nothing is 1
 IN='(* 42)' OUT='42' flisp_expr; ok times-2 times 42  is 42 \# TODO will be fixed when error is not type-symbol anymore
 IN='(* 1 2 3)' OUT='6' flisp_expr; ok times-4 times 1 2 3 is 6
-IN='(/ #d42.0)' OUT='0.0238095' flisp_expr; ok divide-1 divide 42  is 1/42
+PREPARE="(extension 'double)" IN='(/ #d42.0)' OUT='0.0238095' OUT=#D3F98618618618618 flisp_expr; ok divide-1 divide 42  is 1/42
 IN='(/ 42 7 6)' OUT='1' flisp_expr; ok divide-3 divide 42 7 6 is 1
 IN='(% 42)' OUT='1' flisp_expr; ok mod-1 mod 42  is 1
 IN='(% 11 6 3)' OUT='2' flisp_expr; ok mod-3 mod 11 6 3 is 2
@@ -417,7 +419,8 @@ IN='(% 11 6 3)' OUT='2' flisp_expr; ok mod-3 mod 11 6 3 is 2
 IN='(min)' OUT='#<Error wrong-number-of-arguments: "(f args) - args, f expects at least 1 arguments", nil>'
 flisp_expr; ok min-1 with nil fails
 
-IN='(min "a")' OUT="(min n[ arg ..]) n: expected number, got type-string"
+IN='(min "a")'
+OUT='#<Error invalid-value: "(min n[ arg ..]) - n expected number, got :type-string", "a">'
 flisp_expr; ok min-2 with not number fails
 
 IN='(min 0)' OUT=0

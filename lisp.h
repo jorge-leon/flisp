@@ -204,7 +204,10 @@ extern Object *newStringWithLength(Object *, char *, size_t);
 extern Object *newString(Object *, char *);
 extern Object *newCons(Object *, Object **, Object **);
 extern Object *newSymbol(Object *, char *);
-extern Object *newError(Object *, Object *, Object *, char *, ...);
+extern Object *newError(Object *, Object *, Object *, char *);
+extern Object *newError2(Object *, Object *, Object *, char *, char *);
+extern Object *newErrorI(Object *, Object *, Object *, char *, int64_t, char *);
+extern Object *newErrorFmt(Object *, Object *, Object *, char *, ...);
 extern Object *newStreamObject(Object *, FILE *, char *);
 
 extern void resetBuf(Object *);
@@ -241,7 +244,7 @@ void fl_debug(Object *, char *, ...);
 
 #define FLISP_ASSERT(PARAM, TYPE, SIGNATURE)                     \
     if (PARAM->type != TYPE)                                            \
-        return newError(interp, wrong_type_argument, PARAM,     \
+        return newErrorFmt(interp, wrong_type_argument, PARAM,     \
             SIGNATURE " expected %s, got: %s", TYPE->string, PARAM->type->string)
 
 

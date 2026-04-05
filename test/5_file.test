@@ -3,7 +3,7 @@
 # fLisp test file library
 #
 
-tap 22
+tap 21
 
 export FLISP_SIZE=$((200*1024*1024))
 flisp () {
@@ -14,9 +14,6 @@ FLISP=flisp
 
 IN='(file-name-directory "")' OUT='nil'
 flisp_expr; ok file-name-directory-1 empty string is empty
-
-false; ok file-name-directory loops \# TODO repair this, stopping..
-return
 
 IN='(file-name-directory "/")' OUT='"/"'
 flisp_expr; ok file-name-directory-2 root is root

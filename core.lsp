@@ -218,12 +218,12 @@
   (cond ((null list))
 	((predicate start (car list)) (fold-leftp predicate (car list) (cdr list)))))
 
-;;; Note: errorp does not work, since (type-of error) returns type-symbol
-(cond (t               ;;;(errorp d=)) ;; only integer operations available
+(cond ((errorp d=) ;; only integer operations available
        (defun + args (fold-left i+ 0 args))
        (defun - args (nfold     i- 0 args))
        (defun * args (fold-left i* 1 args))
        (defun / args (nfold     i/ 1 args))
+       (defun % args (nfold     i% 1 args))
        (defun =  (n . args) (fold-leftp i=  n args))
        (defun <  (n . args) (fold-leftp i<  n args))
        (defun <= (n . args) (fold-leftp i<= n args))
@@ -320,6 +320,10 @@
       ;; Emacs optionally uses provided filename here
       (let* ((path (concat script_dir "/" (symbol-name feature) ".lsp"))
 	     (r (load path)))
-	(or (errorp r) (memq feature features) feature) )))
+	(cond
+	  ((errorp r) r)
+	  ((memq feature features) feature)) )))
+
+(defun interp-extensions ()  (elements (interp) 4 5))
 
 (provide 'core)
