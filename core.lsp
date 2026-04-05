@@ -151,7 +151,7 @@
 	   (let g ((ls ls))
 		(if (null ls)  (f (car lists) (cdr lists))
 		    (if (consp ls) ls
-			(throw invalid-value
+			(error invalid-value
 			  (concat "(append lists) - list expected type-list, got " (type-of ls)) ))
 		    (cons (car ls) (g (cdr ls))) )))))
 
@@ -319,7 +319,7 @@
   (if (memq feature features)  feature
       ;; Emacs optionally uses provided filename here
       (let* ((path (concat script_dir "/" (symbol-name feature) ".lsp"))
-	     (r (catch (load path))) )
-	(and (null (car r)) (memq feature features) feature) )))
+	     (r (load path)))
+	(or (errorp r) (memq feature features) feature) )))
 
 (provide 'core)

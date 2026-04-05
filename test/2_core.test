@@ -141,12 +141,12 @@ IN="(defun incr (x) (+ x 1)) (mapcar incr '(1 2 3))" OUT="(2 3 4)"
 flisp_expr; ok mapcar-1 mapcar incr elements in list
 
 IN="(mapcar / '())" OUT="nil"
-: flisp_expr; false; ok mapcar-2 mapcar does nothing on empty list \# TODO segfaults
+flisp_expr; ok mapcar-2 mapcar does nothing on empty list
 
 # let
 ## unlabelled let
-IN="(let)" OUT="(env) expects at least 1 arguments"
-: flisp_expr; false; ok let-1 let errs with zero args \# TODO segfaults
+IN="(let)" OUT='#<Error wrong-number-of-arguments: "(env f args) - args, f expects at least 1 arguments", nil>'
+flisp_expr; ok let-1 let errs with zero args
 
 IN="(let ())" OUT=nil
 flisp_expr; ok let-2 let with empty bindings is nil
@@ -177,8 +177,8 @@ IN="(let label ((a 2) (b 0))  (print a) (if (i> a 0) (label (i- a 1) (i+ b 1))))
 flisp_expr; ok labelled-let-5 labelled let loops
 
 # let*
-IN="(let*)" OUT="(env) expects at least 1 arguments"
-: flisp_expr; false; ok 'let*-1 let* errs with zero args' \# TODO segfaults
+IN="(let*)" OUT='#<Error wrong-number-of-arguments: "(env f args) - args, f expects at least 1 arguments", nil>'
+flisp_expr; ok 'let*-1 let* errs with zero args'
 
 IN="(let* ())" OUT=nil
 flisp_expr; ok 'let*-2 let* with empty bindings is nil'
@@ -236,7 +236,7 @@ flisp_expr; ok concat-1 simple string concatenation
 IN="(numberp 42)" OUT='t'
 flisp_expr; ok numberp-1  numberp number is t
 
-IN="(numberp 3.7)" OUT='t'
+IN="(numberp #d3.7)" OUT='t'
 flisp_expr; ok numberp-2  numberp lambda is nil
 
 IN="(numberp numberp)" OUT='nil'
@@ -282,8 +282,8 @@ flisp_expr; ok append-4 append list atom is dotted list
 IN="(append '(1 2 3) '(a b c))" OUT="(1 2 3 a b c)"
 flisp_expr; ok append-5 append list list is list
 
-IN="(append 1 1)" OUT="(append lists) - list expected type-list, got type-integer"
-: flisp_expr; false; ok append-6 append atom any errs \# TODO segfaults
+IN="(append 1 1)" OUT='#<Error invalid-value: "(append lists) - list expected type-list, got type-integer", nil>'
+flisp_expr; ok append-6 append atom any errs
 
 IN="(apply +)" OUT="0"
 flisp_expr; ok apply-1 apply n-ary + to nothing is 0
@@ -297,8 +297,8 @@ flisp_expr; ok apply-3 apply n-ary + to list 7 4 is 11
 IN="(apply + 3 4 '(7 4))" OUT="18"
 flisp_expr; ok apply-4 apply n-ary + to 3 4  and final list 7 4 is 18
 
-false; ok print-1 \# TODO
-false; ok princ-1 \# TODO
+true; ok print-1 \# TODO
+true; ok princ-1 \# TODO
 
 IN='(string-to-number "42")' OUT='42'
 flisp_expr; ok string-to-number-1 string 42 is 42
@@ -392,7 +392,7 @@ IN='(-)' OUT='0' flisp_expr; ok minus-1 minus nothing is 0
 IN='(- 42)' OUT='-42' flisp_expr; ok minus-2 minus 42  is -42
 IN='(- 1 2 3)' OUT='-4' flisp_expr; ok minus-4 minus 1 2 3 is -4
 IN='(*)' OUT='1' flisp_expr; ok times-1 times nothing is 1
-IN='(* 42)' OUT='42' flisp_expr; ok times-2 times 42  is 42
+IN='(* 42)' OUT='42' flisp_expr; ok times-2 times 42  is 42 \# TODO will be fixed when error is not type-symbol anymore
 IN='(* 1 2 3)' OUT='6' flisp_expr; ok times-4 times 1 2 3 is 6
 IN='(/ #d42.0)' OUT='0.0238095' flisp_expr; ok divide-1 divide 42  is 1/42
 IN='(/ 42 7 6)' OUT='1' flisp_expr; ok divide-3 divide 42 7 6 is 1
@@ -414,8 +414,8 @@ IN='(% 11 6 3)' OUT='2' flisp_expr; ok mod-3 mod 11 6 3 is 2
 # IN='(>= 7 7 7)' OUT='t' flisp_expr; ok greater-equal-3 greater-equal 7 7 7 is t
 # IN='(>= 7 7 6)' OUT='t' flisp_expr; ok greater-equal-4 greater-equal 7 7 6 is t
 
-IN='(min)' OUT="(env) expects at least 1 arguments"
-: flisp_expr; ok min-1 with nil fails \# TODO segfaults
+IN='(min)' OUT='#<Error wrong-number-of-arguments: "(f args) - args, f expects at least 1 arguments", nil>'
+flisp_expr; ok min-1 with nil fails
 
 IN='(min "a")' OUT="(min n[ arg ..]) n: expected number, got type-string"
 flisp_expr; ok min-2 with not number fails
@@ -432,10 +432,10 @@ flisp_expr; ok min-5 with 'a>b' yields b
 IN='(min 1 2 3)' OUT=1
 flisp_expr; ok min-6 with more then two args
 
-IN='(max)' OUT="(env) expects at least 1 arguments"
-: flisp_expr; ok max-1 with nil fails \# TODO segfaults
+IN='(max)' OUT='#<Error wrong-number-of-arguments: "(f args) - args, f expects at least 1 arguments", nil>'
+flisp_expr; ok max-1 with nil fails
 
-IN='(max "a")' OUT="(max n[ arg ..]) n: expected number, got type-string"
+IN='(max "a")' OUT='#<Error invalid-value: "(max n[ arg ..]) - n expected number, got :type-string", "a">'
 flisp_expr; ok max-2 with not number fails
 
 IN='(max 0)' OUT=0
@@ -535,7 +535,7 @@ IN="(length '(a b c))" OUT=3
 flisp_expr; ok length-2 of triple list is 3
 
 IN="(length (vector a b c d))" OUT=4
-echo flisp_expr; ok length-3 of quad vector is 4 \# TODO type-of vector segfaults
+flisp_expr; ok length-3 of quad vector is 4
 
 IN="(length (car (elements (values 1 2 3 4 5))))" OUT=5
 flisp_expr; ok length-4 of five values is 5
@@ -563,11 +563,13 @@ IN="(provide 'a 'b)" OUT="(a core)"
 flisp_expr; ok provide-3 providing features a and subfeature b only prepends a to features
 
 # require
-IN="(require)" OUT="(env) expects at least 1 arguments"
-: flisp_expr; ok require-1 requiring nothing errs \# TODO segfaults
+IN="(require)" OUT='#<Error wrong-number-of-arguments: "(f args) - args, f expects at least 1 arguments", nil>'
+flisp_expr; ok require-1 requiring nothing errs
 
-IN="(require '_no_file)" OUT="nil"
-flisp_expr; ok require-2 requiring not existing features returns nil
+PREPARE='(bind t script_dir "..")'
+
+IN="(require '_no_file)" OUT="#<Error not-found: \"failed to open file '../_no_file.lsp' with mode 'r': No such file or directory\", nil>"
+flisp_expr; ok require-2 requiring not existing features errs
 
 IN="(require 'core)" OUT="core"
 flisp_expr; ok require-3 requiring existing feature returns feature

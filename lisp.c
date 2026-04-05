@@ -660,12 +660,12 @@ Object *newEnv(Object *interp, Object ** func, Object ** vals)
         if (param == nil && val == nil) break;
         if (param != nil && param->type == type_symbol) break;
         if (val != nil && val->type != type_cons)
-            return newError(interp, wrong_type_argument, val, "(env f args) - args[%d] is not a list", nArgs);
+            return newError(interp, wrong_type_argument, val, "(f args) - args[%d] is not a list", nArgs);
         if (param == nil && val != nil)
-            return newError(interp, wrong_number_of_arguments, *vals, "(env f args) - args, f expects at most %d arguments", nArgs);
+            return newError(interp, wrong_number_of_arguments, *vals, "(f args) - args, f expects at most %d arguments", nArgs);
         if (param != nil && val == nil) {
             for (; param->type == type_cons; param = param->cdr, ++nArgs);
-            return newError(interp, wrong_number_of_arguments, *vals, "(env f args) - args, f expects at least %d arguments", nArgs);
+            return newError(interp, wrong_number_of_arguments, *vals, "(f args) - args, f expects at least %d arguments", nArgs);
         }
     }
     environment->parent = (*func)->env;
