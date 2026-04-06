@@ -25,11 +25,9 @@ DATADIR = $(PREFIX)/share
 DOCDIR  = $(DATADIR)/doc
 PACKAGE = flisp
 
-# Defaults in C-source
-CFLAGS += -D FLISPLIB=$(DATADIR)/$(PACKAGE) -D FLISPRC=$(DATADIR)/$(PACKAGE)/init.lsp
-
 OBJ = double.o lisp.o posix.o string.o
 BINARIES = fl
+SCRIPTS = flisp
 LIBRARIES = libflisp.a
 RC_FILES = init.lsp
 HEADER = lisp.h string.h posix.h double.h
@@ -44,7 +42,7 @@ MOREDOCS = README.html doc/flisp.md doc/develop.md doc/history.md doc/implementa
 .sht.lsp:
 	./sht $*.sht >$@
 
-all: $(BINARIES) $(LIBRARIES) flisp.pc
+all: $(BINARIES) $(SCRIPTS) $(LIBRARIES) flisp.pc
 
 debug: CPPFLAGS += -UNDEBUG -g
 debug: $(BINARIES) $(LIBRARIES)
@@ -55,7 +53,9 @@ double.o: double.c double.h lisp.h
 fl: fl.o lisp.o $(OBJ)
 	$(LD) $(LDFLAGS) -o $@ $^ -lm -lc
 
-flisp: fl init.lsp
+flisp: flisp.sht fl core.lsp
+	BINDIR=$(BINDIR) FLISPLIB=$(DATADIR)/$(PACKAGE) ./sht $< > $@
+	chmod +x $@
 
 fl.o: fl.c lisp.h posix.h double.h string.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
@@ -105,19 +105,19 @@ doxygen: FORCE
 	doxygen
 
 # Development
-fli: flisp FORCE
-	FLISPRC=init.lsp FLISPLIB=. FLISP_DEBUG=f.log $$(which rlwrap) ./fl
-fld: flisp FORCE
-	FLISPRC=init.lsp FLISPLIB=. FLISP_DEBUG=f.log gdb ./fl
-flv: flisp FORCE
-	FLISPRC=init.lsp FLISPLIB=. FLISP_DEBUG=f.log valgrind ./fl
+fli: fl FORCE
+	FLISP_DEBUG=f.log $$(which rlwrap) ./fl
+fld: fl FORCE
+	FLISP_DEBUG=f.log gdb ./fl
+flv: fl FORCE
+	FLISP_DEBUG=f.log valgrind ./fl
 frama-c: FORCE
 	frama-c -c11 -cpp-extra-args="-I$(frama-c -print-path)/libc -I/usr/include -I." -kernel-msg-key pp -metrics *.c
 
-LISPSRC = init.sht $(LISPLIB)
+LISPSRC = $(SCRIPTS) $(LISPLIB)
 ALLSRC = $(SOURCES) $(LISPSRC)
 # Requires sloccount
-measure: $(RC_FILES) $(BINARIES) strip FORCE
+measure: $(RC_FILES) $(BINARIES) $(SCRIPTS) strip FORCE
 	@echo
 	@echo fLisp Code Stats
 	@echo
@@ -156,7 +156,7 @@ strip: $(BINARIES) $(LIBRARIES) FORCE
 	strip $(BINARIES) $(LIBRARIES)
 
 clean: FORCE
-	-$(RM) -f $(OBJ) $(BINARIES) $(LIBRARIES) $(RC_FILES) fl.o flisp.pc
+	-$(RM) -f $(OBJ) $(BINARIES) $(SCRIPTS) $(LIBRARIES) $(RC_FILES) fl.o flisp.pc
 	-$(RM) -rf doxygen
 	-$(RM) -f $(MOREDOCS)
 	-$(RM) -f f.log
@@ -169,9 +169,9 @@ deb: FORCE
 # fLisp standalone
 install: install-bin install-lib install-doc
 
-install-bin: $(BINARIES) FORCE
+install-bin: $(BINARIES) $(SCRIPTS) FORCE
 	-$(MKDIR) -p $(DESTDIR)$(BINDIR)
-	-$(CP) $(BINARIES) $(DESTDIR)$(BINDIR)
+	-$(CP) $(BINARIES) $(SCRIPTS) $(DESTDIR)$(BINDIR)
 
 install-doc: $(DOCFILES) FORCE
 	-$(MKDIR) -p $(DESTDIR)$(DOCDIR)/$(PACKAGE)
@@ -196,7 +196,7 @@ install-dev: $(LIBRARIES) $(HEADER) core.lsp flisp.pc FORCE
 	-$(CP) flisp.pc $(DESTDIR)$(LIBDIR)/pkgconfig
 
 uninstall: FORCE
-	-(cd  $(DESTDIR)$(BINDIR) && $(RM) -f $(BINARIES))
+	-(cd  $(DESTDIR)$(BINDIR) && $(RM) -f $(BINARIES) $(SCRIPTS))
 	-(cd  $(DESTDIR)$(LIBDIR) && $(RM) -f $(LIBRARIES))
 	-(cd  $(DESTDIR)$(LIBDIR)/pkgconfig && $(RM) -f $(PACKAGE).pc)
 	-$(RM) -rf $(DESTDIR)$(INCDIR)/$(PACKAGE)

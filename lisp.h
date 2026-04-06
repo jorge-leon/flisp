@@ -18,13 +18,6 @@
 #define FL_NAME     "fLisp"
 #define FL_VERSION  "0.17α1"
 
-#ifndef FLISPLIB
-#define FLISPLIB /usr/local/share/flisp
-#endif
-#ifndef FLISPRC
-#define FLISPRC  FLISPRC/init.lsp
-#endif
-
 /* For inserting FLISPLIP, FLISPRC */
 #define CPP_XSTR(s) CPP_STR(s)
 #define CPP_STR(s) #s
@@ -139,8 +132,8 @@ typedef struct Scratchpad {
 // PUBLIC INTERFACE ///////////////////////////////////////////////////////
 extern Object *flisp_new(size_t size, char **, FILE*, FILE*, FILE*, FILE*);
 extern void flisp_destroy(Object *);
-extern Object *flisp_eval(Object *, char *);
-extern Object *flisp_expr(Object *, Object *);
+extern Object *flisp_read_expr(Object *);
+extern Object *flisp_eval_expr(Object *, Object *);
 extern Object *flisp_eval_input(Object *, bool);
 extern Object *flisp_write_object(FILE *, Object *, bool);
 /* Note: to be documented */
@@ -149,6 +142,9 @@ extern Object *flisp_find_symbol(Object *, char*, size_t);
 /* Extensions */
 #define FLISP_IS_ERR(OBJECT) ((OBJECT)->type == type_error)
 #define FLISP_IS_EOF(OBJECT) (FLISP_IS_ERR(OBJECT) && (OBJECT)->error == end_of_file)
+/* Note: for speed reasons we could use a single static error object and compare pointers */
+#define FLISP_IS_OOM(OBJECT) (FLISP_IS_ERR(OBJECT) && (OBJECT)->error == gc_error)
+
 extern Object *flisp_register_extension(Object *, char *, ExtensionInit);
 
 extern Object *flisp_register_constant(Object *, Object *, Object *);
@@ -187,6 +183,7 @@ extern Object *invalid_value;
 extern Object *wrong_num_of_arguments;
 extern Object *io_error;
 extern Object *out_of_memory;
+extern Object *gc_error;
 /* I/O */
 extern Object *permission_denied;
 extern Object *not_found;

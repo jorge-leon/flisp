@@ -49,7 +49,8 @@ void write_string(FILE *fd, char *string)
 int main(int argc, char **argv)
 {
     char *env;
-    FILE *debug_fd = NULL, *input_fd = stdin, *output_fd = stdout;
+    bool interactive = false;
+    FILE *output_fd = stdout, *debug_fd = NULL, *input_fd = stdin;
     long long size = 0;
     Object *interp, *e = nil;
 
@@ -68,10 +69,18 @@ int main(int argc, char **argv)
             fatal("failed to open debug file");
         }
     }
-    if ((env = getenv("FLISP_QUIET")) != NULL && env[0] != '0')
-        output_fd = (FILE *)NULL;
 
-    bool interactive = isatty(fileno(input_fd));
+    if (argc > 1 && argv[1][0] != '-') {
+        if ((input_fd = fopen(argv[1], "r")) == NULL)
+            fatal("failed to open input file");
+        if ((env = getenv("FLISP_QUIET")) == NULL || env[0] != '0')
+            output_fd = NULL;
+    } else {
+        if ((env = getenv("FLISP_QUIET")) != NULL && env[0] != '0')
+            output_fd = NULL;
+    }
+    interactive = isatty(fileno(input_fd));
+
     if ((env = getenv("FLISP_INTERACTIVE")))
         interactive = !(env[0] == '0' || env[0] == '\0' );
     

@@ -106,7 +106,7 @@
   ;; Convert argument to string.
   ;; Common Lisp
   (cond
-    ((eq nil o) "")
+    ((null o) "")
     ((stringp o) o)
     ((symbolp o) (symbol-name o))
     ((consp o) (string-append (string (car o)) (string (cdr o))))

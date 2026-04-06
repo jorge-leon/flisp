@@ -32,9 +32,6 @@
 #define MAP_ANONYMOUS        MAP_ANON
 #endif
 
-#define CPP_XSTR(s) CPP_STR(s)
-#define CPP_STR(s) #s
-
 #define COUNTFMT long unsigned int
 
 /* Constants */
@@ -80,8 +77,6 @@ Object *is_directory =              &(Object) { .string = "is-directory" };
 Object *trap_countdown =            &(Object) { .string = "trap-countdown" };
 /* Interpreter */
 Object *debug_output =              &(Object) { .string = "*debug-output*" };
-Object *standard_input =            &(Object) { .string = "*standard-input*" };
-Object *standard_output =           &(Object) { .string = "*standard-output*" };
 /* Internal symbols */
 Object *type_env =                  &(Object) { .size = 17, .length = 0, .string = "type-environment" };
 Object *type_moved =                &(Object) { .size = 11, .length = 0, .string = "type-moved" };
@@ -512,10 +507,8 @@ allocateObject:
 
 #define CHECK_ERR(OBJECT) if FLISP_IS_ERR(OBJECT) return OBJECT
 #define GC_CHECK_ERR(OBJECT) if FLISP_IS_ERR(OBJECT) GC_RETURN(OBJECT)
-/* Note: for speed reasons we should use a single static error object and compare pointers */
-#define IS_OOM(OBJECT) (FLISP_IS_ERR(OBJECT) && (OBJECT)->error == gc_error)
-#define CHECK_OOM(OBJECT) if IS_OOM(OBJECT) return OBJECT
-#define GC_CHECK_OOM(OBJECT) if IS_OOM(OBJECT)  GC_RETURN(OBJECT)
+#define CHECK_OOM(OBJECT) if FLISP_IS_OOM(OBJECT) return OBJECT
+#define GC_CHECK_OOM(OBJECT) if FLISP_IS_OOM(OBJECT) GC_RETURN(OBJECT)
 
 
 
@@ -751,12 +744,12 @@ Object *newSymbolWithLength(Object *interp, char *string, size_t length)
 
     GC_CHECKPOINT;
     GC_TRACE(gcSymbol, newObject(interp, type_symbol, length + 1));
-    if IS_OOM(*gcSymbol) GC_RETURN(*gcSymbol);
+    GC_CHECK_OOM(*gcSymbol);
     (*gcSymbol)->length = 0;
     strncpy((*gcSymbol)->string, string, length);
     (*gcSymbol)->string[length] = '\0';
     FLISP_INTERP.symbols = newCons(interp, gcSymbol, &FLISP_INTERP.symbols);
-    if IS_OOM(*gcSymbol) GC_RETURN(*gcSymbol);
+    GC_CHECK_OOM(*gcSymbol);
     GC_RELEASE;
     return *gcSymbol;
 }
@@ -816,7 +809,7 @@ Object *newErrorFmt(Object *interp, Object *error, Object *culprit, char *format
     GC_TRACE(gcCulprit, culprit);
     GC_TRACE(gcMessage, flisp_empty_string);
     GC_TRACE(gcError, flisp_ext_obj(interp, type_error, gcErrorType, 3, 0));
-    if IS_OOM(*gcError) GC_RETURN(*gcError);
+    GC_CHECK_OOM(*gcError);
 
     if (format != NULL && format[0] != '\0') {
         va_list(args);
@@ -835,6 +828,7 @@ Object *newErrorFmt(Object *interp, Object *error, Object *culprit, char *format
     GC_CHECK_ERR(*gcMessage);
     (*gcError)->message = *gcMessage;
     (*gcError)->culprit = *gcCulprit;
+
     GC_RETURN(*gcError);
 }
 /** newStreamObject - create stream object from file descriptor and path
@@ -2196,7 +2190,7 @@ Object *firstConsElements(Object *interp, size_t n, Object *cons)
     GC_TRACE(gcList, nil);
     for (;n-- && (*gcCons)->type == type_cons; (*gcCons) = (*gcCons)->cdr) {
         *gcList = newCons(interp, &(*gcCons)->car, gcList);
-        if (IS_OOM(*gcList))  GC_RETURN(*gcList);
+        GC_CHECK_OOM(*gcList);
     }
     GC_RETURN(reverseList(interp, *gcList));
 }
@@ -2664,9 +2658,9 @@ Object *flisp_register_extension(Object *interp, char *name, ExtensionInit init)
 {
     GC_CHECKPOINT;
     GC_TRACE(gcObject, newExtension(interp, name, init));
-    if (IS_OOM(*gcObject)) GC_RETURN(*gcObject);
+    GC_CHECK_OOM(*gcObject);
     *gcObject = newCons(interp, gcObject, &FLISP_INTERP.extensions);
-    if (IS_OOM(*gcObject)) GC_RETURN(*gcObject);
+    GC_CHECK_OOM(*gcObject);
     GC_RETURN(FLISP_INTERP.extensions = *gcObject);
 }
 
@@ -2787,9 +2781,9 @@ Object *flisp_register_primitive(Object *interp, char *name,
 
     GC_CHECKPOINT;
     GC_TRACE(gcSymbol, newSymbol(interp, primitive->name));
-    if (IS_OOM(*gcSymbol))  GC_RETURN(*gcSymbol);
+    GC_CHECK_OOM(*gcSymbol);
     Object *p = newPrimitive(interp, primitive);
-    if (IS_OOM(p))  GC_RETURN(p);
+    GC_CHECK_OOM(p);
     GC_TRACE(gcP, p);
     Object *e = envSet(interp, gcSymbol, gcP, &FLISP_INTERP.global, true);
     GC_RELEASE;
@@ -2953,7 +2947,6 @@ Memory *newMemory(size_t size)
  *
  * @param size          Initial size of Lisp object space in bytes.
  * @param argv          null terminated array to arguments to be imported or NULL.
- * @param library_path  path to Lisp library, aka 'script_dir' or NULL for default.
  * @param input         open readable file descriptor for default input or NULL.
  * @param output        open writable file descriptor for default output or NULL.
  * @param debug         open writable file descriptor for debug output or NULL.

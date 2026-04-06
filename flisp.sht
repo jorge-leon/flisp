@@ -1,0 +1,75 @@
+#!${BINDIR}/fl
+;;;
+;;; fLisp command line interpreter
+;;;
+;;; leg20260331, CC 1.0
+;;;
+
+$(cat core.lsp)
+
+;;; REPL
+(setq
+ script_dir     "${FLISPLIB}"
+ flisp_interpreter argv0
+ argv0             (car argv)
+ argv              (cdr argv)
+ )
+
+(extension 'posix)
+
+(when (getenv "FLISPLIB")
+  (setq script_dir (getenv "FLISPLIB")) )
+
+(defun repl-princ s  (princ (concat s)))
+(defun repl-eprinc s (princ (concat s) *standard-error*))
+
+(defun repl-print-result (result)
+  (print result)
+  (princ "\n")
+  result )
+
+(defun repl-print-error (err)
+  (errorp ; Note: w/o (errorp) progn quits on errors
+   (if (fttyp)
+       (princ err *standard-error*)
+       (print err *standard-error*) ))
+  (princ "\n" *standard-error*) )
+
+(defun repl ()
+  (when (fttyp) (repl-princ "> ")(fflush))
+  (let ((e (read)))
+    (if (errorp e)
+	(if (same (car (elements e 0 1)) end-of-file) e
+	    (when (fttyp) (princ "\n"))
+	    (repl-print-error e)
+	    (repl) )
+
+	(let ((r (eval e)))
+	  (if (errorp r)  (repl-print-error r)
+	      (repl-print-result r) )
+	  (repl) ))))
+
+(defun repl-rcfile ()
+  (let* ((rcfile (concat (getenv "HOME") "/" ".config/flisp/init.lsp"))
+	 (r (load rcfile)) )
+    (when (and (errorp r) (fttyp))
+      (repl-eprinc "Failed to load user init file: "rcfile"\n")
+      (repl-print-error r) )))
+
+(defun repl-getopts (argv)
+  (if-not argv (close (interp-output))
+    (load (car argv))
+    (repl-getopts (cdr argv)) ))
+;;      (repl-eprinc "Error parsing commandline: "argv"\n")
+;;      (repl-print-error e) ))
+;;  (close (interp-output)) )
+
+(progn
+  (interp-output (open ">1"))
+  (errorp (repl-rcfile)) ; Note: w/o (errorp) progn quits on errors
+  (if argv (repl-getopts argv)
+      (interp-input (open "<0"))
+      (when (fttyp)
+	(repl-princ (interp-version)"\n")
+	(repl-princ "exit with C-d\n") )
+      (repl) ))

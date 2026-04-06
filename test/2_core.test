@@ -6,11 +6,14 @@
 #
 
 PREPARE=
-
 flisp () {
-    { echo $PREPARE; cat ../core.lsp; echo '(interp-output (open ">1"))'; cat -; } | FLISP_QUIET=1 ../fl
+    { echo '(bind t script_dir "..")';
+      cat ../core.lsp
+      echo "$PREPARE" "$IN"
+    } | FLISP_QUIET=0 ../fl
 }
 FLISP=flisp
+export FLISP_QUIET=0
 
 export FLISP_SIZE=$((20*1024*1024))
 
