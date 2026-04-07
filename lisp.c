@@ -909,6 +909,10 @@ Object *envLookup(Object *interp, Object *var, Object *env)
         return newError(interp, invalid_value, var, "unbound symbol");
     return value;
 }
+Object *flisp_lookup(Object *interp, Object *var)
+{
+    return envLookup(interp, var, interp->self.global);
+}
 Object *envAdd(Object *interp, Object ** var, Object ** val, Object **env)
 {
     GC_CHECKPOINT;
@@ -2462,7 +2466,7 @@ Object *file_inputMemStream(Object *interp, char *string)
     strncpy(buf, string, len);
     buf[len] = '\0';
     Object *object = newStreamObject(interp, NULL, "<STRING");
-    FLISP_CHECK_OOM(object);
+    CHECK_OOM(object);
     object->stream.buf = buf;
     object->stream.len = len;
     if (NULL == (object->stream.fd = fmemopen(object->stream.buf, object->stream.len, "r"))) {
@@ -3091,10 +3095,6 @@ void flisp_destroy(Object *interp)
     free(interp);
 }
 
-Object *flisp_eval_expr(Object *interp, Object *object)
-{
-    return evalExpr(interp, &object, &FLISP_INTERP.global);
-}
 Object *flisp_read_expr(Object *interp)
 {
     Object *e = readExpr(interp, FLISP_STANDARD_INPUT.fd);
@@ -3106,24 +3106,36 @@ Object *flisp_read_expr(Object *interp)
     }
     return e;
 }
+Object *flisp_eval_object(Object *interp, Object *object)
+{
+    return evalExpr(interp, &object, &FLISP_INTERP.global);
+}
+Object *flisp_eval_expr(Object *interp, bool readably)
+{
+    Object *object;
+
+    do {
+        object = flisp_read_expr(interp);
+        if (FLISP_IS_ERR(object))  break;
+        object = flisp_eval_object(interp, object);
+        if (FLISP_IS_ERR(object))  break;
+        flisp_write_object(FLISP_STANDARD_OUTPUT.fd, object, readably);
+        if (FLISP_STANDARD_OUTPUT.fd) fputs("\n", FLISP_STANDARD_OUTPUT.fd);
+        fflush(0);
+    } while (0);
+    if (object->error != end_of_file) {
+        flisp_write_object(FLISP_STDERR.fd, object, readably);
+        if (FLISP_STDERR.fd) fputs("\n", FLISP_STDERR.fd);
+    }
+    fflush(0);
+    return object;
+}
 
 Object *flisp_eval_input(Object *interp, bool readably)
 {
     Object *object;
 
-    for (;;) {
-        object = flisp_read_expr(interp);
-        if (FLISP_IS_ERR(object))  break;
-        object = flisp_eval_expr(interp, object);
-        if (FLISP_IS_ERR(object))  break;
-        flisp_write_object(FLISP_STANDARD_OUTPUT.fd, object, readably);
-        if (FLISP_STANDARD_OUTPUT.fd) fputs("\n", FLISP_STANDARD_OUTPUT.fd);
-        fflush(0);
-    }
-    if (object->error != end_of_file) {
-        flisp_write_object(FLISP_STDERR.fd, object, readably);
-        if (FLISP_STDERR.fd) fputs("\n", FLISP_STDERR.fd);
-    }
+    while ((object = flisp_eval_expr(interp, readably))->type != type_error);
     fflush(0);
     return object;
 }

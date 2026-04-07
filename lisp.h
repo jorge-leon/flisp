@@ -132,11 +132,12 @@ typedef struct Scratchpad {
 // PUBLIC INTERFACE ///////////////////////////////////////////////////////
 extern Object *flisp_new(size_t size, char **, FILE*, FILE*, FILE*, FILE*);
 extern void flisp_destroy(Object *);
+extern Object *flisp_eval_object(Object *, Object *);
 extern Object *flisp_read_expr(Object *);
-extern Object *flisp_eval_expr(Object *, Object *);
+extern Object *flisp_eval_expr(Object *, bool);
 extern Object *flisp_eval_input(Object *, bool);
 extern Object *flisp_write_object(FILE *, Object *, bool);
-extern Object *flisp_inputMemStream(Object *, char *);
+extern Object *flisp_lookup(Object *, Object *);
 /* Note: to be documented */
 extern Object *flisp_find_symbol(Object *, char*, size_t);
 

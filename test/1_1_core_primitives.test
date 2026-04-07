@@ -18,7 +18,7 @@ tap 199
 ok flisp-1 flisp exists and is executable;
 
 IN= OUT="fLisp 0.17α1"
-FLISP_INTERACTIVE=1 flisp_expr 2 1; ok flisp-2 empty input succeeds
+FLISP_INTERACTIVE=1 flisp_expr 3 1; ok flisp-2 empty input succeeds
 
 # reader
 IN='(' OUT='#<Error read-incomplete: "unexpected end of stream while reading list", nil>'
@@ -143,7 +143,7 @@ IN="(progn 'one)" OUT=one
 flisp_expr; ok progn-2 one arg evaluates to arg
 
 IN="(progn (write 'first) 'second)" OUT=firstsecond
-flisp_expr; ok progn-3 two args evaluate in sequence
+FLISP_QUIET=1flisp_expr; ok progn-3 two args evaluate in sequence
 
 # cond
 IN='(cond)'  OUT=nil

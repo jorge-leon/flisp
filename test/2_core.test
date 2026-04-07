@@ -8,13 +8,13 @@
 PREPARE=
 flisp () {
     { echo '(bind t script_dir "..")';
+      echo "$PREPARE"
       cat ../core.lsp
-      echo "$PREPARE" "$IN"
-    } | FLISP_QUIET=0 ../fl
+      echo "$IN"
+    } |  ../fl
 }
 FLISP=flisp
 export FLISP_QUIET=0
-
 export FLISP_SIZE=$((20*1024*1024))
 
 tap 189
@@ -179,7 +179,7 @@ IN="(setq a 1 b 2) (let label ((a 3) (b 4)) (list a b))" OUT='(3 4)'
 flisp_expr; ok labelled-let-4 labelled let binds several symbols
 
 IN="(let label ((a 2) (b 0))  (print a) (if (i> a 0) (label (i- a 1) (i+ b 1))))" OUT='210nil'
-flisp_expr; ok labelled-let-5 labelled let loops
+flisp_expr 2 1; ok labelled-let-5 labelled let loops
 
 # let*
 IN="(let*)" OUT='#<Error wrong-number-of-arguments: "(f args) - args, f expects at least 1 arguments", nil>'
@@ -571,8 +571,6 @@ flisp_expr; ok provide-3 providing features a and subfeature b only prepends a t
 # require
 IN="(require)" OUT='#<Error wrong-number-of-arguments: "(f args) - args, f expects at least 1 arguments", nil>'
 flisp_expr; ok require-1 requiring nothing errs
-
-PREPARE='(bind t script_dir "..")'
 
 IN="(require '_no_file)" OUT="#<Error not-found: \"failed to open file '../_no_file.lsp' with mode 'r': No such file or directory\", nil>"
 flisp_expr; ok require-2 requiring not existing features errs
