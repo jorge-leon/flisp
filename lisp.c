@@ -2462,6 +2462,7 @@ Object *file_inputMemStream(Object *interp, char *string)
     strncpy(buf, string, len);
     buf[len] = '\0';
     Object *object = newStreamObject(interp, NULL, "<STRING");
+    FLISP_CHECK_OOM(object);
     object->stream.buf = buf;
     object->stream.len = len;
     if (NULL == (object->stream.fd = fmemopen(object->stream.buf, object->stream.len, "r"))) {

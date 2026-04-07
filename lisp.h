@@ -136,6 +136,7 @@ extern Object *flisp_read_expr(Object *);
 extern Object *flisp_eval_expr(Object *, Object *);
 extern Object *flisp_eval_input(Object *, bool);
 extern Object *flisp_write_object(FILE *, Object *, bool);
+extern Object *flisp_inputMemStream(Object *, char *);
 /* Note: to be documented */
 extern Object *flisp_find_symbol(Object *, char*, size_t);
 
