@@ -54,7 +54,9 @@ The default Makefile target:
 
 creates:
 - fl .. The flisp micro repl command line utility.
-- libflisp.a  .. The library for embedding fLisp in other applications.
+- flisp .. An fLisp Repl written in fLisp.
+- libflisp.a, flisp.pc  .. The library and pkg-confif description file
+  for embedding fLisp in other applications.
 
 	make install
 

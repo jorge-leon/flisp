@@ -511,7 +511,6 @@ allocateObject:
 #define GC_CHECK_OOM(OBJECT) if FLISP_IS_OOM(OBJECT) GC_RETURN(OBJECT)
 
 
-
 // CONSTRUCTING OBJECTS ///////////////////////////////////////////////////////
 
 /** newObject - allocate a new object in the Lisp object store and set
@@ -1347,12 +1346,7 @@ Object *readExpr(Object *interp, FILE *fd)
             if (ferror(fd))
                 READER_IO(WHILE_EXPR);
             else
-                /* Note: this would be "The Right Thing" (tm), but we
-                 *  have to unmangle the whole reader and repl to use
-                 *  it correctly:
-                 */
                 return newError(interp, end_of_file, nil, "EOF");
-            //READER_EOF(WHILE_EXPR);
         }
         if (ch == '#') {
             object = doReaderMacro(interp, fd);
@@ -1590,7 +1584,7 @@ Object *evalList(Object *interp, Object **args, Object **env)
         GC_TRACE(gcCdr, (*args)->cdr);
         GC_TRACE(gcObject, evalExpr(interp, &(*args)->car, gcEnv));
         GC_CHECK_OOM(*gcObject);
-        *gcCdr = evalList(interp, gcCdr, gcEnv);
+        *gcCdr = evalList(interp, gcCdr, gcEnv);  /* Note: only CHECK_OOM? shouldn't it be GC_CHECK_ERR? */
         GC_CHECK_OOM(*gcCdr);
         GC_RETURN(newCons(interp, gcObject, gcCdr));
     }

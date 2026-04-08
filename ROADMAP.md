@@ -6,9 +6,25 @@
 
 ## Future
 
+- Make symbol names huffman or algorithmic compressed int64_6 arrays for
+  speedier lookups.
+- Add line , character and column counter to input stream
+- Expose reader primitives and write reader in Lisp, utf-8!
+- Allow to extend the reader macros, property list?
+- Allow all characters except controls and (ASCII) whitespace for symbol names
+- Add "trim" parameter to gc call: add or increase allocated memory.
+- Add "which" parameter go gc call, so we can have more then one space.
+- Add gc stat fields to interp object
+- Continue with "clean" object types:
+  - Base object (meta?)
+  - Extensions
+- Add "weight" field to objects and increment them on use. When over threshold
+  move to "sink" space and set weight negative. -1 is resevered for constants.
+- Re-order symbols on the fly so that heavier ones float to the bottom.
 - Objects host their writer (and reader?) and are pluggable.
 - RPN micro reader
-- Remove all printf, make own buffering and remove stdio
+- Remove all printf, make own buffering and remove stdio <- not a goal anymore:
+  simplify to standard.
 - Make memory allocated parametrizable, allocate constants in separate mmap.
 - Implement backquote and friends.
   - The reader already implements '`', ',' and ',@' as `quasiquote`, `unquote`
@@ -29,12 +45,18 @@
 - ? CSP between interpreters?
 
 ## fLisp 0.17
-- Make workable flisp command line utility as shell script and rework repl.
-- Remove argv0 and argv from flisp_new(), inject them at startup
+- make (length list) use flisp_list_length if appropiate or make object-length
+  for conses return list length instead of 2.
+- Consider returning the element instead of the list with one element when
+  (elements o n n+1)
+- Review error behavior for all primitives.
+- Clean up and document internal and extported flisp_* functions and FLISP_* macros
+- ! don't! Remove argv0 and argv from flisp_new(), inject them at startup <- or maybe not.
 - More testing, stress-testing
 - Femto integration
 
 ## flisp 0.17α
+- Make workable flisp command line utility as shell script and rework repl.
 - No exceptions/throw/catch, errors are signalled by returning an error object.
 - `flisp_eval_input()` replaces `flisp_eval`, no direct string evaluation.
   anymore, return value is result, can be error object.
