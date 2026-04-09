@@ -992,6 +992,9 @@ is given.
 Returns the list of all registered extensions of the current
 interpreter.
 
+`(error-type «error»)`  
+Evaluates to the error type of *error*.
+
 `(join «sep» «l»)` ⇒ *string* <u>f</u>  
 Return a string with all elements of *l* concatenated with *sep* between
 each of them.

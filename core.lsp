@@ -111,7 +111,7 @@
     ((symbolp o) (symbol-name o))
     ((consp o) (string-append (string (car o)) (string (cdr o))))
     (t (let ((f (open "" ">")))
-	 (write o t f)
+	 (errorp (write o nil f))
 	 (prog1
 	     (cadr (file-info f))
 	   (close f) )))))
@@ -325,5 +325,10 @@
 	  ((memq feature features) feature)) )))
 
 (defun interp-extensions ()  (elements (interp) 4 5))
+(defun error-type (error)
+  (if (errorp error) (car (elements error 0 1))
+      (error wrong-type-argument
+	     (concat "(error-type error) - error expected type-error, got: " (type-of error))
+	     error) ))
 
 (provide 'core)
