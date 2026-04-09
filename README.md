@@ -11,6 +11,11 @@ fLisp is embedded into the
 > nothing left to add, but when there is nothing left to take away.
 > -- <cite>Antoine de Saint-Exupery</cite>
 
+But also:
+
+> A LISP programmer knows the value of everything, but the cost of nothing. 
+> -- Alan Perlis
+
 
 ## Why the name fLisp
 

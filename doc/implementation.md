@@ -157,7 +157,7 @@ object allocation.
 ### Memory Allocation
 
 `lisp_new()` sets the initial size of the semi-spaces to the given
-value,  but at least to `FLISP_MEMORY_INC_SIZE` which defaults to eight
+value,  but at least to `FLISP_MEMORY_INC_SIZE` which defaults to 16
 kilobytes.  An application should initialize the semi-space size to a
 value above its typical object space demand to avoid repeated garbage
 collection cycles on startup.
@@ -187,20 +187,20 @@ printed. Unicode multi-byte characters produce as many error messages as
 there are bytes.
 
 Strings are read in as-is, non-ASCII characters between double quotes
-are stored as they appear. The string primitives: `string-length`,
-`string-search` and `substring` have a notion of the size of UTF-8
-character encodings and count the string indices and lenghts in Unicode
-characters instead of bytes.
+are stored as they appear. The string extension primitives:
+`string-length`, `string-search, string-spn, string-cspn` and
+`substring` have a notion of the size of UTF-8 character encodings and
+count the string indices and lenghts in Unicode characters instead of
+bytes.
 
-The primitive `(interp :size «object»)` can be used to calculate the
-length of the character array used to store the string, including the
-terminating `NUL` character.
+The primitive `(object-size «object»)` returns the length of the
+character array used to store the string, including the terminating
+`NUL` character.
 
 *Caution*: *fLisp* takes no measures against incorrectly encoded UTF-8
 string.
 
-The string extension primitives `char-length`, `char-code` and
-`code-char` however perform some checks.
+The string extension primitives however perform some checks.
 
 [^](#toc)
 

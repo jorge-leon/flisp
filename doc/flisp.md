@@ -63,11 +63,11 @@ Other documentation topics on *fLisp*:
     1.  [String Extension](#string)
     2.  [POSIX Extension](#posix)
     3.  [Double Extension](#double)
-7.  [Lisp Libraries](#libraries)
+7.  [*fLisp* Command Line Interpreters](#flisp)
+8.  [Lisp Libraries](#libraries)
     1.  [fLisp Library](#flisp_lib)
     2.  [String Library](#string_lib)
     3.  [File Library](#file_lib)
-8.  [`flisp` Command Line Interpreter](#flisp)
 
 ### Notation Conventions
 
@@ -243,6 +243,28 @@ value in logical operations.
 `t`  
 “true”, a predefined, non-false value.
 
+The reader convert program input into the respective internal
+representation. It manipulates the input when it encounters a reader
+macro, quote quasiquote or coma. The following reader macros are
+available:
+
+`#'«symbol»`  
+Reads symbol an inserts it in the input. This reader macro simplifies
+reading Common Lisp code, where this macro returns the function property
+of a symbol.
+
+`#d«double»`  
+Reads the string *double* and converts it into a double floating point
+object.
+
+`#D«xdouble»`  
+Reads the hex string *xdouble* which is in IEEE floating point format
+and converts it into a double floating point object.
+
+Future versions of *fLisp* will either provide a feature to add reader
+macros from Lisp code, or add some promiment examples like `#t` and
+`#f`.
+
 #### Objects and Data Types
 
 *fLisp* objects have one of the following data types:
@@ -250,7 +272,7 @@ value in logical operations.
 <span class="dfn">integer</span>  
 64 bit singed integer.
 
-double  
+<span class="dfn">double</span>  
 Double precission IEEE floating point number.
 
 <span class="dfn">string</span>  
@@ -263,8 +285,8 @@ Object holding two pointers to objects. Used to represent lists.
 String with restricted character set:
 `[A-Z][0-9][a-z]!#$%&*+-./:<=>?@^_~`
 
-In contrast to strings symbols are unique. Two string objects with the
-same characters can be different objects.
+In contrast to strings symbols are unique while two string objects with
+the same characters can be different objects.
 
 <span class="dfn">lambda</span>  
 Anonymous function with parameter evaluation.
@@ -295,8 +317,7 @@ Presents a built-in function.
 
 Objects are immutable; functions either create new objects or return
 existing ones, with the single exception of the `nreverse` funciton,
-which is included for speed. The interpreter object can be manipulated
-by `(interp-«*»)` functions.
+which is included for speed.
 
 Characters do not have their own type. A single character is represented
 by a *string* with length one.
@@ -377,9 +398,9 @@ The following error type symbols are defined and used internally:
   - `is-directory`
 
 These builtin error types evaluate to themself and are defined as
-constants.
+constants. Their names cannot be used as macro or lambda parameters.
 
-Lambas or macros can return custom error objects via the
+Lambdas or macros can return custom error objects via the
 *error* primitive. Whenever applicable use one of the existing error
 types instead of creating new ones.
 
@@ -407,12 +428,12 @@ The initial error output stream, or `nil` if there is none.
 \*debug-output\*  
 The initial debug output stream, or `nil` if there is none.
 
-~~`argv`~~  
-~~Is bound to a list of all command line arguments of the invoking
-program in order. Each element is of type string.~~
+`argv`  
+Is bound to a list of all command line arguments of the invoking program
+in order. Each element is of type string.
 
-~~`argv0`~~  
-~~Is bound to the name of the invoking program. It is of type string.~~
+`argv0`  
+Is bound to the name of the invoking program. It is of type string.
 
 ~~`script_dir`~~  
 ~~Is bound to either the hard coded path to the Lisp libraries or the
@@ -434,14 +455,18 @@ by the type of objects they operate on.
 
 `(progn[ «expr»..])` ⇒ *val*<sub>*n*</sub>  
 Each *expr* is evaluated, the value of the last is returned. If no
-*expr* is given, `progn` returns `nil`.
+*expr* is given, `progn` returns `nil`. If any *expr* evaluates to an
+error `progn` does not evaluate further *expr*'s and evaluates
+immediately to this error .
 
 `(cond[ «clause»..])` ⇒ *pred*<sub>*n*</sub>\|*val*<sub>*n*</sub>\|`nil`  
 Each *clause* is of the form `(«pred»[ «action» ..])`. `cond` evaluates
 each *clause* in turn. If *pred* evaluates to `nil`, the next *clause*
 is tested. If *pred* evaluates not to `nil` and if there is no *action*
 the value of *pred* is returned, otherwise `(progn «action» ..)` is
-returned and no more *clause*s are evaluated.
+returned and no more *clause*s are evaluated. If a *pred* or *action*
+evaluates to an error no more *pred'*s are checked and `cond` evaluates
+to the error.
 
 `(bind «globalp »«symbol»[ «value»[ symbol ..]])` ⇒ *value* <u>f</u>  
 Create or update each *symbol* in turn and bind it to the
@@ -450,7 +475,8 @@ last *value* or nil. First *symbol* is looked up in the current
 environment, then recursively in the parent environments. If it is not
 found, it is created in the current environment when *globalp* is `nil`.
 If *globalp* is not `nil` *symbol* is created in the global (top level)
-environment.
+environment. If a *value* evaluates to an error no more symbols are
+bound and bind evaluates to the error.
 
 `(lambda «params» «body»)` ⇒ *lambda*  
 Returns a *lambda* function described by *body*, which accepts zero or
@@ -474,12 +500,8 @@ with lambda.
 `(quote «expr»)` ⇒ *expr*  
 Returns *expr* without evaluating it.
 
-   
 `(eval «expr»)` ⇒ *o*  
 Evaluates *expr* and returns the result.
-
-   
- 
 
 `(error «type» «message»[ «culprit»])` ⇒ *o*  
    
@@ -532,37 +554,16 @@ which gives the same object when read again. When stream *fd* is given
 output is written to the given stream else to the output stream. `write`
 returns the *object*.
 
-`(interp)`  
-Return the current interpreter object.
+`(ifmt args)`  
+Experimental: convert an integer into a string object.
 
-`(env)`  
-Return the current environment object.
-
-`(interp-gc)`  
-Invoke the garbage collector
-
-`(interp-trace-read[ «p»])`  
-Query or set the interpreter read trace flag.
-
-`(interp-trace-primitives[ «p»])`  
-Query or set the interpreter primitives trace flag.
-
-`(interp-countdown[ «i»])`  
-Query or set the interpreter countdown counter. The evaluator will
-return an error after i cycles, if i is set to not-zero.
-
+   
  
 
 #### Object Operations
 
 `(null «object»)` ⇒ *p*  
-Returns `t` if *object* is `nil`, otherwise `nil`. 
-
-`(same «o1» «o2»)`  
-Returns non-`nil` if *o1* and *o2* are the same object.
-
-`(zerop «i»)`  
-Returns non nil if integer i is zero.
+Returns `t` if *object* is `nil`, otherwise `nil`
 
 `(type-of «object»)` ⇒ *symbol*  
 Returns the type symbol of *object*.
@@ -578,7 +579,8 @@ Returns the symbol with name *string*. If the symbol does not exist yet
 it is created.
 
 ~~`(symbol-name «object»)` ⇒ *string*~~  
-~~If *object* is of type symbol return its value as string.~~
+~~If *object* is of type symbol return its value as string. use
+(elements symbol).~~
 
 `(cons «car» «cdr»)` ⇒ *cons*  
 Returns a new cons with the first object set to the value of *car* and
@@ -593,22 +595,29 @@ Returns the second object of *cons*.
 `(same «a» «b»)` ⇒ *p* <u>f</u>  
 Returns `t` if *a* and *b* are the same object, `nil` otherwise.
 
-<!-- -->
-
 `(vector «o»[ «o» ..])`  
 Returns a vector containing all given objects.
 
 `(elements «o»[ «start»[ e«nd»]])`  
-If o is an extensible object returns a list of all objects contained in
-*o*. If *o* is a string or symbol returns the string of *o*. If *o* is a
-list it returns the list. If *start* is given it indicates the first
-object or character to return, if *end* is given it indicates the object
-or character after the last one to return. start and end are zero-based
-indexes into the list, string or object. If any of them is negative they
-are counted from the end of the list, string or object.
+ 
+
+- If o is an extensible object returns a list of all objects contained
+  in *o*.
+
+- If *o* is a string or symbol returns the string of *o*.
+
+- If *o* is a list it returns the list.
+
+If *start* is given it indicates the first object or character to
+return, if *end* is given it indicates the object or character after the
+last one to return. *start* and *end* are zero-based indexes into the
+list, string or object. If any of them is negative they are counted from
+the end of the list, string or object.
 
 `(object-size «o»)`  
 Returns the size property of *o*.  
+ 
+
 `(object-length «o»)`  
 Returns the length property of *o*.
 
@@ -645,9 +654,14 @@ Returns the rest (modulo) of the integer division of *i* by *j*. Throws
 `(i<= «i» «j»)` ⇒ *p* <u>f</u>  
  
 
-`(i>= «i» «j»)` ⇒ *k* <u>f</u>  
+`(i>= «i» «j»)` ⇒ *p* <u>f</u>  
+ 
+
 These predicate functions apply the respective comparison operator
 between *i* *j* and return either `t` or `nil`.
+
+`(i=0 «i») ` ⇒ *p* <u>f</u>  
+Evaluates to `nil` if *i* is not zero, `t` otherwise.
 
 #### Bitwise Integer Operations
 
@@ -671,17 +685,59 @@ Returns the bitwise negation of *i*.
 
 #### String Operations
 
-`(string-append «s1» «s2»)` ⇒ *string* <u>f</u>
-
+`(string-append «s1» «s2»)` ⇒ *string* <u>f</u>  
 Returns a new string consisting of the concatenation of *string1* with
 *string2*.
 
- 
-
-`(string-compare «s1» «s2»)` ⇒ *i* <u>f</u>
-
+`(string-compare «s1» «s2»)` ⇒ *i* <u>f</u>  
 Returns `0` if strings *s1* and *s2* are the same, a negative intetger
 if s1 is less then s2, a positive integer otherwise. See strcmp(3).
+
+#### Interpreter Management and Introspection
+
+`(extension symbol)`  
+When *symbol* is a registered extension and the extension is not yet
+loaded its primitivies are loaded into the interpreter. The version
+string of the extension is returned. If the extension fails to load an
+error is returned. If *symbol* is not a registered extension `nil` is
+returned.
+
+`(interp-input[ «stream»])`  
+Return and/or set the default interpreter input stream.
+
+`(interp-output[ «stream»])`  
+Return and/or set the default interpreter output stream.
+
+`(interp-debug[ «stream»])`  
+Return and/or set the default interpreter debug stream.
+
+`(interp)`  
+Return the current interpreter object.
+
+`(interp-version)`  
+Evaluates to the version string of the interpreter.
+
+`(env)`  
+Return the current environment object.
+
+`(interp-gc)`  
+Invoke the garbage collector
+
+`(interp-gc-always[ «p»])`  
+Query or set the garbage collector stress test flag. When set, the
+garbage collector is run on each object allocation.
+
+`(interp-trace-read[ «p»])`  
+Query or set the interpreter read trace flag. When set, the object read
+in by the reader is printed to the debug stream before evaluation.
+
+`(interp-trace-primitives[ «p»])`  
+Query or set the interpreter primitives trace flag. When set each
+primitive invocation is printed together with its arguments.
+
+`(interp-countdown[ «i»])`  
+Query or set the interpreter countdown counter. The evaluator will
+return an error after *i* cycles, if *i* is set to not-zero.
 
  
 
@@ -932,6 +988,10 @@ Evaluates each argument in turn, returns the first `nil` argument or the
 last object *o* if none evaluates to `nil. Returns` `t` if no argument
 is given.
 
+`(interp-extensions)`  
+Returns the list of all registered extensions of the current
+interpreter.
+
 `(join «sep» «l»)` ⇒ *string* <u>f</u>  
 Return a string with all elements of *l* concatenated with *sep* between
 each of them.
@@ -953,10 +1013,27 @@ successful. The register is the global variable *features*.
 
 ### fLisp Extensions
 
-Extensions are C libraries which implement additional primitives. They
-are loaded into an *fLisp* interpreter after creation. Two extensions
-are delivered with *fLisp*: the *file* extension for interaction with
-the operating system and the *double* floating point extension.
+Extensions are C libraries which implement additional primitives.
+Extensions must be registered with an *fLisp* interpreter after creation
+within C-code. They can then be loaded either in C-code or on demand
+from Lisp code with the `extension` function. An extension has a  name,
+represented by a symbol and a version.
+
+The following extensions are delivered with *fLisp*:
+
+*core*  
+The core primitives are loaded when an interpreter is created.
+
+*string*  
+Contains UTF-8 support and basic string functions.
+
+*posix*  
+A collection with shallow wrappers to posix functions for interaction
+with the operating system.
+
+*double*  
+Floating point arithmetic.  
+ 
 
 #### String Extensions
 
@@ -977,17 +1054,11 @@ Returns the index of the first character in *string* which is not
 contained in the string *chars*.
 
 `(strcspn «string» «chars»)` ⇒ *i* <u>f</u>  
- 
-
 Returns the index of the first character in *string* which is
 containted in the string *chars*.
 
 `(string-length «string»)` ⇒ *i* <u>f</u>  
-Returns the length of *string* as a *number*.
-
-   
-   
- 
+Returns the length of *string* as a *number*
 
 `(string-search «needle» «haystack»)` <u>C</u>  
 Returns the position of string *needle* if it is contained in
@@ -1095,27 +1166,91 @@ between *x* *y*.
 
 [^](#toc)
 
-### Lisp Libraries
+### *fLisp* Command Line Interpreters
 
-A predefined Lisp library path is hardcoded in *fLisp*, by default it
-is `/usr/local/share/flisp`. It can be overwritten at runtime with the
-environment variable `FLISPLIB`. The library path is exposed to the Lisp
-interpreter as the variable `script_dir`.
+### The `fl` Micro Repl
+
+The binary `fl` implements a minimalistic REPL, it registers all
+extensions but only preloads the *core* primitives. When started without
+arguments with a ttyp on standard input it reads Lisp expressions on
+standard input, writes results to standard output and errors to standard
+error. It exits when encountering end of file on standard input. On
+startup the version string is printed and after printing the result (or
+error) of an expresion a prompt `“> ”` is printed before waiting for
+more input. This is called the <span class="dfn">interactive
+mode.</span>
+
+When standard input is not a ttyp, e.g. a pipe, version string and
+prompt printing are suppressed.
+
+When given a file as first argument on the commandline, `fl` opens this
+file on its standard input and reads all its Lisp expressions until end
+of file. This is done in non-interactive `quiet mode`: standard output
+is suppresed, but errors are still printed on standard error. This mode
+allows to use fl as a script language by using it in a shebang line:
+`#!/usr/local/bin/fl …`
+
+The following environment variables are taken into account by `fl`:
+
+`FLISP_SIZE`  
+The number of bytes to pre-allocate for the Lisp objects space. Defaults
+to zero.
+
+`FLISP_DEBUG`  
+When set to a file name, `fl` tries to truncate and open the file for
+writing and uses it as debug output. When set to “`-`”debug output is
+sent to *stdout*, when set to “`&`” debug output is sent to *stderr*.
+
+`FLISP_QUIET`  
+When set to 0, quiet mode is disabled, otherwise quiet mode is forced.
+
+`FLISP_INTERACTIVE`  
+When set to 0, interactive mode is disabled, otherwise interactive mode
+is forced.
+
+#### The `flisp` Repl
+
+`flisp` is a `fl` script which implements a slightly more comfortable
+Lisp repl. It loads all extensions and the `core` library. Also `flisp`
+can be used for Lisp scripting if the operating system allows for
+chained interpreters.
+
+`flisp` can `require` any of the provided Lisp libraries by `load`'ing
+them from the `script_dir` directory which defaults to
+`/usr/local/share/flisp`. This can be overriden by the environment 
+variable FLISPLIB.
+
+All environment variables recognized by `fl` are taken into account,
+however it is wise to only use `FLISP_SIZE« and »FLISP_DEBUG`.
+
+The original *argv0* command line argument, the full path to `fl`, is
+bound to the symbol *flisp_interpreter*, The full path to `flisp` is
+bound to the symbol *argv0* and the rest of the command line arguments
+are bound as a list of string to the symbol *argv*.
+
+`flisp` tries to load a user specific rc file from
+`~/.config/flisp/init.lsp`. Then all arguments on the command line are
+tried to be loaded as Lisp files. If no arguments are given, `flisp`
+enters an interactive read-eval-print loop. In a similar manner to `fl`,
+the startup version banner and prompts are suppressed if the standard
+input is not a ttyp.
+
+#### Lisp Libraries
 
 *fLisp* provides the following set of libraries:
 
-core  
+*core*  
 Integrated in the startup file, always loaded. The core library
 implements a minimum set of Lisp features including code for loading
 additional libraries.
 
-flisp  
+*flisp*  
 Implements some additional standard Lisp functions.
 
-string  
+*string*  
 String manipulation library.
 
-file  
+*file*  
 File, filename and directory operations.
 
 #### flisp Library
@@ -1222,55 +1357,5 @@ Return the last segment of path *s*.
 
 `(file-name-extension «s»)` ⇒ *s* <u>e</u>  
 Return the extension of path *s*, or nil if there is none.
-
-[^](#toc)
-
-### `flisp` Command Line Interpreter
-
-The binary `fl` implements a minimalistic REPL, it only preloads the
-core primitives. The `flisp` shell script is a wrapper around `fl` which
-loads the `core` library and can be used for Lisp scripting.
-
-#### <span class="mark">Environment Variables</span>
-
-<span class="mark">The command line interpreter `flisp` reads a single
-Lisp file on startup. The default path
-is `/usr/local/share/flisp/init.lsp`. but can be modified at compile
-time. It can be overwritten at runtime with the variable
-`FLISPRC`.</span>
-
-<span class="mark">`FLISP_DEBUG` can be set to a file name. If `flisp`
-succeeds opening the file for writing this file is used as default for
-output and debug. If not given, output of the evaluation of the startup
-file is suppressed alltogether.</span>
-
-<span class="mark">The environment variable `FLISP_SIZE` can be set to
-the amount of initial memory for the Lisp object space. If not set or 0,
-fLisp dynamically allocates memory in chunks of eight kilobyte. This
-increment can be modified at compile time.</span>
-
-#### <span class="mark">`init.lsp`</span>
-
-<span class="mark">The provided startup file includes the `core.lsp`
-library. This allows to load Lisp files from the library with
-the  `require` function.</span>
-
-<span class="mark">After loading the core library, `init.lsp` tries to
-load the file `~/.config/flisp/init.lsp`. Errors are printed to the
-debug output. Then the interpreter output is set to `stdout`.</span>
-
-<span class="mark">If command line arguments are given, each of them is
-interpreted as a Lisp file to load.</span>
-
-<span class="mark">Otherwise a simple read-eval-print-loop is invoked,
-which reads Lisp code from `stdin`, prints results on `stdout` and
-exceptions on `stderr`. If `stdin` is a TTY a startup message is printed
-and than the string “`> `” is printed as prompt.</span>
-
-#### <span class="mark">fLisp as Script Language</span>
-
-<span class="mark">The *fLisp* binaries can be used for scripting. Put a
-shebang line with the path to the respective binary in the first line of
-the script, e.g: `#!/usr/local/bin/flisp`</span>
 
 [^](#toc)

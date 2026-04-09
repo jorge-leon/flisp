@@ -134,7 +134,7 @@
   <p><a href="#toc">^</a></p>
   <h3 id="memory">Memory Allocation</h3>
   <p><code>lisp_new()</code>&nbsp;sets the initial size of the semi-spaces to the given value,&nbsp;&nbsp;but at least
-  to <code>FLISP_MEMORY_INC_SIZE</code> which defaults to eight kilobytes.&nbsp; An application should initialize the
+  to <code>FLISP_MEMORY_INC_SIZE</code> which defaults to 16 kilobytes.&nbsp; An application should initialize the
   semi-space size to a value above its typical object space demand to avoid repeated garbage collection cycles on
   startup.</p>
   <p>The <code>flisp</code> command line utility which loads just the file extension and the core Lisp library grows
@@ -153,14 +153,13 @@
   character is encountered it is printed ASCII characters when possible, otherwise its hex code is printed. Unicode
   multi-byte characters produce as many error messages as there are bytes.</p>
   <p>Strings are read in as-is, non-ASCII characters between double quotes are stored as they appear. The string
-  primitives: <code>string-length</code>, <code>string-search</code> and <code>substring</code> have a notion of the
-  size of UTF-8 character encodings and count the string indices and lenghts in Unicode characters instead of
-  bytes.</p>
-  <p>The primitive <code>(interp :size <var>object</var>)</code>&nbsp;can be used to calculate the length of the
-  character array used to store the string, including the terminating <code>NUL</code> character.</p>
+  extension primitives: <code>string-length</code>, <code>string-search, string-spn, string-cspn</code> and
+  <code>substring</code> have a notion of the size of UTF-8 character encodings and count the string indices and
+  lenghts in Unicode characters instead of bytes.</p>
+  <p>The primitive <code>(object-size <var>object</var>)</code>&nbsp;returns the length of the character array used to
+  store the string, including the terminating <code>NUL</code> character.</p>
   <p><em>Caution</em>: <i>fLisp</i> takes no measures against incorrectly encoded UTF-8 string.</p>
-  <p>The string extension primitives <code>char-length</code>, <code>char-code</code> and <code>code-char</code>
-  however perform some checks.</p>
+  <p>The string extension primitives however perform some checks.</p>
   <nav>
     <p><a href="#toc">^</a></p>
     <h3>References</h3>
