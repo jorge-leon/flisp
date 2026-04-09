@@ -23,7 +23,7 @@
 #define CPP_STR(s) #s
 
 #ifndef FLISP_MEMORY_INC_SIZE
-#define FLISP_MEMORY_INC_SIZE 8192UL  /* Increase memory by this amount if not enough */
+#define FLISP_MEMORY_INC_SIZE 16384UL  /* Increase memory by this amount if not enough */
 #endif
 
 /* buffersize for Lisp eval input */
@@ -73,12 +73,35 @@ typedef struct ObjectHeader {
     FLISP_SIMPLE_OBJECT_STRUCT;
 } ObjectHeader;
 
-typedef struct StreamObject {
+typedef struct ConsExt {
+    Object *car;
+    Object *cdr;
+} ConsExt;
+
+typedef struct EnvExt {
+    Object *parent;
+    Object *vars;
+    Object *vals;
+} EnvExt;
+
+typedef struct ClosureExt {
+    Object *params;
+    Object *body;
+    Object *env;
+} ClosureExt;
+
+typedef struct ErrorExt {
+    Object *type;
+    Object *message;
+    Object *culprit;
+} ErrorExt;
+
+typedef struct StreamExt {
     Object *path;
     FILE *fd;
     char *buf;
     size_t len;
-} StreamObject;
+} StreamExt;
 
 /* Internal */
 typedef struct Memory {
@@ -86,7 +109,7 @@ typedef struct Memory {
     void *fromSpace, *toSpace;
 } Memory;
 
-typedef struct InterpreterObject {
+typedef struct InterpreterExt {
     Object *input;
     Object *output;
     Object *stderr;
@@ -100,26 +123,27 @@ typedef struct InterpreterObject {
     bool trace_read : 1;
     bool trace_primitives : 1;
     bool gc_always : 1;
-} InterpreterObject;
+} InterpreterExt;
 
-typedef struct ExtensionObject {
+typedef struct ExtensionExt {
     Object *name;
     Object *version;
     ExtensionInit init;
-} ExtensionObject;
+} ExtensionExt;
 
 struct Object {
     FLISP_SIMPLE_OBJECT_STRUCT;
     union {
         Object *objects[1];                                               // Vector
         struct { Object *car;    Object *cdr; };                          // Cons
-        struct { Object *params; Object *body; Object *env; };            // Closure: Lambda, Macro
-        struct { Object *parent; Object *vars; Object *vals; };           // Environment
         char string[PATH_MAX];                                            // String, Symbol
-        struct { Object *error; Object *message; Object *culprit; }; // Error
-        StreamObject stream;
-        ExtensionObject extension;
-        InterpreterObject self;
+        ConsExt cons;
+        EnvExt env;
+        ClosureExt closure; /* Lambda, Macro */
+        ErrorExt error;
+        StreamExt stream;
+        ExtensionExt extension;
+        InterpreterExt self;
     };
 };
 
@@ -140,12 +164,15 @@ extern Object *flisp_write_object(FILE *, Object *, bool);
 extern Object *flisp_lookup(Object *, Object *);
 /* Note: to be documented */
 extern Object *flisp_find_symbol(Object *, char*, size_t);
+extern Object *flisp_nreverse(Object *, Object *);
+extern Object *file_fopen(Object *, char *, char*);
+extern int file_fclose(Object *, Object *);
 
 /* Extensions */
 #define FLISP_IS_ERR(OBJECT) ((OBJECT)->type == type_error)
-#define FLISP_IS_EOF(OBJECT) (FLISP_IS_ERR(OBJECT) && (OBJECT)->error == end_of_file)
+#define FLISP_IS_EOF(OBJECT) (FLISP_IS_ERR(OBJECT) && (OBJECT)->error.type == end_of_file)
 /* Note: for speed reasons we could use a single static error object and compare pointers */
-#define FLISP_IS_OOM(OBJECT) (FLISP_IS_ERR(OBJECT) && (OBJECT)->error == gc_error)
+#define FLISP_IS_OOM(OBJECT) (FLISP_IS_ERR(OBJECT) && (OBJECT)->error.type == gc_error)
 
 extern Object *flisp_register_extension(Object *, char *, ExtensionInit);
 
@@ -194,7 +221,10 @@ extern Object *read_only;
 extern Object *is_directory;
 /* utility */
 extern Object *flisp_empty_string;
+extern Object *flisp_integer_zero;
+extern Object *flisp_empty_vector;
 
+extern Object *flisp_ext_obj(Object *, Object *, Object **, size_t, size_t);
 /* Note: flisp_' ify these names */
 extern Object *newObject(Object *, Object *, size_t);
 extern Object *newInteger(Object *, int64_t);
@@ -233,7 +263,7 @@ extern bool flisp_is_error(Object **, Object *);
 #define FLISP_WHILE_OK(F) if (flisp_not_same(&e, F)) break
 #define FLISP_UNLESS_ERR(F) if (flisp_is_error(&e, F)) break
 
-void fl_debug(Object *, char *, ...);
+void flisp_debug(Object *, char *, ...);
 
 #define FLISP_ARG1 (*args)->car
 #define FLISP_ARG2 (*args)->cdr->car
