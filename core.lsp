@@ -196,9 +196,11 @@
   ;; If object o in list l return sublist of l starting with o, else nil.
   ;; Elisp
   (cond
-    ((eq nil l) nil)
-    ((eq o (car l)) l)
-    (t (memq o (cdr l)))))
+    ((null l) nil)
+    ((consp l)
+     (if (eq o (car l)) l
+	 (memq o (cdr l)) ))
+    (t (error :wrong-type-argument "(memq o l) - l not a list" l)) ))
 
 (defun map (f . lists)
   (let loop ((result  nil) (lists lists))
