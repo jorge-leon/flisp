@@ -105,8 +105,8 @@ doxygen: FORCE
 	doxygen
 
 # Development
-fli: fl FORCE
-	FLISP_DEBUG=f.log $$(which rlwrap) ./fl
+fli: fl flisp FORCE
+	FLISP_DEBUG=f.log $$(which rlwrap) ./fl flisp
 fld: fl FORCE
 	FLISP_DEBUG=f.log gdb ./fl
 flv: fl FORCE

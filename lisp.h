@@ -209,7 +209,7 @@ extern Object *end_of_file;
 extern Object *range_error;
 extern Object *wrong_type_argument;
 extern Object *invalid_value;
-extern Object *wrong_num_of_arguments;
+extern Object *wrong_number_of_arguments;
 extern Object *io_error;
 extern Object *out_of_memory;
 extern Object *gc_error;
