@@ -16,7 +16,7 @@
 #include <limits.h>
 
 #define FL_NAME     "fLisp"
-#define FL_VERSION  "0.17α1"
+#define FL_VERSION  "0.17α2"
 
 /* For inserting FLISPLIP, FLISPRC */
 #define CPP_XSTR(s) CPP_STR(s)
