@@ -24,22 +24,22 @@
 (defun cadar (l) (car (cdr (car l))))
 
 ;; https://github.com/kanaka/mal/blob/master/process/guide.md#step-7-quoting
-(defun quasiquote-splice-unquote (ast)
+(defun quasiquote-splice (ast)
   (cond
     ((null ast) nil)
-    ((and (consp (car ast)) (same (caar ast) 'splice-unquote)) (list 'append (cadar ast)) (quasiquote-splice-unquote (cdr ast))))
-    (t (list 'cons (quasiquote-unquote (car ast)) (quasiquote-splice-unquote (cdr ast)))) ))
+    ((and (consp (car ast)) (same (caar ast) 'splice-unquote)) (list 'append (cadar ast) (quasiquote-splice (cdr ast))))
+    (t (list 'cons (quasiquote-unquote (car ast)) (quasiquote-splice (cdr ast)))) ))
 
 (defun quasiquote-unquote (ast)
   (cond
     ((consp ast)
      (cond
-       ((same (car ast) 'unquote) (car (cdr ast)))
-       (t (quasiquote-splice-unquote ast)) ))
+       ((same (car ast) 'unquote) (cadr ast))
+       (t (quasiquote-splice ast)) ))
     ((same (type-of ast) type-symbol) (list 'quote ast))
     (t ast) ))
 
-(defmacro quasiquote (ast) (qq ast))
+(defmacro quasiquote (ast) (quasiquote-unquote ast))
 
 ;;; conditionals
 
