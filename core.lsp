@@ -9,6 +9,38 @@
       (macro (name params . body)
 	     (list 'bind t name (list (quote macro) params . body)) ))
 
+(defmacro defun (name params . body)
+  (list 'bind t name (list (quote lambda) params . body)) )
+
+;;; Accessors
+;; Note: replace c*ddr with (elements n) where n = number of 'd's
+(defun cadr (l) (car (cdr l)))
+(defun cddr (l) (cdr (cdr l)))
+(defun caar (l)  (car (car l)))
+(defun cdar (l)  (cdr (car l)))
+(defun caddr (l) (car (cdr (cdr l))))
+(defun caaar (l) (car (car (car l))))
+(defun cdaar (l) (cdr (car (car l))))
+(defun cadar (l) (car (cdr (car l))))
+
+;; https://github.com/kanaka/mal/blob/master/process/guide.md#step-7-quoting
+(defun quasiquote-splice-unquote (ast)
+  (cond
+    ((null ast) nil)
+    ((and (consp (car ast)) (same (caar ast) 'splice-unquote)) (list 'append (cadar ast)) (quasiquote-splice-unquote (cdr ast))))
+    (t (list 'cons (quasiquote-unquote (car ast)) (quasiquote-splice-unquote (cdr ast)))) ))
+
+(defun quasiquote-unquote (ast)
+  (cond
+    ((consp ast)
+     (cond
+       ((same (car ast) 'unquote) (car (cdr ast)))
+       (t (quasiquote-splice-unquote ast)) ))
+    ((same (type-of ast) type-symbol) (list 'quote ast))
+    (t ast) ))
+
+(defmacro quasiquote (ast) (qq ast))
+
 ;;; conditionals
 
 (defmacro if (pred then . else)
@@ -25,18 +57,7 @@
 (defmacro unless (pred . body)
   (cond (body (list 'cond (list pred nil) (cons 't body)))) )
 
-(defmacro defun (name params . body)
-  (list 'bind t name (list (quote lambda) params . body)) )
 
-;;; Accessors
-;; Note: replace c*ddr with (elements n) where n = number of 'd's
-(defun cadr (l) (car (cdr l)))
-(defun cddr (l) (cdr (cdr l)))
-(defun caddr (l) (car (cdr (cdr l))))
-(defun caar (l)  (car (car l)))
-(defun cdar (l)  (cdr (car l)))
-(defun caaar (l) (car (car (car l))))
-(defun cdaar (l) (cdr (car (car l))))
 
 ;; Note on setq
 ;; officially
