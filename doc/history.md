@@ -67,10 +67,10 @@ In 2025 garbage collection and Lisp facilities are improved:
 In 2026 *fLisp* is factored out of *Femto*, C-extensions can be loaded
 on demand and extensible objects are introduced. Upon suggestion of
 Kirill L error handling is switched from exception handling to returning
-error objects and the `fl` and `flisp` command line utilities can be
-used for Lisp scripting.
+error objects, multiple return values are implemented and the `fl` and
+`flisp` command line utilities can be used for Lisp scripting.
 
-- The fLisp core, string and flisp libraries as well as the file
+- The *fLisp* core, string and flisp libraries as well as the file
   extension primitives are refined and complemented, a Lisp file library
   is added, the stdlib library is removed.
 - The read-eval-print loop is now completely written in Lisp, `fl` and

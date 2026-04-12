@@ -11,13 +11,6 @@
 - Add line , character and column counter to input stream
 - Expose reader primitives and write reader in Lisp, utf-8!
 - Allow to extend the reader macros, property list?
-- Allow all characters except controls and (ASCII) whitespace for symbol names
-- Add "trim" parameter to gc call: add or increase allocated memory.
-- Add "which" parameter go gc call, so we can have more then one space.
-- Add gc stat fields to interp object
-- Continue with "clean" object types:
-  - Base object (meta?)
-  - Extensions
 - Add "weight" field to objects and increment them on use. When over threshold
   move to "sink" space and set weight negative. -1 is resevered for constants.
 - Re-order symbols on the fly so that heavier ones float to the bottom.
@@ -25,10 +18,6 @@
 - RPN micro reader
 - Remove all printf, make own buffering and remove stdio <- not a goal anymore:
   simplify to standard.
-- Make memory allocated parametrizable, allocate constants in separate mmap.
-- Implement backquote and friends.
-  - The reader already implements '`', ',' and ',@' as `quasiquote`, `unquote`
-    and `splice-unquote`.
 - Size reduction:
   - Reduce binary operators to 'and' and 'xor' and write needed rest in Lisp.
 - Tap the potential of the in code documentation via Doxygen.
@@ -44,16 +33,31 @@
 - Test more then one interpreter.
 - ? CSP between interpreters?
 
+
+## fLisp 0.18
+- Allow all characters except controls and (ASCII) whitespace for symbol names
+- Implement backquote and friends.
+  - The reader already implements '`', ',' and ',@' as `quasiquote`, `unquote`
+    and `splice-unquote`.
+- Make memory allocated parametrizable, allocate constants in separate mmap.
+- Add "trim" parameter to gc call: add or increase allocated memory.
+- Add "which" parameter go gc call, so we can have more then one space.
+- Add gc stat fields to interp object
+
+
 ## fLisp 0.17
+- Implement multiple return values.
 - make (length list) use flisp_list_length if appropiate or make object-length
   for conses return list length instead of 2.
 - Consider returning the element instead of the list with one element when
-  (elements o n n+1)
+  (elements o n n+1).
 - Review error behavior for all primitives.
-- Clean up and document internal and extported flisp_* functions and FLISP_* macros
+- Clean up and document internal and extported flisp_* functions and FLISP_* macros.
 - ! don't! Remove argv0 and argv from flisp_new(), inject them at startup <- or maybe not.
-- More testing, stress-testing
-- Femto integration
+- More testing, stress-testing.
+- Femto integration.
+- Cleaner object types:, base object and object extension.
+
 
 ## flisp 0.17α
 - Make workable flisp command line utility as shell script and rework repl.

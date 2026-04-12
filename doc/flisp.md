@@ -304,7 +304,7 @@ An input and/or output stream.
 An n-tuple of objects.
 
 <span class="dfn">values</span>  
-A "frozen" list of objects - experimental.
+A "frozen" list of objects used to return multiple values.
 
 <span class="dfn">interpreter</span>  
 Holds all objects relevant for the execution of fLisp.
