@@ -51,7 +51,7 @@ double.o: double.c double.h lisp.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
 
 fl: fl.o lisp.o $(OBJ)
-	$(LD) $(LDFLAGS) -o $@ $^ -lm -lc
+	$(LD) $(LDFLAGS) -o $@ $^ -lm
 
 flisp: flisp.sht fl core.lsp
 	BINDIR=$(BINDIR) FLISPLIB=$(DATADIR)/$(PACKAGE) ./sht $< > $@
