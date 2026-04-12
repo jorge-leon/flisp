@@ -33,7 +33,7 @@ RC_FILES = init.lsp
 HEADER = lisp.h string.h posix.h double.h
 
 LISPLIB = flisp.lsp string.lsp file.lsp cl.lsp
-SOURCES = fl.c flisp.c lisp.c lisp.h double.c double.h posix.c posix.h string.c string.h
+SOURCES = fl.c flisp.sht lisp.c lisp.h double.c double.h posix.c posix.h string.c string.h
 
 DOCFILES = README.md doc/flisp.html doc/develop.html doc/history.html doc/implementation.html
 MOREDOCS = README.html doc/flisp.md doc/develop.md doc/history.md doc/implementation.md
