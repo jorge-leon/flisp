@@ -6,6 +6,7 @@
 
 (defun listp (o) (cond ((null o)) ((consp o))))
 
+;; Note: use (elements l i) instead
 (defun nthcdr (i l)
   (cond
     ((not (integerp i))
@@ -67,5 +68,24 @@
       (and (consp o1) (consp o2)
 	   (equal (car o1) (car o2))
 	   (equal (cdr o1) (cdr o2)))))
+
+;; https://github.com/kanaka/mal/blob/master/process/guide.md#step-7-quoting
+(defun quasiquote-splice (ast)
+  (cond
+    ((null ast) nil)
+    ((and (consp (car ast)) (same (caar ast) 'splice-unquote)) (list 'append (cadar ast) (quasiquote-splice (cdr ast))))
+    (t (list 'cons (quasiquote-unquote (car ast)) (quasiquote-splice (cdr ast)))) ))
+
+(defun quasiquote-unquote (ast)
+  (cond
+    ((consp ast)
+     (cond
+       ((same (car ast) 'unquote) (cadr ast))
+       (t (quasiquote-splice ast)) ))
+    ((same (type-of ast) type-symbol) (list 'quote ast))
+    (t ast) ))
+
+(defmacro quasiquote (ast) (quasiquote-unquote ast))
+
 
 (provide 'flisp)

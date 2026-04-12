@@ -9,38 +9,6 @@
       (macro (name params . body)
 	     (list 'bind t name (list (quote macro) params . body)) ))
 
-(defmacro defun (name params . body)
-  (list 'bind t name (list (quote lambda) params . body)) )
-
-;;; Accessors
-;; Note: replace c*ddr with (elements n) where n = number of 'd's
-(defun cadr (l) (car (cdr l)))
-(defun cddr (l) (cdr (cdr l)))
-(defun caar (l)  (car (car l)))
-(defun cdar (l)  (cdr (car l)))
-(defun caddr (l) (car (cdr (cdr l))))
-(defun caaar (l) (car (car (car l))))
-(defun cdaar (l) (cdr (car (car l))))
-(defun cadar (l) (car (cdr (car l))))
-
-;; https://github.com/kanaka/mal/blob/master/process/guide.md#step-7-quoting
-(defun quasiquote-splice (ast)
-  (cond
-    ((null ast) nil)
-    ((and (consp (car ast)) (same (caar ast) 'splice-unquote)) (list 'append (cadar ast) (quasiquote-splice (cdr ast))))
-    (t (list 'cons (quasiquote-unquote (car ast)) (quasiquote-splice (cdr ast)))) ))
-
-(defun quasiquote-unquote (ast)
-  (cond
-    ((consp ast)
-     (cond
-       ((same (car ast) 'unquote) (cadr ast))
-       (t (quasiquote-splice ast)) ))
-    ((same (type-of ast) type-symbol) (list 'quote ast))
-    (t ast) ))
-
-(defmacro quasiquote (ast) (quasiquote-unquote ast))
-
 ;;; conditionals
 
 (defmacro if (pred then . else)
@@ -57,14 +25,20 @@
 (defmacro unless (pred . body)
   (cond (body (list 'cond (list pred nil) (cons 't body)))) )
 
+(defmacro defun (name params . body)
+  (list 'bind t name (list (quote lambda) params . body)) )
 
+;;; Accessors
+;; Note: replace c*ddr with (elements n) where n = number of 'd's
+(defun cadr (l) (car (cdr l)))
+(defun cddr (l) (cdr (cdr l)))
+(defun caar (l)  (car (car l)))
+(defun cdar (l)  (cdr (car l)))
+(defun caddr (l) (car (cdr (cdr l))))
+(defun caaar (l) (car (car (car l))))
+(defun cdaar (l) (cdr (car (car l))))
+(defun cadar (l) (car (cdr (car l))))
 
-;; Note on setq
-;; officially
-;; (setq) => nil
-;; (setq a) => error
-;; but with bind:
-;; (bind t x) => nil, x = nil
 (defmacro setq args
   (when args
     (cons 'bind (cons t args)) ))
@@ -85,10 +59,11 @@
       streamp  (curry typep type-stream)
       errorp   (curry typep type-error)
       vectorp  (curry typep type-vector)
-      valuesp  (curry typep type-values) )
+      ;;values are never seen
+      )
 
-(defun mapcar (func xs)
-  (cond (xs (cons (func (car xs)) (mapcar func (cdr xs))))))
+(defun mapcar (f l)
+  (cond (l (cons (f (car l)) (mapcar f (cdr l))))))
 
 ;; (let bindings[ body])
 ;; (let label[ bindings[ body])
@@ -141,8 +116,8 @@
 ;; Elisp
 (defun concat args
   (cond
-    ((eq nil args) "")
-    ((eq nil (cdr args)) (string (car args)))
+    ((null args) "")
+    ((null (cdr args)) (string (car args)))
     (t (string-append (string (car args)) (concat (cdr args)))) ))
 
 (defun numberp (o) (cond  ((integerp o)) ((doublep o))))

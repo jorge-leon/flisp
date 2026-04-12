@@ -17,7 +17,7 @@ tap 212
 [ -x $FLISP ]
 ok flisp-1 flisp exists and is executable;
 
-IN= OUT="fLisp 0.17α1"
+IN= OUT="fLisp 0.17α2"
 FLISP_INTERACTIVE=1 flisp_expr 3 1; ok flisp-2 empty input succeeds
 
 # reader

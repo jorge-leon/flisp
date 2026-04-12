@@ -35,17 +35,15 @@
 
 
 ## fLisp 0.18
-- Allow all characters except controls and (ASCII) whitespace for symbol names
-- Implement backquote and friends.
-  - The reader already implements '`', ',' and ',@' as `quasiquote`, `unquote`
-    and `splice-unquote`.
 - Make memory allocated parametrizable, allocate constants in separate mmap.
 - Add "trim" parameter to gc call: add or increase allocated memory.
-- Add "which" parameter go gc call, so we can have more then one space.
+- Add "which" parameter to gc call, so we can have more then one space.
 - Add gc stat fields to interp object
 
 
 ## fLisp 0.17
+- Allow all characters except controls and (ASCII) whitespace for symbol names
+- Implement backquote and friends.
 - Implement multiple return values.
 - make (length list) use flisp_list_length if appropiate or make object-length
   for conses return list length instead of 2.

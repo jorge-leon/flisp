@@ -1039,8 +1039,14 @@ Object *evalExpr(Object *, Object **, Object **);
 
 int isSymbolChar(int ch, size_t dummy)
 {
+#if 0
     static const char *valid = "!#$%&*+-./:<=>?@^_|~";
     return isalnum(ch) || strchr(valid, ch);
+#else
+    /* Note: not control character, not space character, not quote, doublequote, backquote coma # */
+    static const char *invalid = "\"'(){}[],` ";
+    return !strchr(invalid, ch) && ((ch > 31 && ch < 127) || (ch >= 0x80));
+#endif
 }
 int isDigitChar(int ch, size_t base)
 {
