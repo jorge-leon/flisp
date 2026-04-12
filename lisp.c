@@ -681,23 +681,14 @@ Object *checkParams(Object *interp, Object *param, Object** vals, size_t nArgs)
     Object *prev = nil, *val = *vals;
     bool check = true;
 
-    flisp_debug(interp, "checkParams: params: ");
-    flisp_write_object(FLISP_DEBUG_OUTPUT.fd, param, false);
-    flisp_debug(interp, "\n");             
-
-    
     for (;;) {
         if (param == nil && val == nil) break;
 
         if (val != nil && val->type != type_cons)
             return newErrorI(interp, wrong_type_argument, val, "(f args) - args[", nArgs, "] is not a list");
 
-        if (param != nil && param->type == type_symbol) {
-            /* Note: we have a dotted list, what about values expansion here? */
-            flisp_debug(interp, "checkParams: dotted\n");
-            //break;
-            check = false;
-        }
+        check = !(param != nil && param->type == type_symbol);
+
         if (check) {
             if (param == nil && val != nil)
                 return newErrorI(interp, wrong_number_of_arguments, *vals, "(f args) - args, f expects at most ", nArgs, " arguments");
@@ -707,7 +698,6 @@ Object *checkParams(Object *interp, Object *param, Object** vals, size_t nArgs)
             }
         } else if (val == nil) break;
         if (val->car->type == type_values) {
-            flisp_debug(interp, "checkParams: args %zu is a value of length: %zu\n", nArgs, flisp_list_length(val->car->objects[0]));
             if (val->cdr == nil) {
                 /* Special case, if values is at end of parameter list, destructively insert its arguments and restart checking */
                 if (prev == nil)
@@ -743,23 +733,7 @@ Object *newEnv(Object *interp, Object ** func, Object ** vals)
         return environment;
     }
 
-#if 1
     CHECK_ERR(checkParams(interp, (*func)->closure.params, vals, 0));
-#else
-    Object *param = (*func)->closure.params, *val = *vals;
-    for (size_t nArgs = 0;; param = param->cdr, val = val->cdr, ++nArgs) {
-        if (param == nil && val == nil) break;
-        if (param != nil && param->type == type_symbol) break;
-        if (val != nil && val->type != type_cons)
-            return newErrorI(interp, wrong_type_argument, val, "(f args) - args[", nArgs, "] is not a list");
-        if (param == nil && val != nil)
-            return newErrorI(interp, wrong_number_of_arguments, *vals, "(f args) - args, f expects at most ", nArgs, " arguments");
-        if (param != nil && val == nil) {
-            for (; param->type == type_cons; param = param->cdr, ++nArgs);
-            return newErrorI(interp, wrong_number_of_arguments, *vals, "(f args) - args, f expects at least ", nArgs, " arguments");
-        }
-    }
-#endif
     environment->env.parent = (*func)->closure.env;
     environment->env.vars = (*func)->closure.params;
     environment->env.vals = *vals;
@@ -1845,7 +1819,6 @@ Object *evalExpr(Object *interp, Object ** object, Object **env)
                                            primitive->name, nArgs);
 
                     if (args->car->type == type_values) {
-                        flisp_debug(interp, "evalExpr: arg %zu of %s is a value of length: %zu\n", nArgs+1, primitive->name, flisp_list_length(args->car->objects[0]));
                         if (args->cdr == nil) {
                             /* Special case, if values is at end of parameter list, destructively insert its arguments and restart checking */
                             if (prev == nil)
