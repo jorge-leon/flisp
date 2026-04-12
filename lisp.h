@@ -136,7 +136,7 @@ struct Object {
     union {
         Object *objects[1];                                               // Vector
         struct { Object *car;    Object *cdr; };                          // Cons
-        char string[PATH_MAX];                                            // String, Symbol
+        char string[sizeof(InterpreterExt)];                              // String, Symbol
         ConsExt cons;
         EnvExt env;
         ClosureExt closure; /* Lambda, Macro */

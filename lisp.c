@@ -679,6 +679,7 @@ Object *cloneList(Object *interp, Object *list, Object *end)
 Object *checkParams(Object *interp, Object *param, Object** vals, size_t nArgs)
 {
     Object *prev = nil, *val = *vals;
+    bool check = true;
 
     flisp_debug(interp, "checkParams: params: ");
     flisp_write_object(FLISP_DEBUG_OUTPUT.fd, param, false);
@@ -687,20 +688,24 @@ Object *checkParams(Object *interp, Object *param, Object** vals, size_t nArgs)
     
     for (;;) {
         if (param == nil && val == nil) break;
+
+        if (val != nil && val->type != type_cons)
+            return newErrorI(interp, wrong_type_argument, val, "(f args) - args[", nArgs, "] is not a list");
+
         if (param != nil && param->type == type_symbol) {
             /* Note: we have a dotted list, what about values expansion here? */
             flisp_debug(interp, "checkParams: dotted\n");
-            break;
+            //break;
+            check = false;
         }
-        if (val != nil && val->type != type_cons)
-            return newErrorI(interp, wrong_type_argument, val, "(f args) - args[", nArgs, "] is not a list");
-        if (param == nil && val != nil)
-            return newErrorI(interp, wrong_number_of_arguments, *vals, "(f args) - args, f expects at most ", nArgs, " arguments");
-        if (param != nil && val == nil) {
-            for (; param->type == type_cons; param = param->cdr, ++nArgs);
-            return newErrorI(interp, wrong_number_of_arguments, *vals, "(f args) - args, f expects at least ", nArgs, " arguments");
-        }
-
+        if (check) {
+            if (param == nil && val != nil)
+                return newErrorI(interp, wrong_number_of_arguments, *vals, "(f args) - args, f expects at most ", nArgs, " arguments");
+            if (param != nil && val == nil) {
+                for (; param->type == type_cons; param = param->cdr, ++nArgs);
+                return newErrorI(interp, wrong_number_of_arguments, *vals, "(f args) - args, f expects at least ", nArgs, " arguments");
+            }
+        } else if (val == nil) break;
         if (val->car->type == type_values) {
             flisp_debug(interp, "checkParams: args %zu is a value of length: %zu\n", nArgs, flisp_list_length(val->car->objects[0]));
             if (val->cdr == nil) {
@@ -720,7 +725,7 @@ Object *checkParams(Object *interp, Object *param, Object** vals, size_t nArgs)
             }
             continue;
         }
-        param = param->cdr;
+        if (check)  param = param->cdr;
         prev = val;
         val = val->cdr;
         ++nArgs;

@@ -12,7 +12,7 @@ unset PREPARE
 export PREPARE="(interp-gc-always t)"
 export FLISP_SIZE=$((20*1024*1024))
 
-tap 199
+tap 210
 
 [ -x $FLISP ]
 ok flisp-1 flisp exists and is executable;
@@ -112,14 +112,26 @@ IN="(" OUT="#<Error read-incomplete: \"unexpected end of stream while reading li
 flisp_expr; ok reader-17 read list without end
 
 # Special forms
-IN='(quote)' OUT="#<Error wrong-number-of-arguments: \"expects at least 1 arguments\", #<Primitive quote [1, 1] nil>>"
+IN='(quote)' OUT="#<Error wrong-number-of-arguments: \"quote expects exactly 1 argument\", nil>"
 flisp_expr; ok quote-1 w/o arg error message
 
-IN='(bind)' OUT=nil
-flisp_expr; ok bind-1 zero arg gives nil
+IN='(bind)' OUT='#<Error wrong-number-of-arguments: "(bind p s[ o] ..) expects at least two arguments", nil>'
+flisp_expr; ok bind-1 zero arg errs
 
-IN='(bind t)' OUT=nil
-flisp_expr; ok bind-2 one arg gives nil
+IN='(bind t)' OUT='#<Error wrong-number-of-arguments: "(bind p s[ o] ..) expects at least two arguments", (t)>'
+flisp_expr; ok bind-2 one arg errs
+
+IN='(bind . t)' OUT='#<Error wrong-number-of-arguments: "(bind p s[ o] ..) expects at least two arguments", t>'
+flisp_expr; ok bind-2-1 dottet list before p errs
+
+IN='(bind t s . 1)' OUT='#<Error invalid-value: "(bind p s[ o] ..) - o, arguments are not a proper list", (t s . 1)>'
+flisp_expr; ok bind-2-2 dotted list before value errs
+
+IN='(bind t s 1 . t)' OUT='#<Error invalid-value: "(bind p s[ o] ..) - s, arguments are not a proper list", (t s 1 . t)>'
+flisp_expr; ok bind-2-3 dotted list before symbol errs
+
+IN='(bind t invalid-value)' OUT='#<Error wrong-type-argument: "(bind p s[ o[ s[ ..]]]) - s is a constant and cannot be redefined", invalid-value>'
+flisp_expr; ok bind-2-4  binding constant errs
 
 IN="(bind nil var 'val)" OUT=val
 flisp_expr; ok bind-3 assignment returns value
@@ -185,7 +197,7 @@ flisp_expr; ok cond-12 cond with last expresion single string list gives its val
 IN="(cond nil ((consp (quote (a b)))))" OUT=t
 flisp_expr; ok cond-13 cond with last expresion funcall gives result
 
-IN='(cond . "a")' OUT="#<Error wrong-type-argument: \"(cond args) - args is not a list, arg 0\", \"a\">"
+IN='(cond . "a")' OUT="#<Error wrong-type-argument: \"(cond args) - args is not a list, arg 1\", \"a\">"
 flisp_expr; ok cond-14 fail if not called with a cons
 
 IN='(cond "a" ())' OUT="#<Error wrong-type-argument: \"(cond clause ..) - clause is not a list\", \"a\">"
@@ -515,8 +527,28 @@ flisp_expr; ok elements-15 environments have elements
 IN="(vector 1 2 3)" OUT="#<Vector 3>"
 flisp_expr; ok vector-1 vector of 3
 
-IN="(elements (values 1 2 3) 0 1)" OUT="((1 2 3))"
-flisp_expr; ok values-1 values of 3
+IN="(i+ (values 3 4))" OUT="7"
+flisp_expr; ok values-1-1 binary primitive all args
+
+IN="(i+ 3 (values 4))" OUT="7"
+flisp_expr; ok values-1-2 binary primitive last arg
+
+IN="(i+ (values 3) 4)" OUT="7"
+flisp_expr; ok values-1-3  binary primitive first arg
+
+true; ok values-1-4 n-ary primitive middle arg \# TODO test
+
+IN="((lambda (a b c) (i+ a (i+ b c))) (values 1 2 3))" OUT=6
+flisp_expr; ok values-2-1 trinary lambda all args
+
+IN="((lambda (a b c) (i+ a (i+ b c))) (values 1) 2 3)" OUT=6
+flisp_expr; ok values-2-2 trinary lambda first args
+
+IN="((lambda (a b c) (i+ a (i+ b c))) 1 (values 2 3))" OUT=6
+flisp_expr; ok values-2-3 trinary lambda last arg
+
+IN="((lambda (a b c) (i+ a (i+ b c))) 1 (values 2) 3)" OUT=6
+flisp_expr; ok values-2-4 trinary lambda middle arg
 
 # I/O
 rm -f _file_
