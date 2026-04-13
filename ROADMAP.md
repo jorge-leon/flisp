@@ -35,6 +35,7 @@
 
 
 ## fLisp 0.18
+- Make cloneList() available to Lisp as (list-append) and use e.g. in (append).
 - Make memory allocated parametrizable, allocate constants in separate mmap.
 - Add "trim" parameter to gc call: add or increase allocated memory.
 - Add "which" parameter to gc call, so we can have more then one space.
