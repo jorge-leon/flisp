@@ -490,9 +490,9 @@ Object *posixGetcwd(Object *interp, Object **args, Object **env, size_t nArgs)
     return newString(interp, buf);
 }
 
-Object *fnm_pathname = &(Object) { .string = "FNM_PATHNAME" };
-Object *fnm_noescape = &(Object) { .string = "FNM_NOESCAPE" };
-Object *fnm_period = &(Object) { .string = "FNM_PERIOD" };
+FLISP_DEFINE_CONSTANT(fnm_pathname,FNM_PATHNAME);
+FLISP_DEFINE_CONSTANT(fnm_noescape,FNM_NOESCAPE);
+FLISP_DEFINE_CONSTANT(fnm_period,FNM_PERIOD);
 
 /** (fnmatch pattern string[ flags])
  * https://man7.org/linux/man-pages/man3/fnmatch.3p.html
@@ -531,21 +531,21 @@ Object *flisp_posix_init(Object *interp, Object *extension)
         FLISP_UNLESS_ERR(flisp_register_constant(interp, fnm_period, newInteger(interp, FNM_PERIOD)));
     
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "fflush",  0, 1, type_stream, posixFflush));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "fseek",   2, 3, nil,         posixFseek));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "fseek",   2, 3, (TypeObject*)nil,         posixFseek));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "ftell",   0, 1, type_stream, posixFtell));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "feof",    0, 1, type_stream, posixFeof));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "fgetc",   0, 1, type_stream, posixFgetc));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "fungetc", 1, 2, nil,         posixFungetc));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "fungetc", 1, 2, (TypeObject*)nil,         posixFungetc));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "fgets",   0, 1, type_stream, posixFgets));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "fstat",   1, 2, nil,         posixFstat));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "fstat",   1, 2, (TypeObject*)nil,         posixFstat));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "fttyp",   0, 1, type_stream, posixFttyP));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "fmkdir",  1, 2, nil,         posixMkdir));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "fmkdir",  1, 2, (TypeObject*)nil,         posixMkdir));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "popen",   1, 2, type_string, posixPopen));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "pclose",  1, 1, type_stream, posixPclose));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "system",  1, 1, type_string, posixSystem));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "getenv",  1, 1, type_string, posixGetenv));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "getcwd",  0, 0, nil,         posixGetcwd));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "fnmatch", 2, 3, nil,         posixFnmatch));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "getcwd",  0, 0, (TypeObject*)nil,         posixGetcwd));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "fnmatch", 2, 3, (TypeObject*)nil,         posixFnmatch));
         
         FLISP_UNLESS_ERR((*gcExt)->extension.version = newString(interp, FLISP_POSIX_VERSION));
     } while (0);

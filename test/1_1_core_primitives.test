@@ -9,7 +9,7 @@ export FLISP=../fl
 export FLISP_INTERACTIVE=0
 export FLISP_DEBUG=../f.log
 unset PREPARE
-export PREPARE="(interp-gc-always t)"
+#export PREPARE="(interp-gc-always t)"
 export FLISP_SIZE=$((20*1024*1024))
 
 tap 212
@@ -17,7 +17,7 @@ tap 212
 [ -x $FLISP ]
 ok flisp-1 flisp exists and is executable;
 
-IN= OUT="fLisp 0.17α2"
+IN= OUT="fLisp 0.17α3"
 FLISP_INTERACTIVE=1 flisp_expr 3 1; ok flisp-2 empty input succeeds
 
 # reader

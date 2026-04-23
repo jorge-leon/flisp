@@ -33,13 +33,13 @@ void fatal(char *msg)
     fputc('\n', stderr);
     exit(1);
 }
-void writeln_object(FILE * fd, Object *object, bool readably)
-{
-    if (!fd)  return;
-    flisp_write_object(fd, object, readably);
-    fputs("\n", fd);
-    fflush(fd);
-}
+/* void writeln_object(FILE * fd, Object *object, bool readably) */
+/* { */
+/*     if (!fd)  return; */
+/*     flisp_write_object(fd, object, readably); */
+/*     fputs("\n", fd); */
+/*     fflush(fd); */
+/* } */
 void write_string(FILE *fd, char *string)
 {
     if (!fd)  return;
@@ -91,7 +91,7 @@ int main(int argc, char **argv)
         FLISP_UNLESS_ERR(flisp_register_extension(interp, "posix", flisp_posix_init));
     } while (0);
     if (FLISP_IS_ERR(e)) {
-        writeln_object(stderr, e, false);
+        //writeln_object(stderr, e, false);
         fatal("fLisp interpreter initialization failed");
     }
 

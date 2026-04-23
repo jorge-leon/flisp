@@ -1,0 +1,10 @@
+- remove flisp_w_object and related functions.
+- gc-always new writer, resp. fix segfaults/missing GC_CHECKPOINT's
+- (write type-* t) must print type-*, not #<type type-*>.
+- fl.c remove write_ln
+- CAR() CDR() Macro: either use it consistently or remove it
+- move double to double extension
+- all primitives: parameters which are not of specific type should be
+- checked with CHECK_ERR(), unless errors are explicitely allowed.
+- consider StreamObject and use it for interpreter streams
+- (elements (interp)) crashes on the eight element.

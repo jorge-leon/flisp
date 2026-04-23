@@ -1,3 +1,9 @@
+flisp (0.17-alpha3) trixie; urgency=medium
+
+  C embedding improvements
+
+ -- Georg Lehner <jorge@magma-soft.at>  Tue, 14 Apr 2026 22:33:31 +0200
+
 flisp (0.17-alpha2) trixie; urgency=medium
 
   Multiple return values

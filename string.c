@@ -262,7 +262,7 @@ Object *flisp_string_init(Object *interp, Object *extension)
     GC_TRACE(gcExt, extension);
     do {
         FLISP_UNLESS_ERR(flisp_register_primitive(   interp, "code-length",   1, 1, type_string,  stringCodeLength));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "char-offset",   2, 2, nil,          stringCharOffset));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "char-offset",   2, 2, (TypeObject*)nil,          stringCharOffset));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "string-length", 1, 1, type_string,  stringLength));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "code-char",     1, 1, type_integer, stringCodeChar));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "char-code",     1, 1, type_string,  stringCharCode));
