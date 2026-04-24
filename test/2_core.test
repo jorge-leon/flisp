@@ -34,11 +34,11 @@ IN="(defmacro m (a b) (list 'list a b)) (m 1 2)" OUT='(1 2)'
 flisp_expr; ok defmacro-1  simple macroexpansion
 
 # conditionals
-IN="(if)" OUT='#<Error wrong-number-of-arguments: "(f args) - args, f expects at least 2 arguments", nil>'
+IN="(if)" OUT='#<error wrong-number-of-arguments: (f args) - args, f expects at least 2 arguments, nil>'
 flisp_expr; ok if-1-1 no args errs
-IN="(if t)" OUT='#<Error wrong-number-of-arguments: "(f args) - args, f expects at least 2 arguments", (t)>'
+IN="(if t)" OUT='#<error wrong-number-of-arguments: (f args) - args, f expects at least 2 arguments, (t)>'
 flisp_expr; ok if-1-2 only t errs
-IN="(if nil)" OUT='#<Error wrong-number-of-arguments: "(f args) - args, f expects at least 2 arguments", (nil)>'
+IN="(if nil)" OUT='#<error wrong-number-of-arguments: (f args) - args, f expects at least 2 arguments, (nil)>'
 flisp_expr; ok if-1-3 only nil predicate errs
 
 IN="(if 'a 3 4)" OUT="3"
@@ -150,7 +150,7 @@ flisp_expr; ok mapcar-2 mapcar does nothing on empty list
 
 # let
 ## unlabelled let
-IN="(let)" OUT='#<Error wrong-number-of-arguments: "(f args) - args, f expects at least 1 arguments", nil>'
+IN="(let)" OUT='#<error wrong-number-of-arguments: (f args) - args, f expects at least 1 arguments, nil>'
 flisp_expr; ok let-1 let errs with zero args
 
 IN="(let ())" OUT=nil
@@ -182,7 +182,7 @@ IN="(let label ((a 2) (b 0))  (print a) (if (i> a 0) (label (i- a 1) (i+ b 1))))
 flisp_expr 2 1; ok labelled-let-5 labelled let loops
 
 # let*
-IN="(let*)" OUT='#<Error wrong-number-of-arguments: "(f args) - args, f expects at least 1 arguments", nil>'
+IN="(let*)" OUT='#<error wrong-number-of-arguments: (f args) - args, f expects at least 1 arguments, nil>'
 flisp_expr; ok 'let*-1 let* errs with zero args'
 
 IN="(let* ())" OUT=nil
@@ -222,16 +222,16 @@ flisp_expr; ok string-5 symbols converts to its name
 IN="(string (cons 'a  2))" OUT='"a2"'
 flisp_expr; ok string-6 cons converts to concatenated strings of elements
 
-IN="(string car)" OUT='"#<Primitive car [1, 1] nil>"'
+IN="(string car)" OUT='"#<primitive car [1, 1] nil>"'
 flisp_expr; ok string-7 primitive prints reader macro and name
 
-IN="(string (lambda (a b)))" OUT='"#<Lambda (a b)>"'
+IN="(string (lambda (a b)))" OUT='"#<lambda (a b)>"'
 flisp_expr; ok string-8 lambda prints reader macro and parameters
 
-IN="(string (macro (a b)))" OUT='"#<Macro (a b)>"'
+IN="(string (macro (a b)))" OUT='"#<macro (a b)>"'
 flisp_expr; ok string-9 macro prints reader macro and parameters
 
-IN='(setq f (open "" "<"))(close f)(string f)' OUT='"#<Stream 0X0 <STRING>"'
+IN='(setq f (open "" "<"))(close f)(string f)' OUT='"#<stream 0X0 <STRING>"'
 flisp_expr; ok string-10 closed stream prints reader macro nil as fd and type
 
 # concat
@@ -287,7 +287,7 @@ flisp_expr; ok append-4 append list atom is dotted list
 IN="(append '(1 2 3) '(a b c))" OUT="(1 2 3 a b c)"
 flisp_expr; ok append-5 append list list is list
 
-IN="(append 1 1)" OUT='#<Error invalid-value: "(append lists) - list expected type-list, got type-integer", nil>'
+IN="(append 1 1)" OUT='#<error invalid-value: (append lists) - list expected type-list, got #<type integer>, nil>'
 flisp_expr; ok append-6 append atom any errs
 
 IN="(apply +)" OUT="0"
@@ -314,7 +314,7 @@ IN='(string-to-number "#d3.14")' OUT='#D40091EB851EB851F'
 flisp_expr; ok string-to-number-2 string #d3.14 is 3.14
 
 
-IN='(string-to-number "answer")' OUT='#<Error invalid-value: "(string-to-number string) - string expected number, got: type-symbol", answer>'
+IN='(string-to-number "answer")' OUT='#<error invalid-value: (string-to-number string) - string expected number, got #<type symbol>, answer>'
 flisp_expr; ok string-to-number-3 not number / string is error
 
 IN='(string-equal "a" "a")' OUT='t'
@@ -419,11 +419,11 @@ IN='(% 11 6 3)' OUT='2' flisp_expr; ok mod-3 mod 11 6 3 is 2
 # IN='(>= 7 7 7)' OUT='t' flisp_expr; ok greater-equal-3 greater-equal 7 7 7 is t
 # IN='(>= 7 7 6)' OUT='t' flisp_expr; ok greater-equal-4 greater-equal 7 7 6 is t
 
-IN='(min)' OUT='#<Error wrong-number-of-arguments: "(f args) - args, f expects at least 1 arguments", nil>'
+IN='(min)' OUT='#<error wrong-number-of-arguments: (f args) - args, f expects at least 1 arguments, nil>'
 flisp_expr; ok min-1 with nil fails
 
 IN='(min "a")'
-OUT='#<Error invalid-value: "(min n[ arg ..]) - n expected number, got :type-string", "a">'
+OUT='#<error invalid-value: (min n[ arg ..]) - n expected number, got #<type string>, a>'
 flisp_expr; ok min-2 with not number fails
 
 IN='(min 0)' OUT=0
@@ -438,10 +438,10 @@ flisp_expr; ok min-5 with 'a>b' yields b
 IN='(min 1 2 3)' OUT=1
 flisp_expr; ok min-6 with more then two args
 
-IN='(max)' OUT='#<Error wrong-number-of-arguments: "(f args) - args, f expects at least 1 arguments", nil>'
+IN='(max)' OUT='#<error wrong-number-of-arguments: (f args) - args, f expects at least 1 arguments, nil>'
 flisp_expr; ok max-1 with nil fails
 
-IN='(max "a")' OUT='#<Error invalid-value: "(max n[ arg ..]) - n expected number, got :type-string", "a">'
+IN='(max "a")' OUT='#<error invalid-value: (max n[ arg ..]) - n expected number, got #<type string>, a>'
 flisp_expr; ok max-2 with not number fails
 
 IN='(max 0)' OUT=0
@@ -569,10 +569,10 @@ IN="(provide 'a 'b)" OUT="(a core)"
 flisp_expr; ok provide-3 providing features a and subfeature b only prepends a to features
 
 # require
-IN="(require)" OUT='#<Error wrong-number-of-arguments: "(f args) - args, f expects at least 1 arguments", nil>'
+IN="(require)" OUT='#<error wrong-number-of-arguments: (f args) - args, f expects at least 1 arguments, nil>'
 flisp_expr; ok require-1 requiring nothing errs
 
-IN="(require '_no_file)" OUT="#<Error not-found: \"failed to open file '../_no_file.lsp' with mode 'r': No such file or directory\", nil>"
+IN="(require '_no_file)" OUT="#<error not-found: failed to open file '../_no_file.lsp' with mode 'r': No such file or directory, nil>"
 flisp_expr; ok require-2 requiring not existing features errs
 
 IN="(require 'core)" OUT="core"

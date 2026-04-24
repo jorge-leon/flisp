@@ -30,7 +30,7 @@ flisp_expr; ok listp-4 two element list is list
 
 # Math
 
-IN='(nthcdr -1 nil)' OUT='#<Error range-error: "negative index", -1>'
+IN='(nthcdr -1 nil)' OUT='#<error range-error: negative index, -1>'
 flisp_expr; ok nthcdr-1 negativ index fails
 
 IN="(nthcdr 0 '(a b c))" OUT='(a b c)'
@@ -49,11 +49,11 @@ IN="(nthcdr 1 '(2 . 3))" OUT=3
 flisp_expr; ok nthcdr-6 of 1 of cons is cdr
 
 IN="(nthcdr null nil)"
-OUT='#<Error wrong-type-argument: "(nthcdr i l) - i expected type-integer, got: type-primitive", #<Primitive null [1, 1] nil>>'
+OUT='#<error wrong-type-argument: (nthcdr i l) - i expected type-integer, got #<type primitive>, #<primitive null [1, 1] nil>>'
 flisp_expr; ok nthcdr-7 wrong index type fails
 
 IN="(nthcdr 1 null)"
-OUT='#<Error wrong-type-argument: "(nthcdr i l) - l expected type-cons, got: type-primitive", #<Primitive null [1, 1] nil>>'
+OUT='#<error wrong-type-argument: (nthcdr i l) - l expected type-cons, got #<type primitive>, #<primitive null [1, 1] nil>>'
 flisp_expr; ok nthcdr-8 wrong list type fails
 
 IN="(nth 1 '(a b c))" OUT=b

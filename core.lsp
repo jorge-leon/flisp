@@ -86,7 +86,7 @@
 	    (list 'bind nil b-or-l
 		  (cons 'lambda (cons (mapcar car (car args)) (cdr args))))
 	    (cons b-or-l (mapcar cadr (car args))) )))
-    (t (error wrong-type-argument "(let bindings body) - bindings expected type-consp or type-symbol, got: " (type-of (car args)))) ))
+    (t (error wrong-type-argument "(let bindings body) - bindings expected type-consp or type-symbol, got " (type-of (car args)))) ))
 
 ;; (let* () body) => ((lambda () body))
 ;; (let* ((var val) ..) body) =>  ((lambda (var) (let* (..) body)) val)
@@ -173,7 +173,7 @@
 	 (type (type-of n)) )
     (close f)
     (if (numberp n)  n
-	(error invalid-value (concat "(string-to-number string) - string expected number, got: " type) n) )))
+	(error invalid-value (concat "(string-to-number string) - string expected number, got " type) n) )))
 
 (defun string-equal (s1 s2)  (i=0 (string-compare s1 s2)))
 
@@ -249,11 +249,11 @@
 
 (defun min (n . args)
   (if (numberp n)  (fold-left (lambda (a b) (cond ((> a b) b) (t a))) n args)
-      (error invalid-value (concat "(min n[ arg ..]) - n expected number, got :" (type-of n)) n) ))
+      (error invalid-value (concat "(min n[ arg ..]) - n expected number, got " (type-of n)) n) ))
 
 (defun max (n . args)
   (if (numberp n) (fold-left (lambda (a b) (cond ((< a b) b) (t a))) n args)
-      (error invalid-value (concat "(max n[ arg ..]) - n expected number, got :" (type-of n)) n) ))
+      (error invalid-value (concat "(max n[ arg ..]) - n expected number, got " (type-of n)) n) ))
 
 ;;; Note: in CL and Scheme (or 'a) => a when a is unbound, and the value of a otherwise.
 ;;;   We don't know how to produce this (easily?) in fLisp
@@ -326,7 +326,7 @@
 (defun error-type (error)
   (if (errorp error) (car (elements error 0 1))
       (error wrong-type-argument
-	     (concat "(error-type error) - error expected type-error, got: " (type-of error))
+	     (concat "(error-type error) - error expected type-error, got " (type-of error))
 	     error) ))
 
 (provide 'core)

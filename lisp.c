@@ -1871,7 +1871,7 @@ Object *evalExpr(Object *interp, Object ** object, Object **env)
 
                     if (primitive->argsType != (TypeObject *)nil && args->car->type != primitive->argsType)
                         /* Note: looks very similar to FLISP_ASSERT() */
-                        return newErrorFmt(interp, wrong_type_argument, args->car, "(%s args) - arg %d expected %s, got: %s",
+                        return newErrorFmt(interp, wrong_type_argument, args->car, "(%s args) - arg %d expected %s, got %s",
                                            primitive->name, nArgs+1,
                                            primitive->argsType->type.name->string,
                                            args->car->type->type.name->string
@@ -1891,7 +1891,7 @@ Object *evalExpr(Object *interp, Object ** object, Object **env)
                     flisp_debug(interp, "trace: (%s", primitive->name);
                     for (args = *gcArgs; args != nil; args = args->cdr) {
                         flisp_debug(interp, " ");
-                        flisp_w_object(FLISP_DEBUG_OUTPUT.fd, args->car, true);
+                        GC_CHECK_ERR(flisp_write_object(interp, args->car, t, interp->self.debug));
                     }
                     flisp_debug(interp, ")\n");
                 }
@@ -2239,6 +2239,12 @@ Object *flisp_w_object(FILE *fd, Object *object, bool readably)
     return flisp_static_error(invalid_value, &write_invalid_object);
 }
 
+/* print_*() are helper functions for the writer primitives. We
+ * comment them as if they were Lisp primitives, but they aren't:
+ * The readably and the stream come optionally from **args, but what
+ * to write comes after the nArgs parameter.
+ */
+/* (print_fmt o[ p[ s]])  */
 Object *print_fmt(Object *interp, Object **args, size_t nArgs, char *format, ...)
 {
     Object *output = interp->self.output;
@@ -2270,6 +2276,7 @@ Object *print_string(Object *interp, Object **args, size_t nArgs, char *string)
         return newError2(interp, io_error, output, "print_string failed: ", strerror(errno));
     return nil;
 }
+/* Consider (print-string-with-len), using fwrite() */
 Object *print_string_readably(Object *interp, Object **args, size_t nArgs, char *string)
 {
     Object *output = interp->self.output;
@@ -2290,6 +2297,8 @@ Object *primitiveWInteger(Object *interp, Object **args, Object **env, size_t nA
 Primitive w_i_p = { .name = "write-integer", .nMinArgs = 2, .nMaxArgs = 3, .argsType = (TypeObject*)&nil_obj, .eval = primitiveWInteger };
 SimpleObject write_integer = { .type = &type_primitive_obj, .size = 0, .primitive = &w_i_p };
 
+
+/* (print_strp o[ p[ s]])  print string taking into account readabl p'redicate */
 Object *print_strp(Object *interp, Object **args, size_t nArgs, char *string)
 {
     bool readably = false;
@@ -2308,8 +2317,8 @@ Object *primitiveWString(Object *interp, Object **args, Object **env, size_t nAr
     FLISP_ASSERT(FLISP_ARG1, type_string, "(write-string o[ p[ s]]) - o");
     return print_strp(interp, args, nArgs, FLISP_ARG1->string);
 }
-Primitive w_s_p = { .name = "write-string", .nMinArgs = 2, .nMaxArgs = 3, .argsType = (TypeObject*)&nil_obj, .eval = primitiveWString };
-static SimpleObject write_string = { .type = &type_primitive_obj, .size = 0, .primitive = &w_s_p };
+Primitive w_string_p = { .name = "write-string", .nMinArgs = 2, .nMaxArgs = 3, .argsType = (TypeObject*)&nil_obj, .eval = primitiveWString };
+static SimpleObject write_string = { .type = &type_primitive_obj, .size = 0, .primitive = &w_string_p };
 
 Object *primitiveWStr(Object *interp, Object **args, Object **env, size_t nArgs)
 {
@@ -2340,8 +2349,8 @@ Object *primitiveWPrimitive(Object *interp, Object **args, Object **env, size_t 
         );
 
 }
-Primitive w_p_p = { .name = "write-primitive", .nMinArgs = 2, .nMaxArgs = 3, .argsType = (TypeObject*)&nil_obj, .eval = primitiveWPrimitive };
-static SimpleObject write_primitive = { .type = &type_primitive_obj, .size = 0, .primitive = &w_p_p };
+Primitive w_primitive_p = { .name = "write-primitive", .nMinArgs = 2, .nMaxArgs = 3, .argsType = (TypeObject*)&nil_obj, .eval = primitiveWPrimitive };
+static SimpleObject write_primitive = { .type = &type_primitive_obj, .size = 0, .primitive = &w_primitive_p };
 
 Object *primitiveWVector(Object *interp, Object **args, Object **env, size_t nArgs)
 {
@@ -2354,7 +2363,9 @@ static SimpleObject write_vector = { .type = &type_primitive_obj, .size = 0, .pr
 Object *primitiveWType(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     FLISP_ASSERT(FLISP_ARG1, type_type, "(write-type o[ p[ s]]) - o");
-    return print_fmt(interp, args, nArgs, "#<Type %s>", ((SimpleObject*)((TypeObject*)FLISP_ARG1)->type.name)->str+(sizeof("type-"))-1);
+    if (nArgs > 1 && FLISP_ARG2 != nil)
+        return print_string(interp, args, nArgs, ((SimpleObject*)((TypeObject*)FLISP_ARG1)->type.name)->str);
+    return print_fmt(interp, args, nArgs, "#<type %s>", ((SimpleObject*)((TypeObject*)FLISP_ARG1)->type.name)->str+(sizeof("type-"))-1);
 }
 Primitive w_type_p = { .name = "write-type", .nMinArgs = 1, .nMaxArgs = 3, .argsType = (TypeObject*)&nil_obj, .eval = primitiveWType };
 static SimpleObject write_type = { .type = &type_primitive_obj, .size = 0, .primitive = &w_type_p };
@@ -2373,13 +2384,29 @@ Object *print_object(Object *, Object **, size_t, Object *);
 Object *primitiveWStream(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     FLISP_ASSERT(FLISP_ARG1, type_stream, "(write-stream o[ p[ s]]) - o");
-    CHECK_ERR(print_fmt(interp, args, nArgs, "#<stream 0X%"PRIX64" ", FLISP_ARG1->stream.fd));
-    CHECK_ERR(print_object(interp, args, nArgs, FLISP_ARG1->stream.path));
-    CHECK_ERR(print_string(interp, args, nArgs, ">"));
+    GC_CHECKPOINT;
+    GC_TRACE(gcArgs, *args);
+    GC_CHECK_ERR(print_fmt(interp, gcArgs, nArgs, "#<stream 0X%"PRIX64" ", FLISP_ARG1->stream.fd));
+    GC_CHECK_ERR(print_object(interp, gcArgs, nArgs, FLISP_ARG1->stream.path));
+    GC_CHECK_ERR(print_string(interp, gcArgs, nArgs, ">"));
     return nil;
 }
 Primitive w_stream_p = { .name = "write-stream", .nMinArgs = 1, .nMaxArgs = 3, .argsType = (TypeObject*)&nil_obj, .eval = primitiveWStream };
 static SimpleObject write_stream = { .type = &type_primitive_obj, .size = 0, .primitive = &w_stream_p };
+
+/* (write-extension o[ p[ s]])*/
+Object *primitiveWExtension(Object *interp, Object **args, Object **env, size_t nArgs)
+{
+    FLISP_ASSERT(FLISP_ARG1, type_extension, "(write-extension o[ p[ s]]) - o");
+    CHECK_ERR(print_string(interp, args, nArgs, "#<extension "));
+    CHECK_ERR(print_object(interp, args, nArgs, FLISP_ARG1->extension.name));
+    CHECK_ERR(print_string(interp, args, nArgs, ", "));
+    CHECK_ERR(print_object(interp, args, nArgs, FLISP_ARG1->extension.version));
+    CHECK_ERR(print_string(interp, args, nArgs, ">"));
+    return nil;
+}
+Primitive w_extension_p = { .name = "write-extension", .nMinArgs = 1, .nMaxArgs = 3, .argsType = (TypeObject*)&nil_obj, .eval = primitiveWExtension };
+static SimpleObject write_extension = { .type = &type_primitive_obj, .size = 0, .primitive = &w_extension_p };
 
 /* (write-cons o[ p[ s]])*/
 Object *primitiveWCons(Object *interp, Object **args, Object **env, size_t nArgs)
@@ -2413,7 +2440,7 @@ Object *primitiveWClosure(Object *interp, Object **args, Object **env, size_t nA
     Object *closure = FLISP_ARG1;
     if (closure->type != type_lambda && closure->type != type_macro)
         return newErrorFmt(interp, wrong_type_argument, closure,
-                           "(write-closure o[ p[ s]]) - o expected type-lambda or type-macro, got: %s",
+                           "(write-closure o[ p[ s]]) - o expected type-lambda or type-macro, got %s",
                            ((SimpleObject*)(closure)->type->type.name)->str);
     CHECK_ERR(print_fmt(interp, args, nArgs, "#<%s ",
                          ((SimpleObject*)((TypeObject*)closure->type)->type.name)->str+(sizeof("type-"))-1));
@@ -2464,7 +2491,7 @@ Object *primitiveWError(Object *interp, Object **args, Object **env, size_t nArg
         nArgs = 1;
     }
     if (readably) {
-        GC_CHECK_ERR(print_string(interp, gcArgs, nArgs, "<#error "));
+        GC_CHECK_ERR(print_string(interp, gcArgs, nArgs, "#<error "));
         GC_CHECK_ERR(print_object(interp, gcArgs, nArgs, (*gcError)->error.type));
         GC_CHECK_ERR(print_string(interp, gcArgs, nArgs, ": "));
         GC_CHECK_ERR(print_object(interp, gcArgs, nArgs, (*gcError)->error.message));
@@ -2501,7 +2528,7 @@ static SimpleObject write_error = { .type = &type_primitive_obj, .size = 0, .pri
  * If no stream is specified the interpreters output file descriptor is used.
  * If the interpreters output file descriptor is NULL, no output is written.
  */
-Object *primitiveW(Object *interp, Object **args, Object **env, size_t nArgs)
+Object *primitiveWrite(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     Object *output = interp->self.output;
     Object *writer = FLISP_ARG1->type->type.write;
@@ -2533,10 +2560,21 @@ Object *primitiveW(Object *interp, Object **args, Object **env, size_t nArgs)
 }
 Object *print_object(Object *interp, Object **args, size_t nArgs, Object *object)
 {
-    Object *newArgs = newCons(interp, &object, &(*args)->cdr);
-    return primitiveW(interp, &newArgs, &interp->self.global, nArgs);
+    Object *newArgs;
+    CHECK_ERR(newArgs = newCons(interp, &object, &(*args)->cdr));
+    return primitiveWrite(interp, &newArgs, &interp->self.global, nArgs);
 }
-Object *flisp_write_object(Object *interp, Object *object, Object *readably, Object *stream)
+/** flisp_write_object - format and write object to file descriptor
+ *
+ * @param interp    fLisp interpreter
+ * @param object    object to be serialized
+ * @param readably  if not nil write in a format which can be read back
+ * @param stream    open writeable stream, or nil to write to interp output
+ *
+ * @returns nil on success, io-error, gc-error, oom-error
+ *
+ */
+Object* flisp_write_object(Object *interp, Object *object, Object *readably, Object *stream)
 {
     if (stream == nil) return nil;
     ConsObject arg3 = { .self.type = &type_cons_obj, .self.size = sizeof(Object*[2]), .self.length = 2, .cons.car = stream,   .cons.cdr = nil };
@@ -2546,7 +2584,7 @@ Object *flisp_write_object(Object *interp, Object *object, Object *readably, Obj
     return print_object(interp, &args, 3, object);
 }
 
-Object *primitiveWrite(Object *interp, Object **args, Object **env, size_t nArgs)
+Object *primitiveW(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     bool readably = false;
     FILE *fd = FLISP_STANDARD_OUTPUT.fd;
@@ -2563,7 +2601,6 @@ Object *primitiveWrite(Object *interp, Object **args, Object **env, size_t nArgs
     flisp_w_object(fd, FLISP_ARG1, readably);
     return FLISP_ARG1;
 }
-
 
 // PRIMITIVES /////////////////////////////////////////////////////////////////
 
@@ -3295,8 +3332,8 @@ Object *flisp_core_init(Object *interp, Object *extension)
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "file-info",              1,  1, type_stream,    primitiveFinfo));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "read",                   0,  2, (TypeObject*)nil,            primitiveRead));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "eval",                   1,  1, (TypeObject*)nil,            primitiveEval));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "w",                  1,  3, (TypeObject*)nil,            primitiveWrite));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "write",                      1,  3, (TypeObject*)nil,            primitiveW));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "w",                      1,  3, (TypeObject*)nil,            primitiveW));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "write",                  1,  3, (TypeObject*)nil,            primitiveWrite));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "error",                  2,  3, (TypeObject*)nil,            primitiveError));
 #if 0
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "throw",                  1,  2, (TypeObject*)nil,            primitiveThrow));
@@ -3361,7 +3398,7 @@ Object *initRootEnv(Object *interp)
         FLISP_WHILE_OK(flisp_register_type(interp, "type-interpreter", type_interpreter, (Object*)&write_interpreter));
 
         FLISP_WHILE_OK(flisp_register_type(interp, "type-stream",      type_stream, (Object*)&write_stream));
-        FLISP_WHILE_OK(flisp_register_type(interp, "type-extension",   type_extension, nil));
+        FLISP_WHILE_OK(flisp_register_type(interp, "type-extension",   type_extension, (Object*)&write_extension));
 
         FLISP_WHILE_OK(flisp_register_type(interp, "type-cons",        type_cons, (Object *)&write_cons));
         FLISP_WHILE_OK(flisp_register_type(interp, "type-lambda",      type_lambda, (Object *)&write_closure));
@@ -3556,7 +3593,7 @@ Object *flisp_read_expr(Object *interp)
 
     if (FLISP_INTERP.trace_read) {
         flisp_debug(interp, "trace: ");
-        flisp_w_object(FLISP_DEBUG_OUTPUT.fd, e, true);
+        flisp_write_object(interp, e, t, interp->self.debug);
         flisp_debug(interp, "\n");
     }
     return e;

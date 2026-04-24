@@ -317,7 +317,7 @@ void flisp_debug(Object *, char *, ...);
 #define FLISP_ASSERT(PARAM, TYPE, SIGNATURE)                            \
     if (PARAM->type != TYPE)                                            \
         return newErrorFmt(interp, wrong_type_argument, PARAM,          \
-                           SIGNATURE " expected %s, got: %s",           \
+                           SIGNATURE " expected %s, got %s",           \
                            ((SimpleObject*)(TYPE)->type.name)->str,     \
                            ((SimpleObject*)(PARAM)->type->type.name)->str)
 

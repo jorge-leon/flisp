@@ -12,7 +12,7 @@ unset PREPARE
 #export PREPARE="(interp-gc-always t)"
 export FLISP_SIZE=$((20*1024*1024))
 
-tap 212
+tap 213
 
 [ -x $FLISP ]
 ok flisp-1 flisp exists and is executable;
@@ -21,16 +21,16 @@ IN= OUT="fLisp 0.17α3"
 FLISP_INTERACTIVE=1 flisp_expr 3 1; ok flisp-2 empty input succeeds
 
 # reader
-IN='(' OUT='#<Error read-incomplete: "unexpected end of stream while reading list", nil>'
+IN='(' OUT='#<error read-incomplete: unexpected end of stream while reading list, nil>'
 flisp_expr; ok reader-1 incomplete sexp error msg
 
-IN='"' OUT='#<Error read-incomplete: "unexpected end of stream while reading string literal", nil>'
+IN='"' OUT='#<error read-incomplete: unexpected end of stream while reading string literal, nil>'
 flisp_expr; ok reader-2 incomplete string error msg
 
-IN='}' OUT='#<Error invalid-read-syntax: "unexpected character: '"'}'\", nil>"
+IN='}' OUT='#<error invalid-read-syntax: unexpected character: '"'}', nil>"
 flisp_expr; ok reader-3-1 unexpected ascii character error msg
 
-IN='ä' OUT='#<Error invalid-read-syntax: "unexpected character: 0xC3'"\", nil>"
+IN='ä' OUT='#<error invalid-read-syntax: unexpected character: 0xC3, nil>'
 flisp_expr; ok reader-3-2 unexpected unicode character error msg
 
 IN="0" OUT='0'
@@ -90,47 +90,47 @@ flisp_expr; ok reader-13 read dotted pair
 IN="'(0 1 . 2)" OUT='(0 1 . 2)'
 flisp_expr; ok reader-14 read dotted list
 
-IN="'(0 1 . " OUT="#<Error read-incomplete: \"unexpected end of stream while reading expression in dotted list\", nil>"
+IN="'(0 1 . " OUT="#<error read-incomplete: unexpected end of stream while reading expression in dotted list, nil>"
 flisp_expr; ok reader-14-1 dotted list w/o end paren
 
-IN="'(0 1 . 2 3)" OUT="#<Error invalid-read-syntax: \"unexpected object at end of dotted list\", nil>"
+IN="'(0 1 . 2 3)" OUT="#<error invalid-read-syntax: unexpected object at end of dotted list, nil>"
 flisp_expr; ok reader-15 read dotted list with extra element
 
-IN="'(0 1 .)" OUT="#<Error invalid-read-syntax: \"expected object at end of dotted list\", nil>"
+IN="'(0 1 .)" OUT="#<error invalid-read-syntax: expected object at end of dotted list, nil>"
 flisp_expr; ok reader-16 read dotted list without cdr
 
 IN="'(nil . t)" OUT="(nil . t)"
 flisp_expr; ok reader-16-1 read dotted list where nil precedes dot
 
-IN="'( . t)" OUT="#<Error invalid-read-syntax: \"unexpected dot at start of list\", nil>"
+IN="'( . t)" OUT="#<error invalid-read-syntax: unexpected dot at start of list, nil>"
 flisp_expr; ok reader-16-2 read dotted list where nil precedes dot
 
-IN="'(t . )" OUT="#<Error invalid-read-syntax: \"expected object at end of dotted list\", nil>"
+IN="'(t . )" OUT="#<error invalid-read-syntax: expected object at end of dotted list, nil>"
 flisp_expr; ok reader-16-3 read dotted list without object at end
 
-IN="(" OUT="#<Error read-incomplete: \"unexpected end of stream while reading list\", nil>"
+IN="(" OUT="#<error read-incomplete: unexpected end of stream while reading list, nil>"
 flisp_expr; ok reader-17 read list without end
 
 # Special forms
-IN='(quote)' OUT="#<Error wrong-number-of-arguments: \"quote expects exactly 1 argument\", nil>"
+IN='(quote)' OUT="#<error wrong-number-of-arguments: quote expects exactly 1 argument, nil>"
 flisp_expr; ok quote-1 w/o arg error message
 
-IN='(bind)' OUT='#<Error wrong-number-of-arguments: "(bind p s[ o] ..) expects at least two arguments", nil>'
+IN='(bind)' OUT='#<error wrong-number-of-arguments: (bind p s[ o] ..) expects at least two arguments, nil>'
 flisp_expr; ok bind-1 zero arg errs
 
-IN='(bind t)' OUT='#<Error wrong-number-of-arguments: "(bind p s[ o] ..) expects at least two arguments", (t)>'
+IN='(bind t)' OUT='#<error wrong-number-of-arguments: (bind p s[ o] ..) expects at least two arguments, (t)>'
 flisp_expr; ok bind-2 one arg errs
 
-IN='(bind . t)' OUT='#<Error wrong-number-of-arguments: "(bind p s[ o] ..) expects at least two arguments", t>'
+IN='(bind . t)' OUT='#<error wrong-number-of-arguments: (bind p s[ o] ..) expects at least two arguments, t>'
 flisp_expr; ok bind-2-1 dottet list before p errs
 
-IN='(bind t s . 1)' OUT='#<Error invalid-value: "(bind p s[ o] ..) - o, arguments are not a proper list", (t s . 1)>'
+IN='(bind t s . 1)' OUT='#<error invalid-value: (bind p s[ o] ..) - o, arguments are not a proper list, (t s . 1)>'
 flisp_expr; ok bind-2-2 dotted list before value errs
 
-IN='(bind t s 1 . t)' OUT='#<Error invalid-value: "(bind p s[ o] ..) - s, arguments are not a proper list", (t s 1 . t)>'
+IN='(bind t s 1 . t)' OUT='#<error invalid-value: (bind p s[ o] ..) - s, arguments are not a proper list, (t s 1 . t)>'
 flisp_expr; ok bind-2-3 dotted list before symbol errs
 
-IN='(bind t invalid-value)' OUT='#<Error wrong-type-argument: "(bind p s[ o[ s[ ..]]]) - s is a constant and cannot be redefined", invalid-value>'
+IN='(bind t invalid-value)' OUT='#<error wrong-type-argument: (bind p s[ o[ s[ ..]]]) - s is a constant and cannot be redefined, invalid-value>'
 flisp_expr; ok bind-2-4  binding constant errs
 
 IN="(bind nil var 'val)" OUT=val
@@ -197,38 +197,38 @@ flisp_expr; ok cond-12 cond with last expresion single string list gives its val
 IN="(cond nil ((consp (quote (a b)))))" OUT=t
 flisp_expr; ok cond-13 cond with last expresion funcall gives result
 
-IN='(cond . "a")' OUT="#<Error wrong-type-argument: \"(cond args) - args is not a list, arg 1\", \"a\">"
+IN='(cond . "a")' OUT="#<error wrong-type-argument: (cond args) - args is not a list, arg 1, a>"
 flisp_expr; ok cond-14 fail if not called with a cons
 
-IN='(cond "a" ())' OUT="#<Error wrong-type-argument: \"(cond clause ..) - clause is not a list\", \"a\">"
+IN='(cond "a" ())' OUT="#<error wrong-type-argument: (cond clause ..) - clause is not a list, a>"
 flisp_expr; ok cond-15 fail if clause is not a cons
 
-IN='(cond (nil . "a"))' OUT='#<Error wrong-type-argument: "(cond (pred action) ..) action is not a list", (nil . "a")>'
+IN='(cond (nil . "a"))' OUT='#<error wrong-type-argument: (cond (pred action) ..) action is not a list, (nil . a)>'
 flisp_expr; ok cond-16 fail if clause is cons with car nil
 
-IN='(cond (t . t))' OUT="#<Error wrong-type-argument: \"(cond (pred action) ..) action is not a list\", (t . t)>"
+IN='(cond (t . t))' OUT="#<error wrong-type-argument: (cond (pred action) ..) action is not a list, (t . t)>"
 flisp_expr; ok cond-17 fail if t and clause action is not a list
 
 IN="(cond (42))" OUT="42"
 flisp_expr; ok cond-18 cond with only pred returns pred
 
 # lambda
-IN='(lambda nil)' OUT="#<Lambda nil>"
+IN='(lambda nil)' OUT="#<lambda nil>"
 flisp_expr; ok lambda-1 arg nil
 
-IN='(lambda a nil)' OUT="#<Lambda a>"
+IN='(lambda a nil)' OUT="#<lambda a>"
 flisp_expr; ok lambda-2 args a nil
 
-IN='(lambda nil nil)' OUT="#<Lambda nil>"
+IN='(lambda nil nil)' OUT="#<lambda nil>"
 flisp_expr; ok lambda-3 args nil nil
 
-IN='(lambda (a b) nil)' OUT="#<Lambda (a b)>"
+IN='(lambda (a b) nil)' OUT="#<lambda (a b)>"
 flisp_expr; ok lambda-4 args a b
 
-IN='(lambda (a . b) nil)' OUT="#<Lambda (a . b)>"
+IN='(lambda (a . b) nil)' OUT="#<lambda (a . b)>"
 flisp_expr; ok lambda-5 args a . b nil
 
-IN='(lambda (a b) a b)' OUT="#<Lambda (a b)>"
+IN='(lambda (a b) a b)' OUT="#<lambda (a b)>"
 flisp_expr; ok lambda-6 args nil nil
 
 IN='((lambda (a b) a b) 0 "a")' OUT='"a"'
@@ -239,16 +239,16 @@ flisp_expr; ok lambda-7 apply return b string a
 #flisp_err; ok memory-1 exhausting memory exits with error code
 
 # macro
-IN='(macro nil)' OUT='#<Macro nil>'
+IN='(macro nil)' OUT='#<macro nil>'
 flisp_expr; ok macro-1 arg nil
 
-IN='(macro a nil)' OUT='#<Macro a>'
+IN='(macro a nil)' OUT='#<macro a>'
 flisp_expr; ok macro-2 args a nil
 
-IN='(macro (a b) nil)' OUT='#<Macro (a b)>'
+IN='(macro (a b) nil)' OUT='#<macro (a b)>'
 flisp_expr; ok macro-3 args a b
 
-IN='(macro (a . b) nil)' OUT='#<Macro (a . b)>'
+IN='(macro (a . b) nil)' OUT='#<macro (a . b)>'
 flisp_expr; ok macro-4 args a . b
 
 IN='((macro (a b) a b) 0 "a")' OUT='"a"'
@@ -273,7 +273,7 @@ if false; then
     IN='(catch (i+ 3 4))' OUT=7
     flisp_expr; ok catch-1_3  catch expr \# TODO catch/throw to be reworked
 
-    #IN='(catch (i/))' OUT='(wrong-number-of-arguments "expects at least 2 arguments" #<Primitive i/>)'
+    #IN='(catch (i/))' OUT='(wrong-number-of-arguments "expects at least 2 arguments" #<primitive i/>)'
     #flisp_expr; ok catch-1_4  catch error
 fi
 
@@ -391,7 +391,7 @@ IN="(car '(1 2))" OUT='1'
 flisp_expr; ok car-1  car returns first element
 
 # Intermezzo
-IN="(car 1)" OUT="#<Error wrong-type-argument: \"(car o) - o expected type-cons, got: type-integer\", 1>"
+IN="(car 1)" OUT="#<error wrong-type-argument: (car o) - o expected type-cons, got: type-integer, 1>"
 flisp_expr; ok arg_check-1  argument checking '(car 1)' fails
 
 IN="(cdr '(1 2))" OUT='(2)'
@@ -524,7 +524,7 @@ IN='(cdr (elements ((lambda (foo) (env)) "bar")))' OUT='((foo) ("bar"))'
 flisp_expr; ok elements-15 environments have elements
 
 
-IN="(vector 1 2 3)" OUT="#<Vector 3>"
+IN="(vector 1 2 3)" OUT="#<vector 3>"
 flisp_expr; ok vector-1 vector of 3
 
 IN="(i+ (values 3 4))" OUT="7"
@@ -560,23 +560,25 @@ flisp_expr; ok values-2-5 trinary lambda middle arg with recursive evaluation
 # I/O
 rm -f _file_
 IN='(open "_file_" "w")' OUT=""
-flisp_expr
-[ -e _file_ ]; ok open-1 create file
+RESULT=$(echo "$PREPARE" "$IN" | $FLISP 2>&1 | grep -qE '#<stream 0X[0-9A-F]{2,16} "_file_">')
+ok open-1-1 create file returns stream
+[ -e _file_ ]; ok open-1-2 create file creates file
 rm -f _file_
 
-RESULT=$(echo $PREPARE '(open "empty.lsp")' | $FLISP 2>&1 | grep -E '#<Stream 0X[0-9A-F]{2,16} empty.lsp>')
+IN='(open "empty.lsp")'
+RESULT=$(echo $PREPARE $IN | $FLISP 2>&1 | grep -qE '#<stream 0X[0-9A-F]{2,16} "empty.lsp">')
 ok open-2 open file readonly
 
-RESULT=$(echo $PREPARE '(open "<0")' | $FLISP 2>&1 | grep -E "#<Stream 0X[0-9A-F]{2,16} <0>")
+RESULT=$(echo $PREPARE '(open "<0")' | $FLISP 2>&1 | grep -E '#<stream 0X[0-9A-F]{2,16} "<0">')
 ok open-3 open readable file descriptor
 
-RESULT=$(echo $PREPARE '(open ">1")' | $FLISP 2>&1 | grep -E "#<Stream 0X[0-9A-F]{2,17} >1>")
+RESULT=$(echo $PREPARE '(open ">1")' | $FLISP 2>&1 | grep -E '#<stream 0X[0-9A-F]{2,17} ">1">')
 ok open-4 open writeable file descriptor
 
-RESULT=$(echo $PREPARE '(open "any text" "<")' | $FLISP 2>&1 | grep -E "#<Stream 0X[0-9A-F]{2,16} <STRING>")
+RESULT=$(echo $PREPARE '(open "any text" "<")' | $FLISP 2>&1 | grep -E '#<stream 0X[0-9A-F]{2,16} "<STRING">')
 ok open-5 open memory input stream
 
-RESULT=$(echo $PREPARE '(open "" ">")' | $FLISP 2>&1 | grep -E "#<Stream 0X[0-9A-F]{2,16} >STRING>")
+RESULT=$(echo $PREPARE '(open "" ">")' | $FLISP 2>&1 | grep -E '#<stream 0X[0-9A-F]{2,16} ">STRING">')
 ok open-6 open memory output stream
 
 IN='(close (open "empty.lsp"))' OUT="nil"

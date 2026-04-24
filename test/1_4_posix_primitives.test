@@ -27,7 +27,7 @@ false; ok fgets \# TODO
 RESULT=$(echo $PREPARE '(fstat "five_lines.txt")'  | $FLISP 2>&1 | grep  '(size .\+ mode .\+ uid .\+ gid .\+ type "f")')
 ok file-fstat-1 existing file returns data about it
 
-IN='(fstat "_unknown_")' OUT='#<Error not-found: "(fstat path[ linkp]): No such file or directory", "_unknown_">'
+IN='(fstat "_unknown_")' OUT='#<error not-found: (fstat path[ linkp]): No such file or directory, _unknown_>'
 flisp_expr; ok file-fstat-1 existing file returns data
 
 IN='(fttyp (open "/dev/tty"))' OUT='t'
