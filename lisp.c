@@ -2398,11 +2398,13 @@ static SimpleObject write_stream = { .type = &type_primitive_obj, .size = 0, .pr
 Object *primitiveWExtension(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     FLISP_ASSERT(FLISP_ARG1, type_extension, "(write-extension o[ p[ s]]) - o");
-    CHECK_ERR(print_string(interp, args, nArgs, "#<extension "));
-    CHECK_ERR(print_object(interp, args, nArgs, FLISP_ARG1->extension.name));
-    CHECK_ERR(print_string(interp, args, nArgs, ", "));
-    CHECK_ERR(print_object(interp, args, nArgs, FLISP_ARG1->extension.version));
-    CHECK_ERR(print_string(interp, args, nArgs, ">"));
+    GC_CHECKPOINT;
+    GC_TRACE(gcArgs, *args);
+    GC_CHECK_ERR(print_string(interp, gcArgs, nArgs, "#<extension "));
+    GC_CHECK_ERR(print_object(interp, gcArgs, nArgs, (*gcArgs)->car->extension.name));
+    GC_CHECK_ERR(print_string(interp, gcArgs, nArgs, ", "));
+    GC_CHECK_ERR(print_object(interp, gcArgs, nArgs, (*gcArgs)->car->extension.version));
+    GC_CHECK_ERR(print_string(interp, gcArgs, nArgs, ">"));
     return nil;
 }
 Primitive w_extension_p = { .name = "write-extension", .nMinArgs = 1, .nMaxArgs = 3, .argsType = (TypeObject*)&nil_obj, .eval = primitiveWExtension };
@@ -2442,10 +2444,12 @@ Object *primitiveWClosure(Object *interp, Object **args, Object **env, size_t nA
         return newErrorFmt(interp, wrong_type_argument, closure,
                            "(write-closure o[ p[ s]]) - o expected type-lambda or type-macro, got %s",
                            ((SimpleObject*)(closure)->type->type.name)->str);
-    CHECK_ERR(print_fmt(interp, args, nArgs, "#<%s ",
+    GC_CHECKPOINT;
+    GC_TRACE(gcArgs, *args);
+    GC_CHECK_ERR(print_fmt(interp, gcArgs, nArgs, "#<%s ",
                          ((SimpleObject*)((TypeObject*)closure->type)->type.name)->str+(sizeof("type-"))-1));
-    CHECK_ERR(print_object(interp, args, nArgs, closure->closure.params));
-    CHECK_ERR(print_string(interp, args, nArgs, ">"));
+    GC_CHECK_ERR(print_object(interp, gcArgs, nArgs, closure->closure.params));
+    GC_CHECK_ERR(print_string(interp, gcArgs, nArgs, ">"));
     return nil;
 }
 Primitive w_closure_p = { .name = "write-closure", .nMinArgs = 1, .nMaxArgs = 3, .argsType = (TypeObject*)&nil_obj, .eval = primitiveWClosure };
@@ -2576,12 +2580,14 @@ Object *print_object(Object *interp, Object **args, size_t nArgs, Object *object
  */
 Object* flisp_write_object(Object *interp, Object *object, Object *readably, Object *stream)
 {
-    if (stream == nil) return nil;
-    ConsObject arg3 = { .self.type = &type_cons_obj, .self.size = sizeof(Object*[2]), .self.length = 2, .cons.car = stream,   .cons.cdr = nil };
-    ConsObject arg2 = { .self.type = &type_cons_obj, .self.size = sizeof(Object*[2]), .self.length = 2, .cons.car = readably, .cons.cdr = (Object *)&arg3 };
-    ConsObject arg1 = { .self.type = &type_cons_obj, .self.size = sizeof(Object*[2]), .self.length = 2, .cons.car = object,   .cons.cdr = (Object *)&arg2 };
-    Object *args = (Object *)&arg1;
-    return print_object(interp, &args, 3, object);
+    GC_CHECKPOINT;
+    GC_TRACE(gcObject, object);
+    GC_TRACE(gcReadably, readably);
+    GC_TRACE(gcArgs, newCons(interp, &stream, &nil));
+    GC_CHECK_ERR(*gcArgs);
+    GC_CHECK_ERR(*gcArgs = newCons(interp, gcReadably, gcArgs));
+    GC_CHECK_ERR(*gcArgs = newCons(interp, gcObject, gcArgs));
+    GC_RETURN(print_object(interp, gcArgs, 3, *gcObject));
 }
 
 Object *primitiveW(Object *interp, Object **args, Object **env, size_t nArgs)
@@ -3602,26 +3608,27 @@ Object *flisp_eval_object(Object *interp, Object *object)
 {
     return evalExpr(interp, &object, &FLISP_INTERP.global);
 }
+/* Note: change bool to Object nil/ not-nil */
 Object *flisp_eval_expr(Object *interp, bool readably)
 {
-    Object *object;
-
+    Object *e = nil;
+    GC_CHECKPOINT;
+    GC_TRACE(gcObject, nil);
     do {
-        object = flisp_read_expr(interp);
-        if (FLISP_IS_ERR(object))  break;
-        object = flisp_eval_object(interp, object);
-        if (FLISP_IS_ERR(object))  break;
-        flisp_write_object(interp, object, readably?t:nil, interp->self.output);
+        FLISP_UNLESS_ERR(*gcObject = flisp_read_expr(interp));
+        FLISP_UNLESS_ERR(*gcObject = flisp_eval_object(interp, *gcObject));
+        FLISP_UNLESS_ERR(flisp_write_object(interp, *gcObject, readably?t:nil, interp->self.output));
         if (FLISP_STANDARD_OUTPUT.fd) fputs("\n", FLISP_STANDARD_OUTPUT.fd);
         fflush(0);
     } while (0);
-    if (object->error.type != end_of_file) {
-        flisp_write_object(interp, object, readably?t:nil, interp->self.stderr);
-        flisp_write_object(interp, object, readably?t:nil, interp->self.debug);
+    if ((*gcObject)->error.type != end_of_file) {
+        GC_CHECK_ERR(flisp_write_object(interp, *gcObject, readably?t:nil, interp->self.stderr));
+        GC_CHECK_ERR(flisp_write_object(interp, *gcObject, readably?t:nil, interp->self.debug));
         if (FLISP_STDERR.fd) fputs("\n", FLISP_STDERR.fd);
     }
+    GC_RELEASE;
     fflush(0);
-    return object;
+    return *gcObject;
 }
 
 Object *flisp_eval_input(Object *interp, bool readably)
