@@ -1,6 +1,6 @@
 - gc-always new writer, resp. fix segfaults/missing GC_CHECKPOINT's
 + (write type-* t) must print type-*, not #<type type-*>.
-- fl.c remove write_ln
++ fl.c remove write_ln
 - remove flisp_w_object and related functions.
 - remove primitiveW
 - Test flisp_write_object:

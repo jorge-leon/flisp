@@ -8,7 +8,7 @@
  * - FLISP_SIZE        .. Number of bytes to allocate on start, defaults to zero.
  * - FLISP_QUIET       .. If not '' or '0' set interpreter stdout to NULL.
  * - FLISP_INTERACTIVE .. If set to '0' interactive mode is off.
- *                        Oterwise if set or stdin is a tty write
+ *                        Otherwise if set or stdin is a tty write
  *                        version at start and prompt after each
  *                        error.
  * - FLISP_DEBUG       .. File name to use for debugging. Special cases:
@@ -33,13 +33,6 @@ void fatal(char *msg)
     fputc('\n', stderr);
     exit(1);
 }
-/* void writeln_object(FILE * fd, Object *object, bool readably) */
-/* { */
-/*     if (!fd)  return; */
-/*     flisp_write_object(fd, object, readably); */
-/*     fputs("\n", fd); */
-/*     fflush(fd); */
-/* } */
 void write_string(FILE *fd, char *string)
 {
     if (!fd)  return;
@@ -91,7 +84,7 @@ int main(int argc, char **argv)
         FLISP_UNLESS_ERR(flisp_register_extension(interp, "posix", flisp_posix_init));
     } while (0);
     if (FLISP_IS_ERR(e)) {
-        //writeln_object(stderr, e, false);
+        /* Note: could write error string here */
         fatal("fLisp interpreter initialization failed");
     }
 
@@ -102,7 +95,7 @@ int main(int argc, char **argv)
         if (interactive)  write_string(FLISP_STANDARD_OUTPUT.fd, "> ");
         fflush(NULL);
 
-        result = flisp_eval_input(interp, !interactive);
+        result = flisp_eval_input(interp, interactive ? nil : t);
         if (FLISP_IS_EOF(result))
             if (interactive) write_string(FLISP_STANDARD_OUTPUT.fd, "\n");
         return 0;

@@ -181,8 +181,8 @@ extern Object *flisp_new(size_t size, char **, FILE*, FILE*, FILE*, FILE*);
 extern void flisp_destroy(Object *);
 extern Object *flisp_eval_object(Object *, Object *);
 extern Object *flisp_read_expr(Object *);
-extern Object *flisp_eval_expr(Object *, bool);
-extern Object *flisp_eval_input(Object *, bool);
+extern Object *flisp_eval_expr(Object *, Object *);
+extern Object *flisp_eval_input(Object *, Object *);
 extern Object *flisp_write_object(Object *, Object *, Object *, Object *);
 extern Object *flisp_lookup(Object *, Object *);
 /* Note: to be documented */

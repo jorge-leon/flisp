@@ -3638,8 +3638,7 @@ Object *flisp_eval_object(Object *interp, Object *object)
 {
     return evalExpr(interp, &object, &FLISP_INTERP.global);
 }
-/* Note: change bool to Object nil/ not-nil */
-Object *flisp_eval_expr(Object *interp, bool readably)
+Object *flisp_eval_expr(Object *interp, Object *readably)
 {
     GC_CHECKPOINT;
     GC_TRACE(gcObject, nil);
@@ -3650,9 +3649,9 @@ Object *flisp_eval_expr(Object *interp, bool readably)
     } while (0);
     if ((*gcObject)->type == type_error) {
         if ((*gcObject)->error.type != end_of_file) {
-            *gcResult = flisp_write_object(interp, *gcObject, readably?t:nil, interp->self.stderr);
+            *gcResult = flisp_write_object(interp, *gcObject, readably, interp->self.stderr);
             if ((*gcResult)->type == type_error)
-                (void) flisp_write_object(interp, *gcResult, readably?t:nil, interp->self.debug);
+                (void) flisp_write_object(interp, *gcResult, readably, interp->self.debug);
             *gcObject = flisp_write_object(interp, *gcObject, readably?t:nil, interp->self.debug);
             /* Note: could be nil? */
             if (FLISP_STDERR.fd) fputs("\n", FLISP_STDERR.fd);
@@ -3666,7 +3665,7 @@ Object *flisp_eval_expr(Object *interp, bool readably)
     GC_RETURN(*gcObject);
 }
 
-Object *flisp_eval_input(Object *interp, bool readably)
+Object *flisp_eval_input(Object *interp, Object *readably)
 {
     Object *object;
 
