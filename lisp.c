@@ -519,6 +519,7 @@ allocateObject:
 
 #define CHECK_ERR(OBJECT) if FLISP_IS_ERR(OBJECT) return OBJECT
 #define GC_CHECK_ERR(OBJECT) if FLISP_IS_ERR(OBJECT) GC_RETURN(OBJECT)
+/* Note: Do we have to distinguish? */
 #define CHECK_OOM(OBJECT) if FLISP_IS_OOM(OBJECT) return OBJECT
 #define GC_CHECK_OOM(OBJECT) if FLISP_IS_OOM(OBJECT) GC_RETURN(OBJECT)
 
@@ -1889,9 +1890,9 @@ Object *evalExpr(Object *interp, Object ** object, Object **env)
 
                 if (FLISP_INTERP.trace_primitives) {
                     flisp_debug(interp, "trace: (%s", primitive->name);
-                    for (args = *gcArgs; args != nil; args = args->cdr) {
+                    for (*gcObject = *gcArgs; *gcObject != nil; *gcObject = (*gcObject)->cdr) {
                         flisp_debug(interp, " ");
-                        GC_CHECK_ERR(flisp_write_object(interp, args->car, t, interp->self.debug));
+                        GC_CHECK_ERR(flisp_write_object(interp, (*gcObject)->car, t, interp->self.debug));
                     }
                     flisp_debug(interp, ")\n");
                 }
@@ -2510,7 +2511,7 @@ Object *primitiveWError(Object *interp, Object **args, Object **env, size_t nArg
         if ((*gcError)->error.culprit != nil) {
             GC_CHECK_ERR(print_string(interp, gcArgs, nArgs, ": '"));
             GC_CHECK_ERR(print_object(interp, gcArgs, nArgs, (*gcError)->error.culprit));
-            GC_RETURN(print_string(interp, gcArgs, nArgs, "'"));
+            GC_RETURN(print_string(interp, gcArgs, nArgs, "'\n"));
         } else {
             GC_RETURN(nil);
         }
@@ -2532,29 +2533,32 @@ static SimpleObject write_error = { .type = &type_primitive_obj, .size = 0, .pri
  * If no stream is specified the interpreters output file descriptor is used.
  * If the interpreters output file descriptor is NULL, no output is written.
  */
+Object *print_object_fallback(Object *object, Object *output)
+{
+    /* Note: the following assumes that type names are type-str, i.e. constants. */
+    if (object->size)
+        fprintf(output->stream.fd, "#<%s, %zu, %zu>",
+                ((SimpleObject*)object->type->type.name)->str+(sizeof("type-"))-1,
+                object->length,
+                object->size
+            );
+    else
+        fprintf(output->stream.fd, "#<%s>", ((SimpleObject*)object->type->type.name)->str+(sizeof("type-"))-1);
+    return object;
+}
 Object *primitiveWrite(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     Object *output = interp->self.output;
     Object *writer = FLISP_ARG1->type->type.write;
 
-    if (nArgs > 2) {
-        FLISP_ASSERT(FLISP_ARG3, type_stream, "(write o [p [fd]]) - fd");
-        if (FLISP_ARG3->stream.fd == NULL)
-            return newError(interp, invalid_value, nil, "(write o[ p [fd]) - fd already closed");
-        output = FLISP_ARG3;
-    }
-    if (writer == nil) {
-        /* Note: the following assumes that type names are type-str, i.e. constants. */
-        if (FLISP_ARG1->size)
-            fprintf(output->stream.fd, "#<%s, %zu, %zu>",
-                    ((SimpleObject*)FLISP_ARG1->type->type.name)->str+(sizeof("type-"))-1,
-                    FLISP_ARG1->length,
-                    FLISP_ARG1->size
-            );
-        else
-            fprintf(output->stream.fd, "#<%s>", ((SimpleObject*)FLISP_ARG1->type->type.name)->str+(sizeof("type-"))-1);
-        return FLISP_ARG1;
-    }
+    if (nArgs > 2) output = FLISP_ARG3;
+    if (output == nil) return nil;
+    FLISP_ASSERT(output, type_stream, "(write o [p [fd]]) - fd");
+    if (output->stream.fd == NULL)
+        return newError(interp, invalid_value, nil, "(write o[ p [fd]) - fd already closed");
+    if (writer == nil)
+        return print_object_fallback(FLISP_ARG1, output);
+
     GC_CHECKPOINT;
     GC_TRACE(gcObject, FLISP_ARG1);
     /* Note: temporary only allow primitives, later we want lambda's also. */
@@ -2564,6 +2568,12 @@ Object *primitiveWrite(Object *interp, Object **args, Object **env, size_t nArgs
 }
 Object *print_object(Object *interp, Object **args, size_t nArgs, Object *object)
 {
+    if (nArgs > 2) {
+        if (FLISP_ARG3 == nil) return nil;
+        FLISP_ASSERT(FLISP_ARG3, type_stream, "(print_object o[ p[ s]]) - s");
+        if (FLISP_ARG3->stream.fd == NULL)
+            return newErrorFmt(interp, invalid_value, nil, "(print_object(o[ p[ s]]) - s already closed");
+    }
     Object *newArgs;
     CHECK_ERR(newArgs = newCons(interp, &object, &(*args)->cdr));
     return primitiveWrite(interp, &newArgs, &interp->self.global, nArgs);
@@ -2580,6 +2590,10 @@ Object *print_object(Object *interp, Object **args, size_t nArgs, Object *object
  */
 Object* flisp_write_object(Object *interp, Object *object, Object *readably, Object *stream)
 {
+    if (stream == nil) return nil;
+    FLISP_ASSERT(stream, type_stream, "flisp_write_object(interp, object, readably, stream) - stream");
+    if (stream->stream.fd == NULL)
+        return newErrorFmt(interp, invalid_value, nil, "flisp_write_object(object, readaybly, stream) - stream already closed");
     GC_CHECKPOINT;
     GC_TRACE(gcObject, object);
     GC_TRACE(gcReadably, readably);
@@ -3598,9 +3612,12 @@ Object *flisp_read_expr(Object *interp)
     Object *e = readExpr(interp, FLISP_STANDARD_INPUT.fd);
 
     if (FLISP_INTERP.trace_read) {
+        GC_CHECKPOINT;
+        GC_TRACE(gcE, e);
         flisp_debug(interp, "trace: ");
-        flisp_write_object(interp, e, t, interp->self.debug);
+        GC_CHECK_ERR(flisp_write_object(interp, *gcE, t, interp->self.debug));
         flisp_debug(interp, "\n");
+        e = *gcE;
     }
     return e;
 }
@@ -3611,19 +3628,23 @@ Object *flisp_eval_object(Object *interp, Object *object)
 /* Note: change bool to Object nil/ not-nil */
 Object *flisp_eval_expr(Object *interp, bool readably)
 {
-    Object *e = nil;
+    Object *e;
     GC_CHECKPOINT;
     GC_TRACE(gcObject, nil);
     do {
-        FLISP_UNLESS_ERR(*gcObject = flisp_read_expr(interp));
-        FLISP_UNLESS_ERR(*gcObject = flisp_eval_object(interp, *gcObject));
-        FLISP_UNLESS_ERR(flisp_write_object(interp, *gcObject, readably?t:nil, interp->self.output));
+        if (FLISP_IS_ERR(*gcObject = flisp_read_expr(interp))) break;
+        if (FLISP_IS_ERR(*gcObject = flisp_eval_object(interp, *gcObject))) break;
+        /* if (FLISP_IS_ERR(e = flisp_write_object(interp, *gcObject, readably?t:nil, interp->self.output))) { */
+        /*     *gcObject = e; */
+        /*     break; */
+        /* } */
+        /* Note: could be nil? */
         if (FLISP_STANDARD_OUTPUT.fd) fputs("\n", FLISP_STANDARD_OUTPUT.fd);
-        fflush(0);
     } while (0);
-    if ((*gcObject)->error.type != end_of_file) {
+    if ((*gcObject)->type == type_error && (*gcObject)->error.type != end_of_file) {
         GC_CHECK_ERR(flisp_write_object(interp, *gcObject, readably?t:nil, interp->self.stderr));
         GC_CHECK_ERR(flisp_write_object(interp, *gcObject, readably?t:nil, interp->self.debug));
+        /* Note: could be nil? */
         if (FLISP_STDERR.fd) fputs("\n", FLISP_STDERR.fd);
     }
     GC_RELEASE;
