@@ -391,7 +391,7 @@ IN="(car '(1 2))" OUT='1'
 flisp_expr; ok car-1  car returns first element
 
 # Intermezzo
-IN="(car 1)" OUT="#<error wrong-type-argument: (car o) - o expected type-cons, got: type-integer, 1>"
+IN="(car 1)" OUT="#<error wrong-type-argument: (car o) - o expected type-cons, got type-integer, 1>"
 flisp_expr; ok arg_check-1  argument checking '(car 1)' fails
 
 IN="(cdr '(1 2))" OUT='(2)'
