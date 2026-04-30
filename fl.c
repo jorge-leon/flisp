@@ -43,7 +43,7 @@ int main(int argc, char **argv)
 {
     char *env;
     bool interactive = false;
-    FILE *output_fd = NULL, *debug_fd = NULL, *input_fd = stdin;
+    FILE *debug_fd = NULL, *input_fd = stdin;
     long long size = 0;
     Object *interp, *e = nil;
 
@@ -63,23 +63,18 @@ int main(int argc, char **argv)
         }
     }
 
-    if (argc <= 1 || argv[1][0] == '-') {
-        if (isatty(fileno(input_fd)))
-            interactive = true;
-    } else {
-        if ((input_fd = fopen(argv[1], "r")) == NULL)
-            fatal("failed to open input file");
-    }
-    if (interactive) {
-        if ((env = getenv("FLISP_QUIET")) == NULL || env[0] == '0')
-            output_fd = stdout;
-    } else {
-        if ((env = getenv("FLISP_QUIET")) != NULL && env[0] == '0')
-            output_fd = stdout;
-    }
-
+    if (argc > 1) {
+        if (argv[1][0] == '-')
+            interactive = isatty(fileno(input_fd));
+        else {
+            if ((input_fd = fopen(argv[1], "r")) == NULL)
+                fatal("failed to open input file");
+        }
+    } else
+        interactive = true;
+        
     do {
-        FLISP_UNLESS_ERR(interp = flisp_new((size_t) size, argv, input_fd, output_fd, stderr, debug_fd));
+        FLISP_UNLESS_ERR(interp = flisp_new((size_t) size, argv, input_fd, stdout, stderr, debug_fd));
         FLISP_UNLESS_ERR(flisp_register_extension(interp, "string", flisp_string_init));
         FLISP_UNLESS_ERR(flisp_register_extension(interp, "double", flisp_double_init));
         FLISP_UNLESS_ERR(flisp_register_extension(interp, "posix", flisp_posix_init));
@@ -89,7 +84,12 @@ int main(int argc, char **argv)
         fatal("fLisp interpreter initialization failed");
     }
 
-    if (interactive) write_string(output_fd, FL_NAME " " FL_VERSION "\n");
+    if (interactive)
+        interp->self.print = ((env = getenv("FLISP_PRINT")) == NULL || env[0] != '0');
+    else
+        interp->self.print = ((env = getenv("FLISP_PRINT")) != NULL && env[0] != '0');
+
+    if (interactive) write_string(FLISP_STANDARD_OUTPUT.fd, FL_NAME " " FL_VERSION "\n");
 
     Object *result = nil;
     for (;;) {

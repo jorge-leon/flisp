@@ -65,7 +65,6 @@ $(cat core.lsp)
 ;;  (close (interp-output)) )
 
 (progn
-  (interp-output (open ">1"))
   (errorp (repl-rcfile)) ; Note: w/o (errorp) progn quits on errors
   (if argv (repl-getopts argv)
       (interp-input (open "<0"))

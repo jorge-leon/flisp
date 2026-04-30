@@ -3231,6 +3231,13 @@ Object *primitiveInterpDebug(Object *interp, Object **args, Object **env, size_t
         FLISP_INTERP.debug = FLISP_ARG1;
     return FLISP_INTERP.debug;
 }
+/** (interp-print [ p]]) - query or set print flag */
+Object *primitiveInterpPrint(Object *interp, Object **args, Object **env, size_t nArgs)
+{
+    if (nArgs)
+        FLISP_INTERP.print = FLISP_ARG1 != nil;
+    return FLISP_INTERP.print ? t : nil;
+}
 /** (interp-gc-always [ p]]) - query or set gc stress flag */
 Object *primitiveInterpGcAlways(Object *interp, Object **args, Object **env, size_t nArgs)
 {
@@ -3397,6 +3404,7 @@ Object *flisp_core_init(Object *interp, Object *extension)
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-input",           0,  1, type_stream,    primitiveInterpInput));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-output",          0,  1, type_stream,    primitiveInterpOutput));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-debug",           0,  1, type_stream,    primitiveInterpDebug));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-print",           0,  1, (TypeObject*)nil,            primitiveInterpPrint));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-gc-always",       0,  1, (TypeObject*)nil,            primitiveInterpGcAlways));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-trace-read",      0,  1, (TypeObject*)nil,            primitiveInterpTraceRead));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-trace-primitives",0,  1, (TypeObject*)nil,            primitiveInterpTracePrimitives));
@@ -3518,6 +3526,7 @@ Object *flisp_new(
     FLISP_INTERP.memory = memory;
 
     FLISP_INTERP.countdown = 0;
+    FLISP_INTERP.print = false;
     FLISP_INTERP.trace_read = false;
     FLISP_INTERP.trace_primitives = false;
     FLISP_INTERP.gc_always = false;
@@ -3656,7 +3665,7 @@ Object *flisp_eval_expr(Object *interp, Object *readably)
             /* Note: could be nil? */
             if (FLISP_STDERR.fd) fputs("\n", FLISP_STDERR.fd);
         }
-    } else {
+    } else if (interp->self.print) {
         *gcObject = flisp_write_object(interp, *gcObject, readably?t:nil, interp->self.output);
         /* Note: could be nil? */
         if (FLISP_STANDARD_OUTPUT.fd) fputs("\n", FLISP_STANDARD_OUTPUT.fd);
