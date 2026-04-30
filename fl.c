@@ -43,7 +43,7 @@ int main(int argc, char **argv)
 {
     char *env;
     bool interactive = false;
-    FILE *output_fd = stdout, *debug_fd = NULL, *input_fd = stdin;
+    FILE *output_fd = NULL, *debug_fd = NULL, *input_fd = stdin;
     long long size = 0;
     Object *interp, *e = nil;
 
@@ -63,20 +63,21 @@ int main(int argc, char **argv)
         }
     }
 
-    if (argc > 1 && argv[1][0] != '-') {
+    if (argc <= 1 || argv[1][0] == '-') {
+        if (isatty(fileno(input_fd)))
+            interactive = true;
+    } else {
         if ((input_fd = fopen(argv[1], "r")) == NULL)
             fatal("failed to open input file");
-        if ((env = getenv("FLISP_QUIET")) == NULL || env[0] != '0')
-            output_fd = NULL;
-    } else {
-        if ((env = getenv("FLISP_QUIET")) != NULL && env[0] != '0')
-            output_fd = NULL;
     }
-    interactive = isatty(fileno(input_fd));
+    if (interactive) {
+        if ((env = getenv("FLISP_QUIET")) == NULL || env[0] == '0')
+            output_fd = stdout;
+    } else {
+        if ((env = getenv("FLISP_QUIET")) != NULL && env[0] == '0')
+            output_fd = stdout;
+    }
 
-    if ((env = getenv("FLISP_INTERACTIVE")))
-        interactive = !(env[0] == '0' || env[0] == '\0' );
-    
     do {
         FLISP_UNLESS_ERR(interp = flisp_new((size_t) size, argv, input_fd, output_fd, stderr, debug_fd));
         FLISP_UNLESS_ERR(flisp_register_extension(interp, "string", flisp_string_init));
@@ -96,9 +97,10 @@ int main(int argc, char **argv)
         fflush(NULL);
 
         result = flisp_eval_input(interp, interactive ? nil : t);
-        if (FLISP_IS_EOF(result))
+        if (FLISP_IS_EOF(result)) {
             if (interactive) write_string(FLISP_STANDARD_OUTPUT.fd, "\n");
-        return 0;
+            return 0;
+        }
         if (!interactive) return 1;
     }
 }
