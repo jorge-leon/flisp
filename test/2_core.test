@@ -14,7 +14,7 @@ flisp () {
     } |  ../fl
 }
 FLISP=flisp
-export FLISP_QUIET=0
+export FLISP_PRINT=1
 export FLISP_SIZE=$((20*1024*1024))
 
 tap 189

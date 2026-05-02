@@ -6,9 +6,8 @@
 #
 
 export FLISP=../fl
-export FLISP_INTERACTIVE=0
 export FLISP_DEBUG=../f.log
-unset PREPARE
+export FLISP_PRINT=1
 export PREPARE="(interp-gc-always t)"
 #export FLISP_SIZE=$((20*1024*1024))
 

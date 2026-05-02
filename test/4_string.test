@@ -10,6 +10,7 @@ flisp () {
     { cat ../core.lsp ../string.lsp ; echo '(interp-output (open ">1"))'; cat -; } | FLISP_QUIET=1 ../fl
 }
 FLISP=flisp
+export FLISP_PRINT=1
 
 tap 45
 

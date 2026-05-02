@@ -6,6 +6,7 @@
 #
 
 export FLISP=../fl
+export FLISP_PRINT=1
 unset FLISP_DEBUG
 export FLISP_INTERACTIVE=0
 PREPARE="(extension 'string)"

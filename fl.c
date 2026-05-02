@@ -71,7 +71,7 @@ int main(int argc, char **argv)
                 fatal("failed to open input file");
         }
     } else
-        interactive = true;
+        interactive = isatty(fileno(input_fd));
         
     do {
         FLISP_UNLESS_ERR(interp = flisp_new((size_t) size, argv, input_fd, stdout, stderr, debug_fd));
