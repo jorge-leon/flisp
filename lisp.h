@@ -192,8 +192,14 @@ extern Object *flisp_nreverse(Object *, Object *);
 extern Object *file_fopen(Object *, char *, char*);
 extern int file_fclose(Object *, Object *);
 
+extern Object *print_fmt(Object *, Object **, size_t, char *, ...);
+extern SimpleObject nil_obj;
+extern TypeObject type_primitive_obj;
+
 /* Extensions */
 #define FLISP_IS_ERR(OBJECT) ((OBJECT)->type == type_error)
+#define FLISP_CHECK_ERR(OBJECT) if FLISP_IS_ERR(OBJECT) return OBJECT
+
 #define FLISP_IS_EOF(OBJECT) (FLISP_IS_ERR(OBJECT) && (OBJECT)->error.type == end_of_file)
 /* Note: for speed reasons we could use a single static error object and compare pointers */
 #define FLISP_IS_OOM(OBJECT) (FLISP_IS_ERR(OBJECT) && (OBJECT)->error.type == gc_error)
@@ -202,6 +208,7 @@ extern Object *flisp_register_extension(Object *, char *, ExtensionInit);
 
 extern Object *flisp_register_constant(Object *, Object *, Object *);
 extern Object *flisp_register_primitive(Object *, char *, int, int, TypeObject *, LispEval);
+extern Object *flisp_register_type(Object *, char *, TypeObject *, Object *);
 
 
 // PROGRAMMING INTERFACE ////////////////////////////////////////////////
