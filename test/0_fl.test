@@ -1,0 +1,30 @@
+#!./test.sh # -*- mode: sh -*-
+#
+# fLisp test executable and fLisp core
+#
+# leg20260505, CC0 1.0
+#
+
+export FLISP=../fl
+export FLISP_DEBUG=../f.log
+export FLISP_PRINT=0
+export PREPARE="(interp-gc-always t)"
+#export FLISP_SIZE=$((20*1024*1024))
+
+tap 5
+
+[ -x $FLISP ]
+ok fl-1 flisp exists and is executable
+
+: | $FLISP ; ok flisp-2  empty input succeeds
+
+OUT=$(: | script -qefc $FLISP /dev/null |base64)
+EXP=$(printf "%s\r\n> \r\n" "fLisp 0.17α3" | base64)
+[ "$OUT" = "$EXP" ]; ok fl-3 interactive mode prints version
+
+OUT=$(echo t | env - FLISP=$FLISP $FLISP)
+[ -z "$OUT" ]; ok fl-4 by default quiet
+
+IN=t OUT=t
+FLISP_PRINT=1 flisp_expr; ok fl-5 with FLISP_PRINT print results
+

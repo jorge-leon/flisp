@@ -11,13 +11,7 @@ export FLISP_PRINT=1
 export PREPARE="(interp-gc-always t)"
 #export FLISP_SIZE=$((20*1024*1024))
 
-tap 213
-
-[ -x $FLISP ]
-ok flisp-1 flisp exists and is executable;
-
-IN= OUT="fLisp 0.17α3"
-FLISP_INTERACTIVE=1 flisp_expr 3 1; ok flisp-2 empty input succeeds
+tap 211
 
 # reader
 IN='(' OUT='#<error read-incomplete: unexpected end of stream while reading list, nil>'
