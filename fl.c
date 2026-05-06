@@ -48,8 +48,9 @@ int main(int argc, char **argv)
     Object *interp, *e = nil;
 
     if ((env = getenv("FLISP_SIZE")) != NULL) {
-        size = strtoll(env, NULL, 16);
-        if (errno == ERANGE || errno == EINVAL)  fatal("invalid FLISP_SIZE");
+        errno = 0;
+        size = strtoll(env, NULL, 10);
+        if (errno == ERANGE)  fatal("invalid FLISP_SIZE");
     }
     if ((env = getenv("FLISP_DEBUG")) != NULL) {
         if (env[0] == '\0')
@@ -62,22 +63,10 @@ int main(int argc, char **argv)
             fatal("failed to open debug file");
         }
     }
-#if 0
-    if (argc > 1) {
-        if (argv[1][0] == '-')
-            interactive = isatty(fileno(input_fd));
-        else {
-            if ((input_fd = fopen(argv[1], "r")) == NULL)
-                fatal("failed to open input file");
-        }
-    } else
-        interactive = isatty(fileno(input_fd));
-#else
     if (argc > 1 && argv[1][0] != '-')
         if ((input_fd = fopen(argv[1], "r")) == NULL)
             fatal("failed to open input file");
     interactive = isatty(fileno(input_fd));
-#endif
     do {
         FLISP_UNLESS_ERR(interp = flisp_new((size_t) size, argv, input_fd, stdout, stderr, debug_fd));
         FLISP_UNLESS_ERR(flisp_register_extension(interp, "string", flisp_string_init));

@@ -449,7 +449,7 @@ size_t memoryAlign(size_t size, size_t alignment)
 Object *memoryAllocObject(Object *interp, TypeObject *type, size_t size)
 {
     size = memoryAlign(size, sizeof(void *));
-    int blocks = ((size + EXCEPTION_MEM_RESERVE) / FLISP_MEMORY_INC_SIZE) + 1;
+    size_t blocks = ((size + EXCEPTION_MEM_RESERVE) / FLISP_MEMORY_INC_SIZE) + 1;
     size_t memory = blocks * FLISP_MEMORY_INC_SIZE;
 
     /* If not done already allocate to space */
@@ -3513,7 +3513,7 @@ Object *flisp_new(
     flisp_debug_stream->stream.fd = debug;
     FLISP_INTERP.debug = flisp_debug_stream;
 
-    Memory *memory = newMemory((size < FLISP_MEMORY_INC_SIZE) ? FLISP_MEMORY_INC_SIZE :size);
+    Memory *memory = newMemory((size < FLISP_MEMORY_INC_SIZE) ? FLISP_MEMORY_INC_SIZE : size);
     if (memory == NULL)
         return flisp_static_error(out_of_memory, &init_oom_message);
 
