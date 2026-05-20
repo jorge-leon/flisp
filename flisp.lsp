@@ -11,14 +11,14 @@
   (cond
     ((not (integerp i))
      (error wrong-type-argument
-       (concat "(nthcdr i l) - i expected type-integer, got " (type-of i))
+       (concat "(nthcdr i l) - i expected type-integer, got: " (type-of i))
        i))
     ((< i 0) (error range-error "negative index" i))
     ((null l) nil)
     ((= 0 i) l)
    ((not (consp l))
     (error wrong-type-argument
-      (concat "(nthcdr i l) - l expected type-cons, got " (type-of l))
+      (concat "(nthcdr i l) - l expected type-cons, got: " (type-of l))
       l ))
     (t (nthcdr (- i 1) (cdr l)))))
 

@@ -275,7 +275,7 @@ extern void resetBuf(Object *);
 extern bool addCharToBuf(Object *, int);
 
 
-extern TypeObject type_symbol_obj, type_type_obj, type_str_obj;
+extern TypeObject type_symbol_obj, type_type_obj, type_str_obj, type_string_obj;
 
 /* Constants */
 #define FLISP_DEFINE_CONSTANT(NAME,STRING)                                    \
