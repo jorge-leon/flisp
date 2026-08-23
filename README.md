@@ -43,11 +43,12 @@ Size by version:
 	0.15     67096	 87336   3.8k/2.5k/7            358/166/5
 	0.16    223948  241696   3882/2547/7            371/166/5
 	0.17α    96184  111928   4787/3301/10           724/179/5
+	0.17α3  106928  129760   5019/3468/10           739/193/5
 
 Binary sizes are measured on Debian GNU/Linux amd64. The Library
 column shows the size of the `lispflisp.a` embeddable library, the
-Binary column the size of the `flisp` command line interpreter which
-contains the string and the posix library.
+Binary column the size of the `fl` command line interpreter which
+contains the string, double and posix library.
 
 ## Building
 

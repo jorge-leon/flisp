@@ -1,0 +1,52 @@
+/* taken from poshdoc.org */
+/* small displays */
+@media (max-width: 44em) {
+    body {
+	font-size: .9em;
+	padding: 0 1.5em;
+	margin: 0 3em;
+    }
+}
+
+/* wide displays */
+@media (min-width: 44em) {
+    body {
+	max-width: 55em;
+	margin: 0 3em;
+    }
+    article { width: 94%; }
+    article>header { padding-left: 1em; }
+    article>section { margin-left: 6%; }
+}
+
+a[rel~="external"]::after { content: "⤤"; }
+a[href^="https://"]::after { content: "⤤"; }
+a[href^="http://"]::after { content: "↝"; }
+a[href^="mailto:"]::after { content: "📧"; }
+abbr {
+    border-bottom: none;
+    text-decoration: underline dotted;
+}
+dt {
+    float: left;
+    padding-right: 2em;
+    min-width: 12em;
+}
+dd > p {
+    margin-top: 0px;
+    margin-bottom: 1ex;
+}
+dt + dd > p {
+    clear: left;
+}
+
+h1,h2,h3,h4,h5,h6 { font-family: sans-serif; }
+h1,h2,h3,h4,h5,h6 { 
+    margin-top: 0.8rem;
+    margin-bottom: 0.3rem;
+}
+p { 
+    margin-top: 0.2rem;
+    margin-bottom: 0.6rem;
+}
+time { border-bottom: none; text-decoration: underline dashed; }

@@ -3,9 +3,12 @@
 # ROADMAP
 
 ## Next
+- Lisp objects host their writer function.
+- `store` function to (destructively) set a slot's value in an extensible object.
 
 ## Future
 
+- expose the write_* functions in lisp.h, so extensions writes can use them
 - Make symbol names huffman or algorithmic compressed int64_6 arrays for
   speedier lookups.
 - Add line , character and column counter to input stream
@@ -14,7 +17,7 @@
 - Add "weight" field to objects and increment them on use. When over threshold
   move to "sink" space and set weight negative. -1 is resevered for constants.
 - Re-order symbols on the fly so that heavier ones float to the bottom.
-- Objects host their writer (and reader?) and are pluggable.
+- Objects host their reader (?) and are pluggable.
 - RPN micro reader
 - Remove all printf, make own buffering and remove stdio <- not a goal anymore:
   simplify to standard.
@@ -51,7 +54,7 @@
 - Consider returning the element instead of the list with one element when
   (elements o n n+1).
 - Review error behavior for all primitives.
-- Clean up and document internal and extported flisp_* functions and FLISP_* macros.
+- Clean up and document internal and exported flisp_* functions and FLISP_* macros.
 - ! don't! Remove argv0 and argv from flisp_new(), inject them at startup <- or maybe not.
 - More testing, stress-testing.
 - Femto integration.
