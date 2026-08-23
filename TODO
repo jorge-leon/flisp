@@ -1,14 +1,14 @@
-- gc-always new writer, resp. fix segfaults/missing GC_CHECKPOINT's
-+ (write type-* t) must print type-*, not #<type type-*>.
-+ fl.c remove write_ln
-- remove flisp_w_object and related functions.
-- remove primitiveW
+- test new write with gc-always on, resp. fix segfaults/missing GC_CHECKPOINT's
+- Fix all tests
 - Test flisp_write_object:
   - trace-read flag, debug output
   - trace-primitives
 - CAR() CDR() Macro: either use it consistently or remove it
 - move double to double extension
 - all primitives: parameters which are not of specific type should be
-- checked with CHECK_ERR(), unless errors are explicitely allowed.
+  checked with CHECK_ERR(), unless errors are explicitely allowed.
 - consider StreamObject and use it for interpreter streams
 - (elements (interp)) crashes on the eight element.
++ (write type-* t) must print type-*, not #<type type-*>.
++ fl.c remove write_ln
++ remove flisp_w_object, primitiveW and related functions from lisp.c.

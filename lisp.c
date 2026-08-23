@@ -134,9 +134,6 @@ Object *flisp_static_error(Object *error, SimpleObject *message)
 /* Note: to be replaced by scratchpad */
 static char error_message[PATH_MAX]; /* error message format area */
 
-/* Note: deprecated */
-static Object *flisp_w_object(FILE *, Object *, bool);
-
 // Scratchpad ////
 
 Scratchpad *scratchpad = &(Scratchpad) {0};
@@ -1936,8 +1933,6 @@ bool flisp_is_error(Object **e, Object *r)
  */
 /* Usage see below */
 
-
-
 /** writeChar - write character to file descriptor
  *
  * @param fd      open writeable file descriptor or NULL
@@ -1971,115 +1966,6 @@ Object *writeString(FILE *fd, char *str)
     return nil;
 }
 
-Object *writeInteger(FILE *fd, int64_t value)
-{
-    if (fd == NULL) return nil;
-
-    char *i = fmtInteger(value, 10, flisp_integer_char_map, 'd', -1);
-    if (i == NULL)
-        return flisp_static_error(out_of_memory, &fmt_oom_message);
-    if (i == (char *)-1) return flisp_static_error(range_error, &fmt_invalid_base);
-    if (i == (char *)-2) return flisp_static_error(range_error, &fmt_invalid_length);
-    return writeString(fd, i);
-}
-Object *writeHex(FILE *fd, int64_t value, size_t length)
-{
-    if (fd == NULL) return nil;
-
-    char *i = fmtInteger(value, 16, flisp_integer_char_map, 'X', length);
-    if (i == NULL)
-        return flisp_static_error(out_of_memory, &fmt_oom_message);
-    return writeString(fd, i);
-}
-
-Object *writeDouble(FILE *fd, uint64_t number)
-{
-    if (fd == NULL) return nil;
-
-    Object *e;
-    if ((e = writeString(fd, "#D")) != nil) return e;
-    return writeHex(fd, number, -1);
-}
-
-// WRITING OBJECTS ////////////////////////////////////////////////////////////
-
-Object *writePrimitive(FILE *fd, Object *p)
-{
-    Object *e = nil;
-    do {
-        FLISP_WHILE_OK(writeString(fd, "#<Primitive "));
-        FLISP_WHILE_OK(writeString(fd, p->primitive->name));
-        FLISP_WHILE_OK(writeString(fd, " ["));
-        FLISP_WHILE_OK(writeInteger(fd, p->primitive->nMinArgs));
-        FLISP_WHILE_OK(writeString(fd, ", "));
-        FLISP_WHILE_OK(writeInteger(fd, p->primitive->nMaxArgs));
-        FLISP_WHILE_OK(writeString(fd, "] "));
-        FLISP_WHILE_OK(flisp_w_object(fd, (Object *)p->primitive->argsType, true));
-        FLISP_WHILE_OK(writeChar(fd, '>'));
-    } while (0);
-    return e;
-}
-Object *writeVector(FILE *fd, Object *vector)
-{
-    Object *e = nil;
-    do {
-        FLISP_WHILE_OK(writeString(fd, "#<Vector "));
-        FLISP_WHILE_OK(writeInteger(fd, vector->length));
-        FLISP_WHILE_OK(writeChar(fd, '>'));
-    } while (0);
-    return e;
-}
-
-Object *writeCons(FILE *fd, Object *cons, bool readably, char *start)
-{
-    Object *e = nil;
-    do {
-        FLISP_WHILE_OK(writeString(fd, start));
-        FLISP_WHILE_OK(flisp_w_object(fd, cons->car, readably));
-        while (cons->cdr != nil) {
-            cons = cons->cdr;
-            if (cons->type == type_cons) {
-                FLISP_WHILE_OK(writeChar(fd, ' '));
-                FLISP_WHILE_OK( flisp_w_object(fd, cons->car, readably));
-            } else {
-                FLISP_WHILE_OK(writeString(fd, " . "));
-                FLISP_WHILE_OK(flisp_w_object(fd, cons, readably));
-                break;
-            }
-        }
-        if (e != nil) break;
-        FLISP_WHILE_OK(writeChar(fd, ')'));
-    } while (0);
-    return e;
-}
-Object *writeClosure(FILE *fd, Object *closure, bool readably, char *type)
-{
-    Object *e = nil;
-    do {
-        FLISP_WHILE_OK(writeString(fd, type));
-        FLISP_WHILE_OK(flisp_w_object(fd, closure->closure.params, readably));
-        FLISP_WHILE_OK(writeChar(fd, '>'));
-    } while (0);
-    return e;
-}
-Object *writeEnv(FILE *fd, Object *env, bool readably)
-{
-    Object *symbols = env->env.vars, *values = env->env.vals;
-    Object *e = nil;
-    if (flisp_not_same(&e, writeString(fd, "<#Env "))) return e;
-    while (symbols != nil) {
-        do {
-            FLISP_WHILE_OK(flisp_w_object(fd, symbols->car, readably));
-            FLISP_WHILE_OK(writeChar(fd, ' '));
-            FLISP_WHILE_OK(flisp_w_object(fd, values->car, readably));
-            if (symbols->cdr != nil) FLISP_WHILE_OK(writeString(fd, ",  "));
-        } while (0);
-        if (e != nil) return e;
-        symbols = symbols->cdr;
-        values = values->cdr;
-    }
-    return writeChar(fd, '>');
-}
 Object *writeStringReadably(FILE *fd, char *string)
 {
     char *escape;
@@ -2110,133 +1996,6 @@ Object *writeStringReadably(FILE *fd, char *string)
         if (flisp_not_same(&e, writeString(fd, escape))) return e;
     }
     return writeChar(fd, '"');
-}
-Object *writeStream(FILE *fd, Object *object)
-{
-    Object *e = nil;
-    do {
-        FLISP_WHILE_OK(writeString(fd, "#<Stream "));
-        FLISP_WHILE_OK(writeHex(fd, (uintptr_t) object->stream.fd, 0));
-        FLISP_WHILE_OK(writeChar(fd, ' '));
-        FLISP_WHILE_OK(flisp_w_object(fd, object->stream.path, false));
-        FLISP_WHILE_OK(writeChar(fd, '>'));
-    } while (0);
-    return e;
-}
-Object *writeErrorReadably(FILE *fd, Object *error)
-{
-    Object *e = nil;
-    do {
-        FLISP_WHILE_OK(writeString(fd, "#<Error "));
-        FLISP_WHILE_OK(flisp_w_object(fd, error->error.type, true));
-        FLISP_WHILE_OK(writeString(fd, ": "));
-        FLISP_WHILE_OK(flisp_w_object(fd, error->error.message, true));
-        FLISP_WHILE_OK(writeString(fd, ", "));
-        FLISP_WHILE_OK(flisp_w_object(fd, error->error.culprit, true));
-        FLISP_WHILE_OK(writeChar(fd, '>'));;
-    } while (0);
-    return e;
-}
-Object *writeError(FILE *fd, Object *error)
-{
-    Object *e = nil;
-    do {
-        FLISP_WHILE_OK(writeString(fd, "error:"));
-        FLISP_WHILE_OK(flisp_w_object(fd, error->error.type, false));
-        FLISP_WHILE_OK(writeString(fd, ": "));
-        FLISP_WHILE_OK(flisp_w_object(fd, error->error.message, false));
-        if (error->error.culprit != nil) {
-            FLISP_WHILE_OK(writeString(fd, ": '"));
-            FLISP_WHILE_OK(flisp_w_object(fd, error->error.culprit, true));
-            FLISP_WHILE_OK(writeString(fd, "'"));
-        }
-    } while (0);
-    return e;
-}
-Object *writeInterpreter(FILE *fd, Object *interp, bool readably)
-{
-    Object *e = nil;
-    do {
-        FLISP_WHILE_OK(writeString(fd, "#<Interpreter "));
-        FLISP_WHILE_OK(writeHex(fd, (uintptr_t) interp, 0));
-        FLISP_WHILE_OK(writeChar(fd, '>'));
-    } while (0);
-    return e;
-}
-Object *writeExtension(FILE *fd, Object *o,  bool readably)
-{
-    Object *e = nil;
-    do {
-        FLISP_WHILE_OK(writeString(fd, "#<Extension "));
-        FLISP_WHILE_OK(flisp_w_object(fd, o->extension.name, readably));
-        FLISP_WHILE_OK(writeString(fd, ", "));
-        FLISP_WHILE_OK(flisp_w_object(fd, o->extension.version, readably));
-        FLISP_WHILE_OK(writeChar(fd, '>'));
-    } while (0);
-    return e;
-}
-
-Object *primitiveWriteInteger(Object *interp, Object **args, Object **env,size_t nArgs)
-{
-    return writeInteger(FLISP_ARG1->stream.fd, FLISP_ARG2->value);
-}
-Object *primitiveWriteDouble(Object *interp, Object **args, Object **env,size_t nArgs)
-{
-    return writeDouble(FLISP_ARG1->stream.fd, FLISP_ARG2->value);
-}
-Object *primitiveWriteString(Object *interp, Object **args, Object **env, size_t nArgs)
-{
-    if (nArgs == 3 && FLISP_ARG3 == nil)
-        return writeString(FLISP_ARG1->stream.fd, FLISP_ARG2->string);
-    else
-        return writeStringReadably(FLISP_ARG1->stream.fd, FLISP_ARG2->string);
-}
-
-/** flisp_w_object - format and write object to file descriptor
- *
- * @param interp  fLisp interpreter
- * @param fd      open writeable file descriptor or NULL
- * @param object  object to be serialized
- * @param readably  if true, write in a format which can be read back
- *
- * throws: gc-error, io-error
- *
- */
-Object *flisp_w_object(FILE *fd, Object *object, bool readably)
-{
-    if (fd == NULL) return nil;
-
-    if (object->type == type_integer)     return writeInteger(fd, object->value);
-    if (object->type == type_double)      return writeDouble(fd, object->value);
-    if (object->type == type_primitive)   return writePrimitive(fd, object);
-    if (object->type == type_vector)      return writeVector(fd, object);
-    if (object->type == type_cons)        return writeCons(fd, object, readably, "(");
-    if (object->type == type_lambda)      return writeClosure(fd, object, readably, "#<Lambda ");
-    if (object->type == type_macro)       return writeClosure(fd, object, readably, "#<Macro ");
-    if (object->type == type_env)         return writeEnv(fd, object, readably);
-    if (object->type == type_string) {
-        if (readably)
-            return writeStringReadably(fd, object->string);
-        else
-            return writeString(fd, object->string);
-    }
-    if (object->type == type_str) {
-        if (readably)
-            return writeStringReadably(fd, ((SimpleObject *)object)->str);
-        else
-            return writeString(fd, ((SimpleObject *)object)->str);
-    }
-    if (object->type == type_symbol)
-        return writeString(fd, object->size ? object->string : ((SimpleObject*)object)->str);
-
-    if (object->type == type_stream)      return writeStream(fd, object);
-    if (object->type == type_error)       return readably ? writeErrorReadably(fd, object) : writeError(fd, object);
-    if (object->type == type_interpreter) return writeInterpreter(fd, object, readably);
-    if (object->type == type_extension)   return writeExtension(fd, object, readably);
-    //if (object->type == type_values)      return writeValues(fd, object, readably);
-    if (object->type == type_moved)       return flisp_w_object(fd, object->forward, readably);
-    if (object->type == type_type)        return flisp_w_object(fd, ((TypeObject*)object)->type.name, false);
-    return flisp_static_error(invalid_value, &write_invalid_object);
 }
 
 /* print_*() are helper functions for the writer primitives. We
@@ -2613,24 +2372,6 @@ Object* flisp_write_object(Object *interp, Object *object, Object *readably, Obj
     GC_CHECK_ERR(*gcArgs = newCons(interp, gcReadably, gcArgs));
     GC_CHECK_ERR(*gcArgs = newCons(interp, gcObject, gcArgs));
     GC_RETURN(print_object(interp, gcArgs, 3, *gcObject));
-}
-
-Object *primitiveW(Object *interp, Object **args, Object **env, size_t nArgs)
-{
-    bool readably = false;
-    FILE *fd = FLISP_STANDARD_OUTPUT.fd;
-
-    if (nArgs > 1) {
-        readably = (FLISP_ARG2 != nil);
-    }
-    if (nArgs > 2) {
-        FLISP_ASSERT(FLISP_ARG3, type_stream, "(write o [p [fd]]) - fd");
-        if (FLISP_ARG3->stream.fd == NULL)
-            return newError(interp, invalid_value, nil, "(write o[ p [fd]) - fd already closed");
-        fd = FLISP_ARG3->stream.fd;
-    }
-    flisp_w_object(fd, FLISP_ARG1, readably);
-    return FLISP_ARG1;
 }
 
 // PRIMITIVES /////////////////////////////////////////////////////////////////
@@ -3370,7 +3111,6 @@ Object *flisp_core_init(Object *interp, Object *extension)
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "file-info",              1,  1, type_stream,    primitiveFinfo));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "read",                   0,  2, (TypeObject*)nil,            primitiveRead));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "eval",                   1,  1, (TypeObject*)nil,            primitiveEval));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "w",                      1,  3, (TypeObject*)nil,            primitiveW));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "write",                  1,  3, (TypeObject*)nil,            primitiveWrite));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "error",                  2,  3, (TypeObject*)nil,            primitiveError));
 #if 0
