@@ -131,10 +131,7 @@ Object *flisp_static_error(Object *error, SimpleObject *message)
     return &init_error;
 }
 
-/* Note: to be replaced by scratchpad */
-static char error_message[PATH_MAX]; /* error message format area */
-
-// Scratchpad ////
+// Scratchpad - format error strings, scan input ////
 
 Scratchpad *scratchpad = &(Scratchpad) {0};
 
@@ -638,7 +635,9 @@ Object *newClosure(Object *interp, TypeObject *type, Object ** args, Object **en
 
     /* Cover: (closure a body) and (closure (a b . c) body) */
     if (o != nil && o->type != type_symbol)
-        return newError(interp, o, wrong_type_argument, "(%s params body) - param is not a symbol");
+        return newError2(interp, invalid_value, o->car,
+                         (type == type_lambda) ? "(lambda" : "(macro",
+                         " params body) - param is not a symbol");
 
     o = flisp_ext_obj(interp, type, &nil, 3, 0);
     CHECK_OOM(o);
@@ -889,43 +888,44 @@ Object *newErrorI(Object *interp, Object *error_type, Object *culprit, char *mes
     if (!addStringToPad(scratchpad, mess2)) return flisp_static_error(out_of_memory, &fmt_oom_message);
     return newError(interp, error_type, culprit, scratchpad->string);
 }
-
-
-/* Note: replace vsnprintf() with scratchpad */
-#define FLISP_FORMAT_ERROR_MESSAGE "failed to format error message"
-Object *newErrorFmt(Object *interp, Object *error, Object *culprit, char *format, ...)
+/** Create error object with message composed of string and character as hex */
+Object *newErrorHexChar(Object *interp, Object *error_type, Object *culprit, char *message, char c)
 {
-    size_t written;
-    size_t len = sizeof(error_message);
-    char *message = error_message;
-
-    GC_CHECKPOINT;
-    GC_TRACE(gcErrorType, error);
-    GC_TRACE(gcCulprit, culprit);
-    GC_TRACE(gcMessage, flisp_empty_string);
-    GC_TRACE(gcError, flisp_ext_obj(interp, type_error, gcErrorType, 3, 0));
-    GC_CHECK_OOM(*gcError);
-
-    if (format != NULL && format[0] != '\0') {
-        va_list(args);
-        va_start(args, format);
-            written = vsnprintf(message, len, format, args);
-            va_end(args);
-            if (written > len) {
-                strcpy(message+len-4, "...");
-                written = len;
-            } else if (written < 0) {
-                message = FLISP_FORMAT_ERROR_MESSAGE;
-                len = sizeof(FLISP_FORMAT_ERROR_MESSAGE);
-            }
-            *gcMessage = newStringWithLength(interp, message, len);
-    }
-    GC_CHECK_ERR(*gcMessage);
-    (*gcError)->error.message = *gcMessage;
-    (*gcError)->error.culprit = *gcCulprit;
-
-    GC_RETURN(*gcError);
+    initPad(scratchpad);
+    if (!addStringToPad(scratchpad, message)) return flisp_static_error(out_of_memory, &fmt_oom_message);
+    char *x = fmtInteger(c, 16, flisp_integer_char_map, '0', 2);
+    if (!x) return flisp_static_error(out_of_memory, &fmt_oom_message);
+    /* Ommiting check base or pad range error i == -1 || i == -2 */
+    if (!addStringToPad(scratchpad, x)) return flisp_static_error(out_of_memory, &fmt_oom_message);
+    return newError(interp, error_type, culprit, scratchpad->string);
 }
+/** Create error object with message composed of string and character */
+Object *newErrorChar(Object *interp, Object *error_type, Object *culprit, char *message, char c)
+{
+    initPad(scratchpad);
+    if (!addStringToPad(scratchpad, message)) return flisp_static_error(out_of_memory, &fmt_oom_message);
+    if (!addCharToPad(scratchpad, c)) return flisp_static_error(out_of_memory, &fmt_oom_message);
+    if (!addCharToPad(scratchpad, '\0')) return flisp_static_error(out_of_memory, &fmt_oom_message);
+
+    return newError(interp, error_type, culprit, scratchpad->string);
+}
+/** Create error object with message composed of eight strings */
+Object *newError8(Object *interp, Object *error_type, Object *culprit,
+                     char *m1, char *m2, char *m3, char *m4, char *m5, char *m6, char *m7, char *m8)
+{
+    initPad(scratchpad);
+    if (!addStringToPad(scratchpad, m1)) return flisp_static_error(out_of_memory, &fmt_oom_message);
+    if (!addStringToPad(scratchpad, m2)) return flisp_static_error(out_of_memory, &fmt_oom_message);
+    if (!addStringToPad(scratchpad, m3)) return flisp_static_error(out_of_memory, &fmt_oom_message);
+    if (!addStringToPad(scratchpad, m4)) return flisp_static_error(out_of_memory, &fmt_oom_message);
+    if (!addStringToPad(scratchpad, m5)) return flisp_static_error(out_of_memory, &fmt_oom_message);
+    if (!addStringToPad(scratchpad, m6)) return flisp_static_error(out_of_memory, &fmt_oom_message);
+    if (!addStringToPad(scratchpad, m7)) return flisp_static_error(out_of_memory, &fmt_oom_message);
+    if (!addStringToPad(scratchpad, m8)) return flisp_static_error(out_of_memory, &fmt_oom_message);
+    return newError(interp, error_type, culprit, scratchpad->string);
+}
+
+
 /** newStreamObject - create stream object from file descriptor and path
  *
  * @param fd .. FILE * stream descriptor to register
@@ -1421,9 +1421,9 @@ Object *doReaderMacro(Object *interp, FILE *fd)
         return number;
     }
     if (ch & 0x80)
-        return newErrorFmt(interp, invalid_read_syntax, nil, "unknown read macro: #0x%02X", ch);
+        return newErrorHexChar(interp, invalid_read_syntax, nil, "unknown read macro: #0x", ch);
     else
-        return newErrorFmt(interp, invalid_read_syntax, nil, "unknown read macro: #%c", ch);
+        return newErrorChar(interp, invalid_read_syntax, nil, "unknown read macro: #", ch);
 }
 
 /** readExpr - return next lisp sexp object from stream or from interpreter input file
@@ -1482,9 +1482,9 @@ Object *readExpr(Object *interp, FILE *fd)
         }
         else
             if (ch & 0x80)
-                return newErrorFmt(interp, invalid_read_syntax, nil, "unexpected character: 0x%02X", ch);
+                return newErrorHexChar(interp, invalid_read_syntax, nil, "unexpected character: 0x%", ch);
             else
-                return newErrorFmt(interp, invalid_read_syntax, nil, "unexpected character: '%c'", ch);
+                return newErrorChar(interp, invalid_read_syntax, nil, "unexpected character: ", ch);
     }
 }
 
@@ -1837,16 +1837,20 @@ Object *evalExpr(Object *interp, Object ** object, Object **env)
             default:
                 *gcArgs = evalList(interp, gcArgs, gcEnv);
                 Object *args = *gcArgs;
+                char *d;
                 for (Object *prev = nil; args != nil; prev = args, args = args->cdr, nArgs++) {
-                    if (args->type != type_cons)
-                        return newErrorFmt(interp, wrong_type_argument, args,
-                                           "(%s args) - args is not a list, arg %d",
-                                           primitive->name, nArgs);
-                    if (args->car->type == type_moved || args->cdr->type == type_moved)
-                        return newErrorFmt(interp, gc_error, args->car,
-                                           "(%s args) - arg %d is already disposed off",
-                                           primitive->name, nArgs);
-
+                    if (args->type != type_cons) {
+                        d = fmtInteger(nArgs, 10, flisp_integer_char_map, ' ', -1);
+                        if (!d) return flisp_static_error(out_of_memory, &fmt_oom_message);
+                        return newError8(interp, wrong_type_argument, args,
+                                         "(", primitive->name, "args) - args is not a list, arg ", d, "", "", "", "");
+                    }
+                    if (args->car->type == type_moved || args->cdr->type == type_moved) {
+                        d = fmtInteger(nArgs, 10, flisp_integer_char_map, '0', -1);
+                        if (!d) return flisp_static_error(out_of_memory, &fmt_oom_message);                        
+                        return newError8(interp, gc_error, args->car,
+                                         "(", primitive->name, " args) - arg ", d, " is already disposed off", "", "", "");
+                    }
                     if (args->car->type == type_values) {
                         if (args->cdr == nil) {
                             /* Special case, if values is at end of parameter list, destructively insert its arguments and restart checking */
@@ -1866,13 +1870,15 @@ Object *evalExpr(Object *interp, Object ** object, Object **env)
                         continue;
                     }
 
-                    if (primitive->argsType != (TypeObject *)nil && args->car->type != primitive->argsType)
+                    if (primitive->argsType != (TypeObject *)nil && args->car->type != primitive->argsType) {
                         /* Note: looks very similar to FLISP_ASSERT() */
-                        return newErrorFmt(interp, wrong_type_argument, args->car, "(%s args) - arg %d expected %s, got %s",
-                                           primitive->name, nArgs+1,
-                                           primitive->argsType->type.name->string,
-                                           args->car->type->type.name->string
-                            );
+                        char *d = fmtInteger(nArgs+1, 10, flisp_integer_char_map, ' ', -1);
+                        if (!d) return flisp_static_error(out_of_memory, &fmt_oom_message);
+                        return newError8(interp, wrong_type_argument, args->car,
+                                         "(", primitive->name, " args) - arg ", d,
+                                         " expected ", primitive->argsType->type.name->string,
+                                         "  got ", args->car->type->type.name->string);
+                    }
                 }
                 if (nArgs < primitive->nMinArgs)
                     return newErrorI(interp, wrong_number_of_arguments, *gcFunc,
@@ -2208,8 +2214,8 @@ Object *primitiveWClosure(Object *interp, Object **args, Object **env, size_t nA
 {
     Object *closure = FLISP_ARG1;
     if (closure->type != type_lambda && closure->type != type_macro)
-        return newErrorFmt(interp, wrong_type_argument, closure,
-                           "(write-closure o[ p[ s]]) - o expected type-lambda or type-macro, got %s",
+        return newError2(interp, wrong_type_argument, closure,
+                           "(write-closure o[ p[ s]]) - o expected type-lambda or type-macro, got ",
                            ((SimpleObject*)(closure)->type->type.name)->str);
     GC_CHECKPOINT;
     GC_TRACE(gcArgs, *args);
@@ -2342,7 +2348,7 @@ Object *print_object(Object *interp, Object **args, size_t nArgs, Object *object
         if (FLISP_ARG3 == nil) return nil;
         FLISP_ASSERT(FLISP_ARG3, type_stream, "(print_object o[ p[ s]]) - s");
         if (FLISP_ARG3->stream.fd == NULL)
-            return newErrorFmt(interp, invalid_value, nil, "(print_object(o[ p[ s]]) - s already closed");
+            return newError(interp, invalid_value, nil, "(print_object(o[ p[ s]]) - s already closed");
     }
     Object *newArgs;
     FLISP_CHECK_ERR(newArgs = newCons(interp, &object, &(*args)->cdr));
@@ -2363,7 +2369,7 @@ Object* flisp_write_object(Object *interp, Object *object, Object *readably, Obj
     if (stream == nil) return nil;
     FLISP_ASSERT(stream, type_stream, "flisp_write_object(interp, object, readably, stream) - stream");
     if (stream->stream.fd == NULL)
-        return newErrorFmt(interp, invalid_value, nil, "flisp_write_object(object, readaybly, stream) - stream already closed");
+        return newError(interp, invalid_value, nil, "flisp_write_object(object, readaybly, stream) - stream already closed");
     GC_CHECKPOINT;
     GC_TRACE(gcObject, object);
     GC_TRACE(gcReadably, readably);
@@ -2493,7 +2499,9 @@ Object *primitiveElements(Object *interp, Object **args, Object **env, size_t nA
     if (i < 0) i = 0;
     if (end != -1) { /* list w/o end parameter */
         if (i > j)
-            return newErrorFmt(interp, range_error, FLISP_ARG2, "(elements object[ start[ end]]) - start > end: [%lu, %lu)", i, j);
+            /* Note: unless demand comes up we omit to add "[%lu, %lu)", i, j) */
+            return newError(interp, range_error, FLISP_ARG2, "(elements object[ start[ end]]) - start > end");
+
         if (j < 0) j = 0;
         if (j > end) j = end;
     }
@@ -2790,7 +2798,8 @@ Object *file_fopen(Object *interp, char *path, char* mode) {
             case EISDIR:  err = is_directory; break;
             default:      err = io_error; break;
             }
-            return newErrorFmt(interp, err, nil, "failed to open file '%s' with mode '%s': %s", path, mode, strerror(errno));
+            return newError8(interp, err, nil,
+                             "failed to open file '", path, "' with mode '", mode, "': ", strerror(errno), "", "");
         }
     }
     return newStreamObject(interp, fd, path);

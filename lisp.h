@@ -268,7 +268,8 @@ extern Object *newSymbol(Object *, char *);
 extern Object *newError(Object *, Object *, Object *, char *);
 extern Object *newError2(Object *, Object *, Object *, char *, char *);
 extern Object *newErrorI(Object *, Object *, Object *, char *, int64_t, char *);
-extern Object *newErrorFmt(Object *, Object *, Object *, char *, ...);
+extern Object *newError8(Object *, Object *, Object *, char *, char *, char *, char *, char *, char *, char *, char *);
+
 extern Object *newStreamObject(Object *, FILE *, char *);
 
 extern void resetBuf(Object *);
@@ -324,11 +325,13 @@ void flisp_debug(Object *, char *, ...);
 
 #define FLISP_ASSERT(PARAM, TYPE, SIGNATURE)                            \
     if (PARAM->type != TYPE)                                            \
-        return newErrorFmt(interp, wrong_type_argument, PARAM,          \
-                           SIGNATURE " expected %s, got %s",           \
-                           ((SimpleObject*)(TYPE)->type.name)->str,     \
-                           ((SimpleObject*)(PARAM)->type->type.name)->str)
-
+        return newError8(interp, wrong_type_argument, PARAM,            \
+                         SIGNATURE,                                     \
+                         " expected ",                                  \
+                         ((SimpleObject*)(TYPE)->type.name)->str,       \
+                         " got ",                                       \
+                         ((SimpleObject*)(PARAM)->type->type.name)->str, \
+                         "", "", "")
 
 #define FLISP_INTERP interp->self
 #define FLISP_STANDARD_INPUT  interp->self.input->stream
@@ -336,6 +339,7 @@ void flisp_debug(Object *, char *, ...);
 #define FLISP_STDERR          interp->self.stderr->stream
 #define FLISP_DEBUG_OUTPUT    interp->self.debug->stream
 #endif
+
 /*
  * Local Variables:
  * c-file-style: "k&r"
