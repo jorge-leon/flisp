@@ -253,8 +253,8 @@ void flisp_debug(Object *interp, char *format, ...)
 void resetBuf(Object *);
 #endif
 
-#define CAR(OBJECT) OBJECT->cons.car
-#define CDR(OBJECT) OBJECT->cons.cdr
+#define CAR(OBJECT) (OBJECT)->cons.car
+#define CDR(OBJECT) (OBJECT)->cons.cdr
 
 
 // GARBAGE COLLECTION /////////////////////////////////////////////////////////
@@ -565,12 +565,37 @@ Object *newPrimitive(Object *interp, Primitive* primitive)
 }
 // Extended objects //
 
+/** flisp_store_object(interp, object, list, index, all)
+ *
+ * @param interp .. Interpreter in which to find obj.
+ * @param object .. Object to initialize.
+ * @param list   .. List of initializer objects or single object. Dottet lists are flattened.
+ * @param index  .. Slot index to start with.
+ * @param all    .. If true fill all remaining slots with nil.
+ */
+Object *flisp_store_object(Object *interp, Object *object, Object *list, size_t index, bool all)
+{
+    Object *o = list;
+
+    for(; index < object->length && o != nil; o = CDR(o))
+        if (o->type == type_cons)
+            object->objects[index++] = CAR(o);
+        else {
+            object->objects[index++] = o;
+            break;
+        }
+    while(all && index < object->length)
+        object->objects[index++] = nil;
+    return object;
+}
+
 /** flisp_ext_obj(interp, type, list, length, extra) - create and initialize an extended object.
  *
- * @param interp   .. Interpreter in which to create the object.
- * @param obj_list .. List of initializer objects or object. Dottet lists are flattened.
- * @param length    .. Number of objects in the list to use for initialization.
- * @param extra    .. Number of additional space in bytes to allocate for extension data.
+ * @param interp .. Interpreter in which to create the object.
+ * @param type   .. type of new object.
+ * @param list   .. List of initializer objects or object. Dottet lists are flattened.
+ * @param length .. Number of object slots to allocate in the object.
+ * @param extra  .. Number of additional space in bytes to allocate for extension data.
  *
  * If there are more then length objects in the list, only the first length ones will be used.
  * If there are less then length objects in the list, nil is used to initialize the respective slot.
@@ -591,18 +616,9 @@ Object *flisp_ext_obj(Object *interp, TypeObject *type, Object **list, size_t le
     Object *object = newObject(interp, (TypeObject *)*gcType, (sizeof(Object *) * length) + extra);
     GC_RELEASE;
     CHECK_OOM(object);
-    size_t i;
     object->length = length;
-    for(i = 0; i < length && (*gcObjs) != nil; (*gcObjs) = (*gcObjs)->cdr)
-        if ((*gcObjs)-> type == type_cons)
-            object->objects[i++] = (*gcObjs)->car;
-        else {
-            object->objects[i++] = *gcObjs;
-            break;
-        }
-    while(i < length)
-        object->objects[i++] = nil;
-    return object;
+
+    return flisp_store_object(interp, object, *gcObjs, 0, true);
 }
 Object *newCons(Object *interp, Object ** car, Object ** cdr)
 {
@@ -1847,7 +1863,7 @@ Object *evalExpr(Object *interp, Object ** object, Object **env)
                     }
                     if (args->car->type == type_moved || args->cdr->type == type_moved) {
                         d = fmtInteger(nArgs, 10, flisp_integer_char_map, '0', -1);
-                        if (!d) return flisp_static_error(out_of_memory, &fmt_oom_message);                        
+                        if (!d) return flisp_static_error(out_of_memory, &fmt_oom_message);
                         return newError8(interp, gc_error, args->car,
                                          "(", primitive->name, " args) - arg ", d, " is already disposed off", "", "", "");
                     }
@@ -2446,6 +2462,16 @@ Object *primitiveVector(Object *interp, Object **args, Object **env, size_t nArg
     Object *vector = flisp_ext_obj(interp, type_vector, args, nArgs, 0);
     CHECK_OOM(vector);
     return vector;
+}
+/** (store obj index [..]) */
+Object *primitiveStore(Object *interp, Object **args, Object **env, size_t nArgs)
+{
+    FLISP_ASSERT(FLISP_ARG2, type_integer, "(store obj index [..]) - index");
+    if (FLISP_ARG2->value < 0)
+        return newErrorI(interp, range_error, FLISP_ARG2, "(store obj index [..]) - index must be positive: ", FLISP_ARG2->value, "");
+    if (FLISP_ARG2->value >= FLISP_ARG1->length)
+        return newErrorI(interp, range_error, FLISP_ARG2, "(store obj index [..]) - index out of range, max: ", FLISP_ARG1->length - 1, "");
+    return flisp_store_object(interp, FLISP_ARG1, (*args)->cdr->cdr, FLISP_ARG2->value, false);
 }
 Object *primitiveValues(Object *interp, Object **args, Object **env, size_t nArgs)
 {
@@ -3113,6 +3139,7 @@ Object *flisp_core_init(Object *interp, Object *extension)
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "object-size",            1,  1, (TypeObject*)nil,            primitiveObjectSize));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "object-length",          1,  1, (TypeObject*)nil,            primitiveObjectLength));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "vector",                 1, -1, (TypeObject*)nil,            primitiveVector));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "store",                  2, -1, (TypeObject*)nil,            primitiveStore));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "values",                 0, -1, (TypeObject*)nil,            primitiveValues));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "elements",               1,  3, (TypeObject*)nil,            primitiveElements));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "open",                   1,  2, type_string,    primitiveFopen));
