@@ -253,8 +253,8 @@ void flisp_debug(Object *interp, char *format, ...)
 void resetBuf(Object *);
 #endif
 
-#define CAR(OBJECT) OBJECT->cons.car
-#define CDR(OBJECT) OBJECT->cons.cdr
+#define CAR(OBJECT) (OBJECT)->cons.car
+#define CDR(OBJECT) (OBJECT)->cons.cdr
 
 
 // GARBAGE COLLECTION /////////////////////////////////////////////////////////
