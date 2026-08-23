@@ -6,11 +6,10 @@
 #
 
 FLISP_VERSION="fLisp 0.17α3"
-FLISP_MEMORY_INC_SIZE=16384
-$(
+FLISP_MEMORY_INC_SIZE=$(
     while read DEFINE CONST NUM REST; do
-	[ "$DEFINE" = "#define" -a "$CONST" = FLISP_MEMORY_INC_SIZE ] && echo $CONST=$NUM
-    done <lisp.h
+	[ "$DEFINE" = "#define" -a "$CONST" = FLISP_MEMORY_INC_SIZE ] && echo ${NUM%UL} && break
+    done <../lisp.h
 )
 
 export FLISP=../fl
