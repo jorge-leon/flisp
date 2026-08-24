@@ -181,7 +181,8 @@
     <dd><var>f</var></dd>
   </dl>
   <p><i>fLisp</i> fancies to converge towards Emacs and Common Lisp, but includes also Scheme functions. Function
-  descriptions are annotated according to their compatibility:</p>
+  descriptions are annotated with a sequence of <u>underlined</u> character code according to their compatibility.</p>
+  <p>Functional compatibility:</p>
   <dl>
     <dt><u>C</u></dt>
     <dd>Interface compatible, though probably less featureful.</dd>
@@ -191,14 +192,19 @@
     <dd><var>name</var> is a similar, but not compatible, function in Emacs Lisp, Common Lisp or Scheme.</dd>
     <dt><u>B</u></dt>
     <dd>Buggy/incompatible implementation.</dd>
-    <dt><u>f</u></dt>
-    <dd>fLisp specific function.</dd>
     <dt><u>d</u></dt>
     <dd>Only available when the double extension is loaded.</dd>
   </dl>
-  <p>Compatibility with Emacs is omitted. By default compatibility with Common Lisp is annotated. The suffix <u>e</u>
-  is used to indicate reference to Emacs Lisp, <u>s</u> for Scheme. <var>fLisp</var> specific function are annotated
-  with <u>f</u>.</p>
+  <p>Lisp dialect compatibility:</p>
+  <dl>
+    <dt><u>f</u></dt>
+    <dd><i>fLisp</i> specific function.</dd>
+    <dt><u>e</u></dt>
+    <dd>Compatible with Emacs/Elisp.</dd>
+    <dt><u>s</u></dt>
+    <dd>Compatible with Scheme.</dd>
+  </dl>
+  <p>No annotation indicates Common Lisp compatibility.</p>
   <nav>
     <a href="#toc">^</a>
   </nav>
@@ -210,13 +216,12 @@
     <li>Evaluate: the internal representation is evaluated.</li>
     <li>Print: the result of the evaluation is optionally printed and returned to the invoker.</li>
   </ol>
-  <p><a href="#flisp_primitives">Core functions</a> of the language - called <dfn>primitives</dfn> - operate on
-  built-in <a href="#objects_and_data_types">object types</a>. <i>fLisp</i> can be extended with C-libraries to provide
-  additional primitives.</p>
   <h4 id="syntax">Syntax</h4>
   <p>Program text is written as a sequence of symbolic expressions - <abbr><dfn>sexp</dfn></abbr>'s - in parenthesized
   form. A <a href="https://en.wikipedia.org/wiki/S-expression">sexp</a> is either a single symbol or a sequence of
   symbols or sexp's enclosed in parenthesis.</p>
+  <p>The reader converts program text into the respective internal representation. It manipulates the input when it
+  encounters some special characters like reader macros or quotes.</p>
   <p>The following characters are special to the reader:</p>
   <dl>
     <dt><code>(</code></dt>
@@ -227,8 +232,7 @@
     <dt><code>)</code></dt>
     <dd>Finishes a function or macro invocation, <i>list</i> or <i>cons</i> object.</dd>
     <dt><code>'</code> and <code>:</code></dt>
-    <dd>With a single quote or a colon prefix before a <abbr>sexp</abbr>, the <abbr>sexp</abbr> is expanded to
-    <code>(quote <var>sexp</var>)</code> before it is evaluated.</dd>
+    <dd>Expand the following <abbr>sexp</abbr> to <code>(quote <var>sexp</var>)</code> before it is evaluated.</dd>
     <dt><code>.</code></dt>
     <dd>The expression <code>(<var>a</var> . <var>b</var>)</code> evaluates to a <i>cons</i> object, holding the
     objects <var>a</var> and <var>b</var>.</dd>
@@ -240,30 +244,56 @@
     <dt>#</dt>
     <dd>Introduces a reader macro.</dd>
     <dt><code>;</code></dt>
-    <dd>Comment character. When the reader encounters a semicolon it ignores it and all characters up to the next
-    newline.</dd>
+    <dd>Comment character. Ignores the semiconlon and all characters up to the next newline.</dd>
     <dt>`</dt>
-    <dd>Quasiquote: a backquote before a sexp is expanded to <code>(quasiquote sexp)</code>, with exception of
-    contained <code>unquote</code> and <code>unquote-splice</code> sequences.</dd>
+    <dd>Quasiquote:</dd>
+    <dd>Expand the following <abbr>sexp</abbr> to <code>(quasiquote sexp)</code>, with exception of contained
+    <code>unquote</code> and <code>unquote-splice</code> sequences.</dd>
     <dt>,</dt>
-    <dd>Expands to <code>(unquote sexp)</code>: an unquoted expresion within a quasiquote is substituted.</dd>
+    <dd>Unquote:</dd>
+    <dd>Expand the following <abbr>sexp</abbr> to <code>(unquote sexp)</code>: an unquoted expresion within a
+    quasiquote is substituted.</dd>
     <dt>,@</dt>
-    <dd>Expands to <code>(unquote-splice)</code>: like <code>unquote</code>, but if the expresion evaluates to a list
-    its elements are inserted element by element.</dd>
+    <dd>Unquote splice:</dd>
+    <dd>Expand the following <abbr>sexp</abbr> to <code>(unquote-splice)</code>: like <code>unquote</code>, but if the
+    expresion evaluates to a list its elements are inserted element by element.</dd>
   </dl>
-  <p>Note: <code>quasiquote</code>, <code>unquote</code> and <code>unquote-splice</code> are not yet implemented in
-  <i>fLisp</i> 0.17.</p>
-  <p>Numbers are read and written in decimal notation. IEEE double floating point numbers can be read via the #d reader
-  macro.</p>
+  <p>Reader macros:</p>
+  <dl>
+    <dt><code>#'<var>symbol</var></code></dt>
+    <dd>Read symbol and insert it in the input. This reader macro simplifies reading Common Lisp code, where this macro
+    returns the function property of a symbol.</dd>
+    <dt><code>#!</code></dt>
+    <dd>Discard input up to end of line - Unix shebang. To be used in the first line of <i>fLisp</i> scripts.</dd>
+    <dt><code>#d<var>double</var></code></dt>
+    <dd>Reads the string <var>double</var> and converts it into a double floating point object.</dd>
+    <dt><code>#D<var>xdouble</var></code></dt>
+    <dd>Reads the hex string <var>xdouble</var> which is in IEEE floating point format and converts it into a double
+    floating point object.</dd>
+  </dl>
+  <p>Numbers are read and written in decimal notation.</p>
   <p>A list of objects has the form:</p>
   <blockquote>
     <code>([<var>element</var>&nbsp;..])</code>
   </blockquote>
-  <p>A function invocation has the form:</p>
+  <p>A function or macro invocation has the form:</p>
   <blockquote>
     <code>(<var>name</var> [<var>param</var>&nbsp;..])</code>
   </blockquote>
-  <p>Several symbols are predefined to evaluate to themself. The two most important ones are:</p>
+  <p>Lists are made up of <i>cons</i> cells. These are written as:</p>
+  <blockquote>
+    <code>(<var>a</var> . <var>b</var>)</code>
+  </blockquote>
+  <p><dfn>Proper lists</dfn> terminate with the <code>nil</code> sentinel value, <dfn>dotted lists</dfn> with any other
+  value. They are written as follows:</p>
+  <blockquote>
+    <code>(o [o ..] . symbol)</code>
+  </blockquote>
+  <h4 id="symbols">Symbols</h4>
+  <p>Symbols are either bound to a value or unbound. Bound symbols evaluate to their value, Unbound symbols to an
+  error.</p>
+  <p>Several symbols are predefined as constants, most of them evaluate to themself.</p>
+  <p>Programing:</p>
   <dl>
     <dt><code>nil</code></dt>
     <dd>represents: the empty list: <code>()</code>, the end of a list marker or the false value in logical
@@ -271,20 +301,8 @@
     <dt><code>t</code></dt>
     <dd><q>true</q>, a predefined, non-false value.</dd>
   </dl>
-  <p>The reader convert program input into the respective internal representation. It manipulates the input when it
-  encounters a reader macro, quote quasiquote or coma. The following reader macros are available:</p>
-  <dl>
-    <dt><code>#'<var>symbol</var></code></dt>
-    <dd>Reads symbol an inserts it in the input. This reader macro simplifies reading Common Lisp code, where this
-    macro returns the function property of a symbol.</dd>
-    <dt><code>#d<var>double</var></code></dt>
-    <dd>Reads the string <var>double</var> and converts it into a double floating point object.</dd>
-    <dt><code>#D<var>xdouble</var></code></dt>
-    <dd>Reads the hex string <var>xdouble</var> which is in IEEE floating point format and converts it into a double
-    floating point object.</dd>
-  </dl>
-  <p>Future versions of <i>fLisp</i> will either provide a feature to add reader macros from Lisp code, or add some
-  promiment examples like <code>#t</code> and <code>#f</code>.</p>
+  <p>Error symbols are listed in the <a href="#exceptions">Error Handling</a> section.</p>
+  <p>Type symbols are listed in the <a href="#objects_and_data_types">Objects and Data Types</a> section.</p>
   <h4 id="objects_and_data_types">Objects and Data Types</h4>
   <p><i>fLisp</i> objects have one of the following data types:</p>
   <dl>
@@ -415,7 +433,7 @@
   <nav>
     <a href="#toc">^</a>
   </nav>
-  <h3 id="primitives"><i>fLisp</i>&nbsp;core Primitives</h3>
+  <h3 id="flisp_primitives"><i>fLisp</i>&nbsp;core Primitives</h3>
   <p>The built-in primitives of&nbsp;<i>fLisp</i> are divided into a minimal pre-loaded core&nbsp;primitives set,&nbsp;
   and the optional <i>double</i>, <i>string</i> and <i>posix</i> extensions. The complete <i>fLisp</i> language is
   built on top of the core and string primitives.</p>
@@ -670,7 +688,7 @@
     <h4 id="core_lib"><i>fLisp</i> Core Library</h4>
     <p>The core library complements the built in primitives with basic Lisp programming idioms. It is included in the
     startup file of the flisp(d) command line interpreter.</p>
-    <dl>
+    <dl class="function">
       <dt><code>(list</code> [<code><var>element</var></code> ..]<code>)</code> ⇒ <i>list</i></dt>
       <dd>Returns the list of all provided elements.</dd>
       <dt><code>(defmacro <var>name</var> <var>params</var> <var>body</var>)</code> ⇒ <i>macro</i></dt>

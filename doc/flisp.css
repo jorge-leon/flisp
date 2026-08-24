@@ -27,14 +27,21 @@ abbr {
     border-bottom: none;
     text-decoration: underline dotted;
 }
-dt {
-    float: left;
-    padding-right: 2em;
-    min-width: 12em;
+dl.function > dt {
+    min-width: 15em;
+}
+dl > dd {
+    margin-left: 7em;
+    margin-bottom: 0.5ex;
 }
 dd > p {
     margin-top: 0px;
     margin-bottom: 1ex;
+}
+dt {
+    float: left;
+    padding-right: 2em;
+    min-width: 5em;
 }
 dt + dd > p {
     clear: left;

@@ -18,8 +18,8 @@ editor](https://github.com/jorge-leon/femto).
 tailcall optimization and other Scheme influences. *fLisp* originates
 from [Tiny-Lisp by matp](https://github.com/matp/tiny-lisp) (pre 2014),
 was integrated into [Femto](https://github.com/hughbarney/femto) by Hugh
-Barney (pre 2016) and extended by Georg Lehner since 2023. Read more
-about fLisp's history.
+Barney (pre 2016) and extended by Georg Lehner since 2023. More about
+fLisp's [history](history.html).
 
 This document is the reference manual for *fLisp* version 0.17 or later
 ([Markdown](flisp.md)). If you want to learn about Lisp programming use
@@ -122,8 +122,11 @@ Function/lambda:
 *f*
 
 *fLisp* fancies to converge towards Emacs and Common Lisp, but includes
-also Scheme functions. Function descriptions are annotated according to
-their compatibility:
+also Scheme functions. Function descriptions are annotated with a
+sequence of <u>underlined</u> character code according to their
+compatibility.
+
+Functional compatibility:
 
 <u>C</u>  
 Interface compatible, though probably less featureful.
@@ -138,16 +141,21 @@ Lisp or Scheme.
 <u>B</u>  
 Buggy/incompatible implementation.
 
-<u>f</u>  
-fLisp specific function.
-
 <u>d</u>  
 Only available when the double extension is loaded.
 
-Compatibility with Emacs is omitted. By default compatibility with
-Common Lisp is annotated. The suffix <u>e</u> is used to indicate
-reference to Emacs Lisp, <u>s</u> for Scheme. *fLisp* specific function
-are annotated with <u>f</u>.
+Lisp dialect compatibility:
+
+<u>f</u>  
+*fLisp* specific function.
+
+<u>e</u>  
+Compatible with Emacs/Elisp.
+
+<u>s</u>  
+Compatible with Scheme.
+
+No annotation indicates Common Lisp compatibility.
 
 [^](#toc)
 
@@ -163,17 +171,16 @@ are annotated with <u>f</u>.
 3.  Print: the result of the evaluation is optionally printed and
     returned to the invoker.
 
-[Core functions](#flisp_primitives) of the language - called
-<span class="dfn">primitives</span> - operate on built-in [object
-types](#objects_and_data_types). *fLisp* can be extended with
-C-libraries to provide additional primitives.
-
 #### Syntax
 
 Program text is written as a sequence of symbolic expressions -
 <span class="dfn">sexp</span>'s - in parenthesized form. A
 [sexp](https://en.wikipedia.org/wiki/S-expression) is either a single
 symbol or a sequence of symbols or sexp's enclosed in parenthesis.
+
+The reader converts program text into the respective internal
+representation. It manipulates the input when it encounters some special
+characters like reader macros or quotes.
 
 The following characters are special to the reader:
 
@@ -185,8 +192,7 @@ Starts a function or macro invocation, a *list* or *cons* object (see
 Finishes a function or macro invocation, *list* or *cons* object.
 
 `'` and `:`  
-With a single quote or a colon prefix before a sexp, the sexp is
-expanded to `(quote «sexp»)` before it is evaluated.
+Expand the following sexp to `(quote «sexp»)` before it is evaluated.
 
 `.`  
 The expression `(«a» . «b»)` evaluates to a *cons* object, holding the
@@ -203,55 +209,38 @@ character, even if it is special to the reader.
 Introduces a reader macro.
 
 `;`  
-Comment character. When the reader encounters a semicolon it ignores it
-and all characters up to the next newline.
+Comment character. Ignores the semiconlon and all characters up to the
+next newline.
 
 \`  
-Quasiquote: a backquote before a sexp is expanded to
-`(quasiquote sexp)`, with exception of contained `unquote` and
-`unquote-splice` sequences.
+Quasiquote:
+
+Expand the following sexp to `(quasiquote sexp)`, with exception of
+contained `unquote` and `unquote-splice` sequences.
 
 ,  
-Expands to `(unquote sexp)`: an unquoted expresion within a quasiquote
-is substituted.
+Unquote:
+
+Expand the following sexp to `(unquote sexp)`: an unquoted expresion
+within a quasiquote is substituted.
 
 ,@  
-Expands to `(unquote-splice)`: like `unquote`, but if the expresion
-evaluates to a list its elements are inserted element by element.
+Unquote splice:
 
-Note: `quasiquote`, `unquote` and `unquote-splice` are not yet
-implemented in *fLisp* 0.17.
+Expand the following sexp to `(unquote-splice)`: like `unquote`, but if
+the expresion evaluates to a list its elements are inserted element by
+element.
 
-Numbers are read and written in decimal notation. IEEE double floating
-point numbers can be read via the \#d reader macro.
-
-A list of objects has the form:
-
-> `([«element» ..])`
-
-A function invocation has the form:
-
-> `(«name» [«param» ..])`
-
-Several symbols are predefined to evaluate to themself. The two most
-important ones are:
-
-`nil`  
-represents: the empty list: `()`, the end of a list marker or the false
-value in logical operations.
-
-`t`  
-“true”, a predefined, non-false value.
-
-The reader convert program input into the respective internal
-representation. It manipulates the input when it encounters a reader
-macro, quote quasiquote or coma. The following reader macros are
-available:
+Reader macros:
 
 `#'«symbol»`  
-Reads symbol an inserts it in the input. This reader macro simplifies
+Read symbol and insert it in the input. This reader macro simplifies
 reading Common Lisp code, where this macro returns the function property
 of a symbol.
+
+`#!`  
+Discard input up to end of line - Unix shebang. To be used in the first
+line of *fLisp* scripts.
 
 `#d«double»`  
 Reads the string *double* and converts it into a double floating point
@@ -261,9 +250,47 @@ object.
 Reads the hex string *xdouble* which is in IEEE floating point format
 and converts it into a double floating point object.
 
-Future versions of *fLisp* will either provide a feature to add reader
-macros from Lisp code, or add some promiment examples like `#t` and
-`#f`.
+Numbers are read and written in decimal notation.
+
+A list of objects has the form:
+
+> `([«element» ..])`
+
+A function or macro invocation has the form:
+
+> `(«name» [«param» ..])`
+
+Lists are made up of *cons* cells. These are written as:
+
+> `(«a» . «b»)`
+
+<span class="dfn">Proper lists</span> terminate with the `nil` sentinel
+value, <span class="dfn">dotted lists</span> with any other value. They
+are written as follows:
+
+> `(o [o ..] . symbol)`
+
+#### Symbols
+
+Symbols are either bound to a value or unbound. Bound symbols evaluate
+to their value, Unbound symbols to an error.
+
+Several symbols are predefined as constants, most of them evaluate to
+themself.
+
+Programing:
+
+`nil`  
+represents: the empty list: `()`, the end of a list marker or the false
+value in logical operations.
+
+`t`  
+“true”, a predefined, non-false value.
+
+Error symbols are listed in the [Error Handling](#exceptions) section.
+
+Type symbols are listed in the [Objects and Data
+Types](#objects_and_data_types) section.
 
 #### Objects and Data Types
 
