@@ -250,7 +250,9 @@ object.
 Reads the hex string *xdouble* which is in IEEE floating point format
 and converts it into a double floating point object.
 
-Numbers are read and written in decimal notation.
+Integers are read and written in decimal notation. Similar to C,
+hexadecimal numbers are read when they are prefixed with `0x` or `0X`,
+octal numbers are read whenever a leading `0` (zero) is encountered.
 
 A list of objects has the form:
 
@@ -270,7 +272,19 @@ are written as follows:
 
 > `(o [o ..] . symbol)`
 
-#### Symbols
+Identifiers — symbol names — are strings of 8-bit characters. The reader
+is UTF-8 agnostic and any Unicode string can be used as identifier with
+the following exceptions: the characters: `` "'`,#()[]:; `` are not
+allowed in identifiers, neither control characters (including DEL), nor
+C/Posix `isspace(3)` white space. *fLisp* provides no protection against
+invalid UTF-8 strings.
+
+#### Evaluation
+
+The reader transforms the program input to its internal form, a sexp
+consisting of symbols, numbers and strings.
+
+The evaluator processes the sexp recursively from left to right.
 
 Symbols are either bound to a value or unbound. Bound symbols evaluate
 to their value, Unbound symbols to an error.
@@ -291,6 +305,23 @@ Error symbols are listed in the [Error Handling](#exceptions) section.
 
 Type symbols are listed in the [Objects and Data
 Types](#objects_and_data_types) section.
+
+Numbers, strings and most other object types evaluate to themself.
+
+If a list starts with a *macro* or a special form *primitive*, the rest
+of the list is passed as arguments to it. The list then evaluates to the
+result of the macro / special form invocation.
+
+If a list start with a *lambda* or a *primitive*, the rest of the list
+is evaluated and then passed as arguments to it. The list then evaluates
+to the result of the lambda / primitive invocation.
+
+Otherwise the list evaluates to an error.
+
+A `values` object is a collection of Lisp objects. The evaluator expands
+any value object to the list of its objects and replaces the values
+object with it — it splices it into the currently evaluated sexp. This
+mechanism allows macros and lambdas to return more then one object.
 
 #### Objects and Data Types
 

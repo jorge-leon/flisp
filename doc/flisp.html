@@ -271,7 +271,9 @@
     <dd>Reads the hex string <var>xdouble</var> which is in IEEE floating point format and converts it into a double
     floating point object.</dd>
   </dl>
-  <p>Numbers are read and written in decimal notation.</p>
+  <p>Integers are read and written in decimal notation. Similar to C, hexadecimal numbers are read when they are
+  prefixed with <code>0x</code> or <code>0X</code>, octal numbers are read whenever a leading <code>0</code> (zero) is
+  encountered.</p>
   <p>A list of objects has the form:</p>
   <blockquote>
     <code>([<var>element</var>&nbsp;..])</code>
@@ -289,7 +291,14 @@
   <blockquote>
     <code>(o [o ..] . symbol)</code>
   </blockquote>
-  <h4 id="symbols">Symbols</h4>
+  <p>Identifiers — symbol names — are strings of 8-bit characters. The reader is UTF-8 agnostic and any Unicode string
+  can be used as identifier with the following exceptions: the characters: <code>"'`,#()[]:;</code> are not allowed in
+  identifiers, neither control characters (including DEL), nor C/Posix <code>isspace(3)</code> white space.
+  <i>fLisp</i> provides no protection against invalid UTF-8 strings.</p>
+  <h4 id="eval">Evaluation</h4>
+  <p>The reader transforms the program input to its internal form, a <abbr>sexp</abbr> consisting of symbols, numbers
+  and strings.</p>
+  <p>The evaluator processes the <abbr>sexp</abbr> recursively from left to right.</p>
   <p>Symbols are either bound to a value or unbound. Bound symbols evaluate to their value, Unbound symbols to an
   error.</p>
   <p>Several symbols are predefined as constants, most of them evaluate to themself.</p>
@@ -303,6 +312,15 @@
   </dl>
   <p>Error symbols are listed in the <a href="#exceptions">Error Handling</a> section.</p>
   <p>Type symbols are listed in the <a href="#objects_and_data_types">Objects and Data Types</a> section.</p>
+  <p>Numbers, strings and most other object types evaluate to themself.</p>
+  <p>If a list starts with a <i>macro</i> or a special form <i>primitive</i>, the rest of the list is passed as
+  arguments to it. The list then evaluates to the result of the macro / special form invocation.</p>
+  <p>If a list start with a <i>lambda</i> or a <i>primitive</i>, the rest of the list is evaluated and then passed as
+  arguments to it. The list then evaluates to the result of the lambda / primitive invocation.</p>
+  <p>Otherwise the list evaluates to an error.</p>
+  <p>A <code>values</code> object is a collection of Lisp objects. The evaluator expands any value object to the list
+  of its objects and replaces the values object with it — it splices it into the currently evaluated sexp. This
+  mechanism allows macros and lambdas to return more then one object.</p>
   <h4 id="objects_and_data_types">Objects and Data Types</h4>
   <p><i>fLisp</i> objects have one of the following data types:</p>
   <dl>
