@@ -1082,8 +1082,8 @@ int isSymbolChar(int ch, size_t dummy)
     return isalnum(ch) || strchr(valid, ch);
 #else
     /* Note: not control character, not space character, not quote, doublequote, backquote coma # */
-    static const char *invalid = "\"'(){}[],` ";
-    return !strchr(invalid, ch) && ((ch > 31 && ch < 127) || (ch >= 0x80));
+    static const char *invalid = "\"'`,#:;()[] \x7F";
+    return !strchr(invalid, ch) && (ch > 31);
 #endif
 }
 int isDigitChar(int ch, size_t base)
