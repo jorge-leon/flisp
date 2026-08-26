@@ -66,7 +66,6 @@ FLISP_DEFINE_CONSTANT(debug_output,*debug-output*);
 
 /* Simple */
 FLISP_DEFINE_TYPE(integer);
-FLISP_DEFINE_TYPE(double);
 FLISP_DEFINE_TYPE(primitive);
 FLISP_DEFINE_TYPE(str);
 FLISP_DEFINE_TYPE(ptr);

@@ -219,7 +219,6 @@ extern Object *nil;
 extern Object *t;
 /* Types */
 extern TypeObject *type_integer;
-extern TypeObject *type_double;
 extern TypeObject *type_primitive;
 /* extensible */
 extern TypeObject *type_vector;
@@ -260,7 +259,6 @@ extern Object *flisp_ext_obj(Object *, TypeObject *, Object **, size_t, size_t);
 /* Note: flisp_' ify these names */
 extern Object *newObject(Object *, TypeObject *, size_t);
 extern Object *newInteger(Object *, int64_t);
-extern Object *newDouble(Object *, double);
 extern Object *newStringWithLength(Object *, char *, size_t);
 extern Object *newString(Object *, char *);
 extern Object *newCons(Object *, Object **, Object **);

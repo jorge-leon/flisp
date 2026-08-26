@@ -3,8 +3,6 @@
 # ROADMAP
 
 ## Next
-- Lisp objects host their writer function.
-- `store` function to (destructively) set a slot's value in an extensible object.
 
 ## Future
 
@@ -59,6 +57,8 @@
 - More testing, stress-testing.
 - Femto integration.
 - Cleaner object types:, base object and object extension.
+- Lisp objects host their writer function.
+- `store` function to (destructively) set a slot's value in an extensible object.
 
 
 ## flisp 0.17α

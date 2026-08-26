@@ -7,6 +7,8 @@
 
 /* Constants */
 /* Types */
+FLISP_DEFINE_TYPE(double);
+
 
 // Number Type Conversion /////
 Object *integerFromDouble(Object *interp, Object **args, Object **env, size_t nArgs)
