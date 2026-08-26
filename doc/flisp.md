@@ -325,23 +325,52 @@ mechanism allows macros and lambdas to return more then one object.
 
 #### Objects and Data Types
 
-*fLisp* objects have one of the following data types:
+Lisp objects come in two clases:
+
+<span class="dfn">Simple Objects</span>  
+Hold a single constant value.
+
+<span class="dfn">(Extended) Objects</span>  
+Can hold any number of Lisp objects and/or an arbitrary sized block of
+binary data.
+
+The number of Lisp objects is the <span class="dfn">length</span> of the
+extended object. The object <span class="dfn">size</span> is the number
+of allocated bytes for the object value(s).
+
+The *fLisp* core provides the following simple object types:
 
 <span class="dfn">integer</span>  
 64 bit singed integer.
 
-<span class="dfn">double</span>  
-Double precission IEEE floating point number.
+<span class="dfn">primitive</span>  
+Built-in function or special form.
+
+<span class="dfn">str</span>  
+Pointer to a C-string.
+
+<span class="dfn">ptr</span>  
+Pointer to any place in memory.
+
+Extended object types:
+
+type  
+Object types are Lisp objects. They contain the type name and the
+function to print Lisp objects of their type. By conventions type names
+have the prefix `type-`
 
 <span class="dfn">string</span>  
-Character array. UTF-8 aware.
-
-<span class="dfn">cons</span>  
-Object holding two pointers to objects. Used to represent lists.
+Character array. UTF-8 aware. Length 0
 
 <span class="dfn">symbol</span>  
-String with restricted character set:
-`[A-Z][0-9][a-z]!#$%&*+-./:<=>?@^_~`
+Symbols are like strings, but:
+
+- Are unique within each *fLisp* interpreter.
+- Can only have characters from the restricted character set described
+  in [Syntax](#syntax).
+
+<span class="dfn">cons</span>  
+Object holding two pointers to objects. Used to construct lists.
 
 In contrast to strings symbols are unique while two string objects with
 the same characters can be different objects.
@@ -369,9 +398,6 @@ Holds all objects relevant for the execution of fLisp.
 
 <span class="dfn">extension</span>  
 Presents an available and/or loaded extensions.
-
-<span class="dfn">primitive</span>  
-Presents a built-in function.
 
 Objects are immutable; functions either create new objects or return
 existing ones, with the single exception of the `nreverse` funciton,
@@ -1198,6 +1224,9 @@ respective *flags* value, default is 0.
 [^](#toc)
 
 #### Double Extension
+
+The double extension adds the type <span class="dfn">double</span> which
+represents a double precission IEEE floating point number.
 
 All functions are specific to fLisp.
 

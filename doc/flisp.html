@@ -322,18 +322,44 @@
   of its objects and replaces the values object with it — it splices it into the currently evaluated sexp. This
   mechanism allows macros and lambdas to return more then one object.</p>
   <h4 id="objects_and_data_types">Objects and Data Types</h4>
-  <p><i>fLisp</i> objects have one of the following data types:</p>
+  <p>Lisp objects come in two clases:</p>
+  <dl>
+    <dt><dfn>Simple Objects</dfn></dt>
+    <dd>Hold a single constant value.</dd>
+    <dt><dfn>(Extended) Objects</dfn></dt>
+    <dd>Can hold any number of Lisp objects and/or an arbitrary sized block of binary data.</dd>
+  </dl>
+  <p>The number of Lisp objects is the <dfn>length</dfn> of the extended object. The object <dfn>size</dfn> is the
+  number of allocated bytes for the object value(s).</p>
+  <p>The <i>fLisp</i> core provides the following simple object types:</p>
   <dl>
     <dt><dfn>integer</dfn></dt>
     <dd>64 bit singed integer.</dd>
-    <dt><dfn>double</dfn></dt>
-    <dd>Double precission IEEE floating point number.</dd>
+    <dt><dfn>primitive</dfn></dt>
+    <dd>Built-in function or special form.</dd>
+    <dt><dfn>str</dfn></dt>
+    <dd>Pointer to a C-string.</dd>
+    <dt><dfn>ptr</dfn></dt>
+    <dd>Pointer to any place in memory.</dd>
+  </dl>
+  <p>Extended object types:</p>
+  <dl>
+    <dt>type</dt>
+    <dd>Object types are Lisp objects. They contain the type name and the function to print Lisp objects of their type.
+    By conventions type names have the prefix <code>type-</code></dd>
     <dt><dfn>string</dfn></dt>
-    <dd>Character array. UTF-8 aware.</dd>
-    <dt><dfn>cons</dfn></dt>
-    <dd>Object holding two pointers to objects. Used to represent lists.</dd>
+    <dd>Character array. UTF-8 aware. Length 0</dd>
     <dt><dfn>symbol</dfn></dt>
-    <dd>String with restricted character set: <code>[A-Z][0-9][a-z]!#$%&amp;*+-./:&lt;=&gt;?@^_~</code></dd>
+    <dd>
+      <p>Symbols are like strings, but:</p>
+      <ul>
+        <li>Are unique within each <i>fLisp</i> interpreter.</li>
+        <li>Can only have characters from the restricted character set described in <a href="#syntax">Syntax</a>.
+        </li>
+      </ul>
+    </dd>
+    <dt><dfn>cons</dfn></dt>
+    <dd>Object holding two pointers to objects. Used to construct lists.</dd>
     <dd>In contrast to strings symbols are unique while&nbsp;two string objects with the same characters&nbsp;can be
     different objects.</dd>
     <dt><dfn>lambda</dfn></dt>
@@ -352,8 +378,6 @@
     <dd>Holds all objects relevant for the execution of fLisp.</dd>
     <dt><dfn>extension</dfn></dt>
     <dd>Presents an available and/or loaded extensions.</dd>
-    <dt><dfn>primitive</dfn></dt>
-    <dd>Presents a built-in function.</dd>
   </dl>
   <p>Objects are immutable; functions either create new objects or return existing ones, with the single exception of
   the <code>nreverse</code> funciton, which is included for speed.</p>
@@ -1013,7 +1037,8 @@
   <nav>
     <a href="#toc">^</a>
   </nav>
-  <h4 id="double">Double Extension</h4>
+  <h4 id="double">Double Extension</h4>The double extension adds the type <dfn>double</dfn> which represents a double
+  precission IEEE floating point number.
   <p>All functions are specific to fLisp.</p>
   <dl>
     <dt><code>(d+ <var>x</var> <var>y</var>)</code> ⇒ <var>z</var></dt>
@@ -1179,10 +1204,10 @@
     <dd>Return the extension&nbsp;of path <var>s</var>, or nil if there is none.</dd>
   </dl>
   <p><a href="#toc">^</a></p><!--
-    Emacs:
-    Local Variables:
-    fill-column: 120
-    End:
-  -->
+                                            Emacs:
+                                            Local Variables:
+                                            fill-column: 120
+                                            End:
+                                       -->
 </body>
 </html>
