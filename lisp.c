@@ -2146,6 +2146,18 @@ Object *primitiveWVector(Object *interp, Object **args, Object **env, size_t nAr
 Primitive w_vector_p = { .name = "write-vector", .nMinArgs = 1, .nMaxArgs = 3, .argsType = (TypeObject*)&nil_obj, .eval = primitiveWVector };
 static SimpleObject write_vector = { .type = &type_primitive_obj, .size = 0, .primitive = &w_vector_p };
 
+/* Note: same as primitiveWVector execpt the signature. Generalize as primitiveWObject */
+Object *primitiveWValues(Object *interp, Object **args, Object **env, size_t nArgs)
+{
+    FLISP_ASSERT(FLISP_ARG1, type_values, "(write-values o[ p[ s]]) - o");
+    FLISP_CHECK_ERR(print_fmt(interp, args, nArgs, "#<values %zu>", FLISP_ARG1->length));
+    return FLISP_ARG1;
+}
+Primitive w_values_p = { .name = "write-values", .nMinArgs = 1, .nMaxArgs = 3, .argsType = (TypeObject*)&nil_obj, .eval = primitiveWValues };
+static SimpleObject write_values = { .type = &type_primitive_obj, .size = 0, .primitive = &w_values_p };
+
+
+
 Object *primitiveWType(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     FLISP_ASSERT(FLISP_ARG1, type_type, "(write-type o[ p[ s]]) - o");
@@ -2455,12 +2467,20 @@ Object *primitiveObjectLength(Object *interp, Object **args, Object **env, size_
 {
     return newInteger(interp, FLISP_ARG1->length);
 }
-/** (vector[ ..]) => v */
-Object *primitiveVector(Object *interp, Object **args, Object **env, size_t nArgs)
+/** (object length type[arg ..]) => extended_object */
+Object *primitiveObject(Object *interp, Object **args, Object **env, size_t nArgs)
 {
-    Object *vector = flisp_ext_obj(interp, type_vector, args, nArgs, 0);
-    CHECK_OOM(vector);
-    return vector;
+    FLISP_ASSERT(FLISP_ARG1, type_integer, "(object length type[ arg ..]) - length");
+    FLISP_ASSERT(FLISP_ARG2, type_type, "(object length type[ arg ..]) - type");
+
+    if (FLISP_ARG1->value < 0)
+        return newErrorI(interp, range_error, FLISP_ARG1,  "(object length type[ arg ..]) - length must be positive: ", FLISP_ARG1->value, "");
+    GC_CHECKPOINT;
+    GC_TRACE(gcArgs, (*args)->cdr->cdr);
+    Object *object = flisp_ext_obj(interp, (TypeObject *)FLISP_ARG2, gcArgs, FLISP_ARG1->value ? FLISP_ARG1->value : nArgs-2, 0);
+    GC_RELEASE;
+    CHECK_OOM(object);
+    return object;
 }
 /** (store obj index [..]) */
 Object *primitiveStore(Object *interp, Object **args, Object **env, size_t nArgs)
@@ -2471,13 +2491,6 @@ Object *primitiveStore(Object *interp, Object **args, Object **env, size_t nArgs
     if (FLISP_ARG2->value >= FLISP_ARG1->length)
         return newErrorI(interp, range_error, FLISP_ARG2, "(store obj index [..]) - index out of range, max: ", FLISP_ARG1->length - 1, "");
     return flisp_store_object(interp, FLISP_ARG1, (*args)->cdr->cdr, FLISP_ARG2->value, false);
-}
-Object *primitiveValues(Object *interp, Object **args, Object **env, size_t nArgs)
-{
-    Object *values = flisp_ext_obj(interp, type_values, &nil, 1, 0);
-    CHECK_OOM(values);
-    values->objects[0] = *args;
-    return values;
 }
 
 Object *firstConsElements(Object *interp, size_t n, Object *cons)
@@ -3137,9 +3150,8 @@ Object *flisp_core_init(Object *interp, Object *extension)
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "cons",                   2,  2, (TypeObject*)nil,            primitiveCons));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "object-size",            1,  1, (TypeObject*)nil,            primitiveObjectSize));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "object-length",          1,  1, (TypeObject*)nil,            primitiveObjectLength));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "vector",                 1, -1, (TypeObject*)nil,            primitiveVector));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "object",                 1, -1, (TypeObject*)nil,            primitiveObject));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "store",                  2, -1, (TypeObject*)nil,            primitiveStore));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "values",                 0, -1, (TypeObject*)nil,            primitiveValues));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "elements",               1,  3, (TypeObject*)nil,            primitiveElements));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "open",                   1,  2, type_string,    primitiveFopen));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "close",                  1,  1, type_stream,    primitiveFclose));
@@ -3201,24 +3213,25 @@ Object *initRootEnv(Object *interp)
 
         /* Types */
         FLISP_WHILE_OK(flisp_register_type(interp, "type-integer",     type_integer, (Object*)&write_integer));
+        FLISP_WHILE_OK(flisp_register_type(interp, "type-primitive",   type_primitive, (Object*)&write_primitive));
         FLISP_WHILE_OK(flisp_register_type(interp, "type-str",         type_str, (Object*)&write_str));
+
+        FLISP_WHILE_OK(flisp_register_type(interp, "type-type",        type_type, (Object*)&write_type));
         FLISP_WHILE_OK(flisp_register_type(interp, "type-string",      type_string, (Object*)&write_string));
         FLISP_WHILE_OK(flisp_register_type(interp, "type-symbol",      type_symbol, (Object*)&write_symbol));
-        FLISP_WHILE_OK(flisp_register_type(interp, "type-primitive",   type_primitive, (Object*)&write_primitive));
-
-        FLISP_WHILE_OK(flisp_register_type(interp, "type-vector",      type_vector, (Object *)&write_vector));
-        FLISP_WHILE_OK(flisp_register_type(interp, "type-type",        type_type, (Object*)&write_type));
-        FLISP_WHILE_OK(flisp_register_type(interp, "type-interpreter", type_interpreter, (Object*)&write_interpreter));
-
-        FLISP_WHILE_OK(flisp_register_type(interp, "type-stream",      type_stream, (Object*)&write_stream));
-        FLISP_WHILE_OK(flisp_register_type(interp, "type-extension",   type_extension, (Object*)&write_extension));
-
         FLISP_WHILE_OK(flisp_register_type(interp, "type-cons",        type_cons, (Object *)&write_cons));
+        FLISP_WHILE_OK(flisp_register_type(interp, "type-vector",      type_vector, (Object *)&write_vector));
         FLISP_WHILE_OK(flisp_register_type(interp, "type-lambda",      type_lambda, (Object *)&write_closure));
         FLISP_WHILE_OK(flisp_register_type(interp, "type-macro",       type_macro, (Object *)&write_closure));
-        FLISP_WHILE_OK(flisp_register_type(interp, "type-env",         type_env, (Object *)&write_env));
         FLISP_WHILE_OK(flisp_register_type(interp, "type-error",       type_error, (Object *)&write_error));
-        /* Exceptions */
+        FLISP_WHILE_OK(flisp_register_type(interp, "type-stream",      type_stream, (Object*)&write_stream));
+
+        FLISP_WHILE_OK(flisp_register_type(interp, "type-env",         type_env, (Object *)&write_env));
+        FLISP_WHILE_OK(flisp_register_type(interp, "type-interpreter", type_interpreter, (Object*)&write_interpreter));
+        FLISP_WHILE_OK(flisp_register_type(interp, "type-extension",   type_extension, (Object*)&write_extension));
+        FLISP_WHILE_OK(flisp_register_type(interp, "type-values",      type_values, (Object *)&write_values));
+
+                /* Exceptions */
         FLISP_WHILE_OK(flisp_register_constant(interp, end_of_file, NULL));
         FLISP_WHILE_OK(flisp_register_constant(interp, read_incomplete, NULL));
         FLISP_WHILE_OK(flisp_register_constant(interp, invalid_read_syntax, NULL));

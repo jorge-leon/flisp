@@ -1,5 +1,13 @@
+- (elements t) segfaults: t, nil or any constant symbol segfaults here.
+- (objects 2 type-type 'type-x) setfaults: probably requires type-str, but should not segfault anyway
+- merge primitiveWVector and primitiveWValues into primitiveWObject
+- Consider adding the following Lisp library functions (core?, cl?)
+  - symbol-name: (elements symbol)
+  - vector (object 0 type-vector . args)
+  - (defun values args (object 1 type-values args))
 - test new write with gc-always on, resp. fix segfaults/missing GC_CHECKPOINT's
 - Fix all tests
+  - move vector and values test to library test - out of core
 - Test flisp_write_object:
   - trace-read flag, debug output
   - trace-primitives

@@ -266,9 +266,9 @@ Lists are made up of *cons* cells. These are written as:
 
 > `(«a» . «b»)`
 
-<span class="dfn">Proper lists</span> terminate with the `nil` sentinel
-value, <span class="dfn">dotted lists</span> with any other value. They
-are written as follows:
+While <span class="dfn">proper lists</span> terminate with the `nil`
+sentinel value, <span class="dfn">dotted lists</span> terminate with any
+other value. They are written as follows:
 
 > `(o [o ..] . symbol)`
 
@@ -287,7 +287,7 @@ consisting of symbols, numbers and strings.
 The evaluator processes the sexp recursively from left to right.
 
 Symbols are either bound to a value or unbound. Bound symbols evaluate
-to their value, Unbound symbols to an error.
+to their value, unbound symbols to an error.
 
 Several symbols are predefined as constants, most of them evaluate to
 themself.
@@ -303,10 +303,8 @@ value in logical operations.
 
 Error symbols are listed in the [Error Handling](#exceptions) section.
 
-Type symbols are listed in the [Objects and Data
-Types](#objects_and_data_types) section.
-
-Numbers, strings and most other object types evaluate to themself.
+Numbers, strings, types and most other object types evaluate to
+themself.
 
 If a list starts with a *macro* or a special form *primitive*, the rest
 of the list is passed as arguments to it. The list then evaluates to the
@@ -336,7 +334,9 @@ binary data.
 
 The number of Lisp objects is the <span class="dfn">length</span> of the
 extended object. The object <span class="dfn">size</span> is the number
-of allocated bytes for the object value(s).
+of allocated bytes for the object value(s). Extended objects are
+completely covered by the garbage collection process, their contained
+Lisp objects can be accessed by the `elements `primitive.
 
 The *fLisp* core provides the following simple object types:
 
@@ -360,7 +360,8 @@ function to print Lisp objects of their type. By conventions type names
 have the prefix `type-`
 
 <span class="dfn">string</span>  
-Character array. UTF-8 aware. Length 0
+Character array. UTF-8 aware. Length 0. If two strings with the same
+character sequence are created, they are two different objects.
 
 <span class="dfn">symbol</span>  
 Symbols are like strings, but:
@@ -372,51 +373,50 @@ Symbols are like strings, but:
 <span class="dfn">cons</span>  
 Object holding two pointers to objects. Used to construct lists.
 
-In contrast to strings symbols are unique while two string objects with
-the same characters can be different objects.
+<span class="dfn">vector</span>  
+An n-tuple of objects.
 
 <span class="dfn">lambda</span>  
-Anonymous function with parameter evaluation.
+Anonymous function with immediated parameter evaluation.
 
 <span class="dfn">macro</span>  
-Anonymous function without parameter evaluation.
+Anonymous function without delayed parameter evaluation.
 
 <span class="dfn">error</span>  
 Error signaling objects.
 
 <span class="dfn">stream</span>  
-An input and/or output stream.
+An input and/or output stream, this is a wrapper over POSIX buffered
+streams.
 
-<span class="dfn">vector</span>  
-An n-tuple of objects.
-
-<span class="dfn">values</span>  
-A "frozen" list of objects used to return multiple values.
+<span class="dfn">env</span>  
+[Environment](#evaluation).
 
 <span class="dfn">interpreter</span>  
-Holds all objects relevant for the execution of fLisp.
+Holds all objects relevant for the execution of an *fLisp* interpreter.
 
 <span class="dfn">extension</span>  
-Presents an available and/or loaded extensions.
+Represents an available and/or loaded extension.
+
+<span class="dfn">values</span>  
+A vector of objects used to return multiple values.
+
+<span class="dfn">moved</span>  
+Used by the garbage collector.
 
 Objects are immutable; functions either create new objects or return
-existing ones, with the single exception of the `nreverse` funciton,
-which is included for speed.
+existing ones. There are two exceptions:
+
+- The `nreverse` function reverses a list destructively and returns the
+  result.
+- The `store` function replaces one or more embeded objects of an
+  extended object.
 
 Characters do not have their own type. A single character is represented
 by a *string* with length one.
 
-Integers, doubles and primitives are <span class="dfn">simple</span>
-objects. They have a size property of zero. All other types are
-*extensible* objects. They have a size and a length property. The
-<span class="dfn">size</span> is the amount of (additional) memory used
-and the <span class="dfn">length</span> is the number of contained Lisp
-objects. Strings and symbols have zero length, with them, *size*
-indicates the number of characters occupied plus one.
-
-User provided extensions can define their own object types. Extensible
-objects are completely covered by the garbage collection process, their
-contained Lisp objects are accessed by the `elements `primitive.
+User provided C-extensions can define their own object types. Currently
+type objects cannot be created from Lisp.
 
 #### Environments, Functions, Evaluation
 
@@ -424,16 +424,15 @@ All operations of the interpreter take place in an environment. An
 <span class="dfn">environment</span> is a collection of named objects.
 The object names are of type *symbol*. An object in an environment is
 said to be <span class="dfn">bound</span> to its name. An object bound
-to symbol *name* is also called to be
-the <span class="dfn">value</span> of
-the <span class="dfn">variable</span> *name*.
+to symbol *name* is also called
+the <span class="dfn">value</span> of *name*.
 
 Environments can have a parent. Each *fLisp* interpreter starts with a
 <span class="dfn">root</span> environment without a parent, this is also
 called the <span class="dfn">global</span> environment.
 
 *lambda* and *macro* objects are closures. They have a parameter list
-and a sequence of sexp's as body. When closures are invoked a new
+and a sequence of sexp's as body. When closures are invoked, a new
 environment is created as child of the current environment. Closures
 receive zero or more objects from the caller. These are bound one by one
 to the symbols in the parameter list in the new environment.
@@ -446,10 +445,10 @@ resulting sexp is evaluated in the new environment and that result is
 returned. *macro* bodies are typically crafted to return new sexp's in
 terms of the parameters.
 
-When a sexp is evaluated and encounters a symbol it looks it up in the
-current environment, and then recursively in the environments from which
-the lambda or macro was invoked. The symbol of the first found binding
-is then replaced by its bound object.
+When a symbol is encounter while evaluating a sexp, the symbol is looked
+up in the current environment, and then recursively in the parent
+environments. It is then replaced by the first value found. If the
+symbol is not found it is replaced with an error object.
 
 #### Error handling
 
@@ -519,10 +518,6 @@ in order. Each element is of type string.
 `argv0`  
 Is bound to the name of the invoking program. It is of type string.
 
-~~`script_dir`~~  
-~~Is bound to either the hard coded path to the Lisp libraries or the
-contents of the environment variable `FLISPLIB`.~~
-
 [^](#toc)
 
 ### *fLisp* core Primitives
@@ -536,6 +531,8 @@ In the following sub section the core primitives are documented, grouped
 by the type of objects they operate on.
 
 #### Interpreter Operations
+
+This are the special form primitives.
 
 `(progn[ «expr»..])` ⇒ *val*<sub>*n*</sub>  
 Each *expr* is evaluated, the value of the last is returned. If no
@@ -639,7 +636,7 @@ output is written to the given stream else to the output stream. `write`
 returns the *object*.
 
 `(ifmt args)`  
-Experimental: convert an integer into a string object.
+Convert an integer into a string object.
 
    
  
@@ -662,10 +659,6 @@ Destructively reverses list *l* and returns it.
 Returns the symbol with name *string*. If the symbol does not exist yet
 it is created.
 
-~~`(symbol-name «object»)` ⇒ *string*~~  
-~~If *object* is of type symbol return its value as string. use
-(elements symbol).~~
-
 `(cons «car» «cdr»)` ⇒ *cons*  
 Returns a new cons with the first object set to the value of *car* and
 the second to the value of *cdr*.
@@ -678,9 +671,6 @@ Returns the second object of *cons*.
 
 `(same «a» «b»)` ⇒ *p* <u>f</u>  
 Returns `t` if *a* and *b* are the same object, `nil` otherwise.
-
-`(vector «o»[ «o» ..])`  
-Returns a vector containing all given objects.
 
 `(elements «o»[ «start»[ e«nd»]])`  
  
@@ -704,6 +694,20 @@ Returns the size property of *o*.
 
 `(object-length «o»)`  
 Returns the length property of *o*.
+
+`(object «length» «type» [«arg» ..])`  
+Creates an object of the specified *type* with *length* embeded objects.
+Objects *arg* .. are stored sequentially in the new object. If there are
+more then *length* *arg*'s the rest is ignored, if there are less the
+length *arg*'s the rest is if filled with `nil`. If *length* is zero,
+the length of the new object is the number of given *arg*'uments.
+
+`(store «object» «start» [«arg» ..])` ⇒` object'`  
+In the extended *object* start storing all consecutive *arg*'s, from
+index *start* onwards. If there are more *arg*'s then places available,
+the extra *arg*'s are discarded. If *start* is less then 0 or greater
+then the object length minus one, or if *object* is not an extended
+object an error is returned.
 
 #### Arithmetic Operations
 
@@ -782,9 +786,9 @@ if s1 is less then s2, a positive integer otherwise. See strcmp(3).
 `(extension symbol)`  
 When *symbol* is a registered extension and the extension is not yet
 loaded its primitivies are loaded into the interpreter. The version
-string of the extension is returned. If the extension fails to load an
-error is returned. If *symbol* is not a registered extension `nil` is
-returned.
+string of the extension is returned on success or if the extension is
+already loaded. If the extension fails to load an error is returned. If
+*symbol* is not a registered extension `nil` is returned.
 
 `(interp-input[ «stream»])`  
 Return and/or set the default interpreter input stream.
@@ -822,10 +826,6 @@ primitive invocation is printed together with its arguments.
 `(interp-countdown[ «i»])`  
 Query or set the interpreter countdown counter. The evaluator will
 return an error after *i* cycles, if *i* is set to not-zero.
-
- 
-
- 
 
 [^](#toc)
 

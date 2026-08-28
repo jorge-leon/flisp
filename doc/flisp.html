@@ -10,7 +10,7 @@
   <meta content="2023" name="copyright" />
   <link href="flisp.css" rel="stylesheet" />
 </head>
-<body style="cursor: auto;">
+<body class="openlink" style="cursor: auto;">
   <h1>fLisp Manual</h1>
   <h3 id="introduction">Introduction</h3>
   <blockquote>
@@ -286,8 +286,8 @@
   <blockquote>
     <code>(<var>a</var> . <var>b</var>)</code>
   </blockquote>
-  <p><dfn>Proper lists</dfn> terminate with the <code>nil</code> sentinel value, <dfn>dotted lists</dfn> with any other
-  value. They are written as follows:</p>
+  <p>While <dfn>proper lists</dfn> terminate with the <code>nil</code> sentinel value, <dfn>dotted
+  lists</dfn>&nbsp;terminate with any other value. They are written as follows:</p>
   <blockquote>
     <code>(o [o ..] . symbol)</code>
   </blockquote>
@@ -299,7 +299,7 @@
   <p>The reader transforms the program input to its internal form, a <abbr>sexp</abbr> consisting of symbols, numbers
   and strings.</p>
   <p>The evaluator processes the <abbr>sexp</abbr> recursively from left to right.</p>
-  <p>Symbols are either bound to a value or unbound. Bound symbols evaluate to their value, Unbound symbols to an
+  <p>Symbols are either bound to a value or unbound. Bound symbols evaluate to their value, unbound symbols to an
   error.</p>
   <p>Several symbols are predefined as constants, most of them evaluate to themself.</p>
   <p>Programing:</p>
@@ -311,8 +311,7 @@
     <dd><q>true</q>, a predefined, non-false value.</dd>
   </dl>
   <p>Error symbols are listed in the <a href="#exceptions">Error Handling</a> section.</p>
-  <p>Type symbols are listed in the <a href="#objects_and_data_types">Objects and Data Types</a> section.</p>
-  <p>Numbers, strings and most other object types evaluate to themself.</p>
+  <p>Numbers, strings, types and most other object types evaluate to themself.</p>
   <p>If a list starts with a <i>macro</i> or a special form <i>primitive</i>, the rest of the list is passed as
   arguments to it. The list then evaluates to the result of the macro / special form invocation.</p>
   <p>If a list start with a <i>lambda</i> or a <i>primitive</i>, the rest of the list is evaluated and then passed as
@@ -330,7 +329,8 @@
     <dd>Can hold any number of Lisp objects and/or an arbitrary sized block of binary data.</dd>
   </dl>
   <p>The number of Lisp objects is the <dfn>length</dfn> of the extended object. The object <dfn>size</dfn> is the
-  number of allocated bytes for the object value(s).</p>
+  number of allocated bytes for the object value(s). Extended objects are completely covered by the garbage collection
+  process, their contained Lisp objects can be accessed by the&nbsp;<code>elements&nbsp;</code>primitive.</p>
   <p>The <i>fLisp</i> core provides the following simple object types:</p>
   <dl>
     <dt><dfn>integer</dfn></dt>
@@ -348,7 +348,8 @@
     <dd>Object types are Lisp objects. They contain the type name and the function to print Lisp objects of their type.
     By conventions type names have the prefix <code>type-</code></dd>
     <dt><dfn>string</dfn></dt>
-    <dd>Character array. UTF-8 aware. Length 0</dd>
+    <dd>Character array. UTF-8 aware. Length 0. If two strings with the same character sequence are created, they are
+    two different objects.</dd>
     <dt><dfn>symbol</dfn></dt>
     <dd>
       <p>Symbols are like strings, but:</p>
@@ -360,53 +361,55 @@
     </dd>
     <dt><dfn>cons</dfn></dt>
     <dd>Object holding two pointers to objects. Used to construct lists.</dd>
-    <dd>In contrast to strings symbols are unique while&nbsp;two string objects with the same characters&nbsp;can be
-    different objects.</dd>
+    <dt><dfn>vector</dfn></dt>
+    <dd>An n-tuple of objects.</dd>
     <dt><dfn>lambda</dfn></dt>
-    <dd>Anonymous function with parameter evaluation.</dd>
+    <dd>Anonymous function with immediated parameter evaluation.</dd>
     <dt><dfn>macro</dfn></dt>
-    <dd>Anonymous function without parameter evaluation.</dd>
+    <dd>Anonymous function without delayed parameter evaluation.</dd>
     <dt><dfn>error</dfn></dt>
     <dd>Error signaling objects.</dd>
     <dt><dfn>stream</dfn></dt>
-    <dd>An input and/or output stream.</dd>
-    <dt><dfn>vector</dfn></dt>
-    <dd>An n-tuple of objects.</dd>
-    <dt><dfn>values</dfn></dt>
-    <dd>A "frozen" list of objects used to return multiple values.</dd>
+    <dd>An input and/or output stream, this is a wrapper over POSIX buffered streams.</dd>
+    <dt><dfn>env</dfn></dt>
+    <dd>
+      <a href="#evaluation">Environment</a>.
+    </dd>
     <dt><dfn>interpreter</dfn></dt>
-    <dd>Holds all objects relevant for the execution of fLisp.</dd>
+    <dd>Holds all objects relevant for the execution of an <i>fLisp</i> interpreter.</dd>
     <dt><dfn>extension</dfn></dt>
-    <dd>Presents an available and/or loaded extensions.</dd>
+    <dd>Represents an available and/or loaded extension.</dd>
+    <dt><dfn>values</dfn></dt>
+    <dd>A vector of objects used to return multiple values.</dd>
+    <dt><dfn>moved</dfn></dt>
+    <dd>Used by the garbage collector.</dd>
   </dl>
-  <p>Objects are immutable; functions either create new objects or return existing ones, with the single exception of
-  the <code>nreverse</code> funciton, which is included for speed.</p>
+  <p>Objects are immutable; functions either create new objects or return existing ones. There are two exceptions:</p>
+  <ul>
+    <li>The <code>nreverse</code> function reverses a list destructively and returns the result.</li>
+    <li>The <code>store</code> function replaces one or more embeded objects of an extended object.</li>
+  </ul>
   <p>Characters do not have their own type. A single character is represented by a <i>string</i> with length one.</p>
-  <p>Integers, doubles and primitives are <dfn>simple</dfn> objects. They have a size property of zero. All other types
-  are <var>extensible</var> objects. They have a size and a length property. The <dfn>size</dfn> is the amount of
-  (additional) memory used and the <dfn>length</dfn> is the number of contained Lisp objects. Strings and symbols have
-  zero length, with them,&nbsp;<var>size</var> indicates the number of characters occupied plus one.</p>
-  <p>User provided extensions can define their own object types. Extensible objects are completely covered by the
-  garbage collection process, their contained Lisp objects are accessed by
-  the&nbsp;<code>elements&nbsp;</code>primitive.</p>
+  <p>User provided C-extensions can define their own object types. Currently type objects cannot be created from
+  Lisp.</p>
   <h4 id="evaluation">Environments, Functions, Evaluation</h4>
   <p>All operations of the interpreter take place in an environment. An <dfn>environment</dfn> is a collection of named
   objects. The object names are of type <i>symbol</i>. An object in an environment is said to be <dfn>bound</dfn> to
-  its name. An object bound to symbol <var>name</var> is also called to be the&nbsp;<dfn>value</dfn>&nbsp;of
-  the&nbsp;<dfn>variable</dfn>&nbsp;<var>name</var>.</p>
+  its name. An object bound to symbol <var>name</var> is also called
+  the&nbsp;<dfn>value</dfn>&nbsp;of&nbsp;<var>name</var>.</p>
   <p>Environments can have a parent. Each <i>fLisp</i> interpreter starts with a <dfn>root</dfn> environment without a
   parent, this is also called the&nbsp;<dfn>global</dfn>&nbsp;environment.</p>
   <p><i>lambda</i> and <i>macro</i> objects are closures. They have a parameter list and a sequence of sexp's as body.
-  When closures are invoked a new environment is created as child of the current environment. Closures receive zero or
+  When closures are invoked, a new environment is created as child of the current environment. Closures receive zero or
   more objects from the caller. These are bound one by one to the symbols in the parameter list in the new
   environment.</p>
   <p><i>lambda</i>s return the result of evaluating the body in the new environment.</p>
   <p><i>macro</i>s first evaluate the body in the calling environment. The resulting sexp is evaluated in the new
   environment and that result is returned. <i>macro</i> bodies are typically crafted to return new sexp's in terms of
   the parameters.</p>
-  <p>When a sexp is evaluated and encounters a symbol it looks it up in the current environment, and then recursively
-  in the environments from which the lambda or macro was invoked. The symbol of the first found binding is then
-  replaced by its bound object.</p>
+  <p>When a symbol is encounter while evaluating a sexp, the symbol is looked up in the current environment, and then
+  recursively in the parent environments. It is then replaced by the first value found. If the symbol is not found it
+  is replaced with an error object.</p>
   <h4 id="exceptions">Error handling</h4>
   <p><i>fLisp</i> primitives return an error object upon abnormal conditions, when <i>fLisp</i> runs out of memory or
   encounters in input/output error. Errors have an&nbsp;<dfn>error type</dfn> symbol, a human readable <dfn>error
@@ -468,9 +471,6 @@
     string.</dd>
     <dt><code>argv0</code></dt>
     <dd>Is bound to the name of the invoking program. It is of type string.</dd>
-    <dt><s><code>script_dir</code></s></dt>
-    <dd><s>Is bound to either the hard coded path to the Lisp libraries or the contents of the environment variable
-    <code>FLISPLIB</code>.</s></dd>
   </dl>
   <nav>
     <a href="#toc">^</a>
@@ -482,6 +482,7 @@
   <p>In the following sub section the core primitives are documented, grouped by the type of objects they operate
   on.</p>
   <h4 id="interp_ops">Interpreter Operations</h4>
+  <p>This are the special form primitives.</p>
   <dl>
     <dt><code>(progn[&nbsp;<var>expr</var>..])</code> ⇒ <var>val<sub>n</sub></var></dt>
     <dd>
@@ -581,7 +582,7 @@
       returns the <var>object</var>.</p>
     </dd>
     <dt><code>(ifmt args)</code></dt>
-    <dd>Experimental: convert an integer into a string object.</dd>
+    <dd>Convert an integer into a string object.</dd>
     <dt>&nbsp;</dt>
     <dd>&nbsp;</dd>
   </dl>
@@ -597,8 +598,6 @@
     <dd>Destructively reverses list <var>l</var> and returns it.</dd>
     <dt><code>(intern <var>string</var>)</code> ⇒ <var>symbol</var></dt>
     <dd>Returns the symbol with name <var>string</var>. If the symbol does not exist yet it is created.</dd>
-    <dt><s><code>(symbol-name <var>object</var>)</code> ⇒ <var>string</var></s></dt>
-    <dd><s>If <var>object</var> is of type symbol return its value as string. use (elements symbol).</s></dd>
     <dt><code>(cons <var>car</var> <var>cdr</var>)</code> ⇒ <i>cons</i></dt>
     <dd>Returns a new cons with the first object set to the value of <var>car</var> and the second to the value of
     <var>cdr</var>.</dd>
@@ -608,8 +607,6 @@
     <dd>Returns the second object of <var>cons</var>.</dd>
     <dt><code>(same <var>a</var> <var>b</var>)</code> ⇒ <var>p</var> <u>f</u></dt>
     <dd>Returns <code>t</code> if <var>a</var> and <var>b</var> are the same object, <code>nil</code> otherwise.</dd>
-    <dt><code>(vector <var>o</var>[ <var>o</var>&nbsp;..])</code></dt>
-    <dd>Returns a vector containing all given objects.</dd>
     <dt><code>(elements&nbsp;<var>o</var>[ <var>start</var>[&nbsp;e<var>nd</var>]])</code></dt>
     <dd>
       <p>&nbsp;</p>
@@ -634,6 +631,18 @@
     <dd>&nbsp;</dd>
     <dt><code>(object-length <var>o</var>)</code></dt>
     <dd>Returns the length property of <var>o</var>.</dd>
+    <dt><code>(object <var>length</var> <var>type</var> [<var>arg</var> ..])</code></dt>
+    <dd>Creates an object of the specified <var>type</var> with <var>length</var> embeded objects. Objects
+    <var>arg</var> .. are stored sequentially in the new object. If there are more then <var>length</var>
+    <var>arg</var>'s the rest is ignored, if there are less the length <var>arg</var>'s the rest is if filled with
+    <code>nil</code>. If <var>length</var> is zero, the length of the new object is the number of given
+    <var>arg</var>'uments.</dd>
+    <dt><code>(store <var>object</var> <var>start</var> [<var>arg</var>&nbsp;..])</code>
+    ⇒<code>&nbsp;object'</code></dt>
+    <dd>In the extended <var>object</var>&nbsp;start storing all consecutive <var>arg</var>'s, from
+    index&nbsp;<var>start</var> onwards. If there are more <var>arg</var>'s then places available, the extra
+    <var>arg</var>'s are discarded. If <var>start</var> is less then 0 or greater then the object length minus one, or
+    if <var>object</var> is not an extended object&nbsp;an error is returned.</dd>
   </dl>
   <h4 id="arithmetic_ops">Arithmetic Operations</h4>
   <p><i>fLisp</i> provides binary 64 bit integer arithmetic. n-ary operations with type coercion are provided in the
@@ -692,8 +701,9 @@
   <dl>
     <dt><code>(extension symbol)</code></dt>
     <dd>When <var>symbol</var> is a registered extension and the extension is not yet loaded its primitivies are loaded
-    into the interpreter. The version string of the extension is returned. If the extension fails to load an error is
-    returned.&nbsp;If <var>symbol</var>&nbsp;is not a registered extension <code>nil</code> is returned.</dd>
+    into the interpreter. The version string of the extension is returned on success or if the extension is already
+    loaded. If the extension fails to load an error is returned.&nbsp;If <var>symbol</var>&nbsp;is not a registered
+    extension <code>nil</code> is returned.</dd>
     <dt><code>(interp-input[ <var>stream</var>])</code></dt>
     <dd>Return and/or set the default interpreter input stream.</dd>
     <dt><code>(interp-output[ <var>stream</var>])</code></dt>
@@ -721,12 +731,8 @@
     <dd>Query or set the interpreter countdown counter. The evaluator will return an error after <i>i</i> cycles, if
     <i>i</i> is set to not-zero.</dd>
   </dl>
-  <dl>
-    <dt>&nbsp;</dt>
-    <dt>&nbsp;</dt>
-  </dl>
+  <p><a href="#toc">^</a></p>
   <nav>
-    <a href="#toc">^</a>
     <h4 id="core_lib"><i>fLisp</i> Core Library</h4>
     <p>The core library complements the built in primitives with basic Lisp programming idioms. It is included in the
     startup file of the flisp(d) command line interpreter.</p>
@@ -1037,8 +1043,9 @@
   <nav>
     <a href="#toc">^</a>
   </nav>
-  <h4 id="double">Double Extension</h4>The double extension adds the type <dfn>double</dfn> which represents a double
-  precission IEEE floating point number.
+  <h4 id="double">Double Extension</h4>
+  <p>The double extension adds the type <dfn>double</dfn> which represents a double precission IEEE floating point
+  number.</p>
   <p>All functions are specific to fLisp.</p>
   <dl>
     <dt><code>(d+ <var>x</var> <var>y</var>)</code> ⇒ <var>z</var></dt>

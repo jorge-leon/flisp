@@ -41,7 +41,19 @@ Object *speedListLength(Interpreter *interp, Object **args, Object **env)
 {
     return newInteger(interp, flisp_list_length(*args));
 }
-
+Object *primitiveValues(Object *interp, Object **args, Object **env, size_t nArgs)
+{
+    Object *values = flisp_ext_obj(interp, type_values, &nil, 1, 0);
+    CHECK_OOM(values);
+    values->objects[0] = *args;
+    return values;
+}
+Object *primitiveVectorObject *interp, Object **args, Object **env, size_t nArgs)
+{
+    Object *vector = flisp_ext_obj(interp, type_vector, args, nArgs, 0);
+    CHECK_OOM(vector);
+    return vector;
+}
 
 Object *speed_extension = &(Object) { .string = "extension-speed" };
 
