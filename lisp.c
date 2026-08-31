@@ -2112,11 +2112,16 @@ Object *primitiveWStr(Object *interp, Object **args, Object **env, size_t nArgs)
 Primitive w_str_p = { .name = "write-str", .nMinArgs = 2, .nMaxArgs = 3, .argsType = (TypeObject*)&nil_obj, .eval = primitiveWStr };
 static SimpleObject write_str = { .type = &type_primitive_obj, .size = 0, .primitive = &w_str_p };
 
+char *flisp_symbol_string(Object *symbol)
+{
+    /* Note: "const" symbols are defined in C-code as SimpleObject, have size 0 and the symbol string is stored in .str */
+    return symbol->size ? symbol->string : ((SimpleObject*)symbol)->str;
+}
 /* (write-symbol o[ p[ s]])*/
 Object *primitiveWSymbol(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     FLISP_ASSERT(FLISP_ARG1, type_symbol, "(write-symbol o[ p[ s]]) - o");
-    FLISP_CHECK_ERR(print_string(interp, args, nArgs, FLISP_ARG1->size ? FLISP_ARG1->string : ((SimpleObject*)FLISP_ARG1)->str));
+    FLISP_CHECK_ERR(print_string(interp, args, nArgs, flisp_symbol_string(FLISP_ARG1)));
     return FLISP_ARG1;
 }
 Primitive w_symbol_p = { .name = "write-symbol", .nMinArgs = 2, .nMaxArgs = 3, .argsType = (TypeObject*)&nil_obj, .eval = primitiveWSymbol };
@@ -2127,11 +2132,11 @@ Object *primitiveWPrimitive(Object *interp, Object **args, Object **env, size_t 
 {
     FLISP_ASSERT(FLISP_ARG1, type_primitive, "(write-primitive o[ p[ s]]) - o");
     FLISP_CHECK_ERR(print_fmt(interp, args, nArgs, "#<primitive %s [%zu, %zu] %s>",
-                        FLISP_ARG1->primitive->name,
-                        FLISP_ARG1->primitive->nMinArgs,
-                        FLISP_ARG1->primitive->nMaxArgs,
-                        ((SimpleObject*)((TypeObject*)FLISP_ARG1->primitive->argsType)->type.name)->str
-                  ));
+                              FLISP_ARG1->primitive->name,
+                              FLISP_ARG1->primitive->nMinArgs,
+                              FLISP_ARG1->primitive->nMaxArgs,
+                              flisp_symbol_string(FLISP_ARG1->primitive->argsType->type.name)
+                        ));
     return FLISP_ARG1;
 }
 Primitive w_primitive_p = { .name = "write-primitive", .nMinArgs = 2, .nMaxArgs = 3, .argsType = (TypeObject*)&nil_obj, .eval = primitiveWPrimitive };
@@ -2156,27 +2161,13 @@ Object *primitiveWValues(Object *interp, Object **args, Object **env, size_t nAr
 Primitive w_values_p = { .name = "write-values", .nMinArgs = 1, .nMaxArgs = 3, .argsType = (TypeObject*)&nil_obj, .eval = primitiveWValues };
 static SimpleObject write_values = { .type = &type_primitive_obj, .size = 0, .primitive = &w_values_p };
 
-char *flisp_type_name(TypeObject *object) {
-    Object *name = object->type.name;
-    if (name->type == type_str)
-        return ((SimpleObject*)name)->str;
-    else if (name->type == type_symbol)
-        return name->string;
-    else
-        return NULL;
-}
-
 Object *primitiveWType(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     FLISP_ASSERT(FLISP_ARG1, type_type, "(write-type o[ p[ s]]) - o");
-    char *name = flisp_type_name((TypeObject*)FLISP_ARG1);
-    if (NULL == name)
-        /* Note: missing "got " type of o.name */
-        return newError(interp, wrong_type_argument, FLISP_ARG1, "(write-type o[ p[ s]]) - o.name expected type-str or type-symbol");
-
+    char *name = flisp_symbol_string(((TypeObject*)FLISP_ARG1)->type.name);
     if (nArgs > 1 && FLISP_ARG2 != nil)
         return print_string(interp, args, nArgs, name);
-    
+    /* Note: this *requires* the type name to be prefixed with "type-" */
     FLISP_CHECK_ERR(print_fmt(interp, args, nArgs, "#<type %s>", name+(sizeof("type-"))-1));
     return FLISP_ARG1;
 }
@@ -2352,11 +2343,7 @@ static SimpleObject write_error = { .type = &type_primitive_obj, .size = 0, .pri
  */
 Object *print_object_fallback(Object *interp, Object *object, Object *output)
 {
-    puts("print_object_fallback\n");
-    char *type = flisp_type_name(object->type);
-    if (NULL == type)
-        /* Note: missing "got " type of o.name */
-        return newError(interp, wrong_type_argument, object, "print_object_fallback(object, output) - object type name expected type-str or type-symbol");
+    char *type = flisp_symbol_string(object->type->type.name);
 
     if (object->size)
         fprintf(output->stream.fd, "#<%s, %zu, %zu>",
@@ -2380,11 +2367,16 @@ Object *primitiveWrite(Object *interp, Object **args, Object **env, size_t nArgs
         return newError(interp, invalid_value, nil, "(write o[ p [fd]) - fd already closed");
     if (writer == nil)
         return print_object_fallback(interp, FLISP_ARG1, output);
-    fprintf(stdout, "writer: %p, nil: %p\n", writer, nil);
-    GC_CHECKPOINT;
-    GC_TRACE(gcObject, FLISP_ARG1);
+
+    /* Note: types defined in Lisp should have nil as writer, but they seem to have not.
+       As soon as they come here they segfault.
+     */
+
     /* Note: temporary only allow primitives, later we want lambda's also. */
     FLISP_ASSERT(writer, type_primitive, "(w o[ p[ s]]) - type writer of o");
+
+    GC_CHECKPOINT;
+    GC_TRACE(gcObject, FLISP_ARG1);
     GC_CHECK_ERR(writer->primitive->eval(interp, args, &interp->self.global, nArgs));
     GC_RETURN(*gcObject);
 }
@@ -2494,6 +2486,11 @@ Object *primitiveObject(Object *interp, Object **args, Object **env, size_t nArg
 
     if (FLISP_ARG1->value < 0)
         return newErrorI(interp, range_error, FLISP_ARG1,  "(object length type[ arg ..]) - length must be positive: ", FLISP_ARG1->value, "");
+
+    /* Note: for now we must prevent new types from Lisp beeing created, as they segfault upon printing */
+    if (((TypeObject*)FLISP_ARG2)->type.name->size)
+        return newError(interp, wrong_type_argument, FLISP_ARG2, "object length type[ arg ..]) - type must be a const");
+
     GC_CHECKPOINT;
     GC_TRACE(gcArgs, (*args)->cdr->cdr);
     Object *object = flisp_ext_obj(interp, (TypeObject *)FLISP_ARG2, gcArgs, FLISP_ARG1->value ? FLISP_ARG1->value : nArgs-2, 0);

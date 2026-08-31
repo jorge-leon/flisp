@@ -288,7 +288,7 @@ extern TypeObject type_symbol_obj, type_type_obj, type_str_obj, type_string_obj;
         .self.type = &type_type_obj,                                    \
         .self.size = sizeof(Object*[2]),                                \
         .self.length = 2,                                               \
-        .type.name = (Object*)&(SimpleObject){ .type = &type_str_obj, .size = 0, .str = "type-" #NAME }, \
+        .type.name = (Object*)&(SimpleObject){ .type = &type_symbol_obj, .size = 0, .str = "type-" #NAME }, \
         .type.write = (Object*)&nil_obj                                 \
     };                                                                  \
     TypeObject *type_##NAME = &type_##NAME##_obj

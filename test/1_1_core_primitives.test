@@ -11,7 +11,7 @@ export FLISP_PRINT=1
 export PREPARE="(interp-gc-always t)"
 #export FLISP_SIZE=$((20*1024*1024))
 
-tap 211
+tap 198
 
 # reader
 IN='(' OUT='#<error read-incomplete: unexpected end of stream while reading list, nil>'
