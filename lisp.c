@@ -904,7 +904,7 @@ Object *newErrorI(Object *interp, Object *error_type, Object *culprit, char *mes
     return newError(interp, error_type, culprit, scratchpad->string);
 }
 /** Create error object with message composed of string and character as hex */
-Object *newErrorHexChar(Object *interp, Object *error_type, Object *culprit, char *message, char c)
+Object *newErrorHexChar(Object *interp, Object *error_type, Object *culprit, char *message, unsigned char c)
 {
     initPad(scratchpad);
     if (!addStringToPad(scratchpad, message)) return flisp_static_error(out_of_memory, &fmt_oom_message);
@@ -1080,9 +1080,9 @@ int isSymbolChar(int ch, size_t dummy)
     static const char *valid = "!#$%&*+-./:<=>?@^_|~";
     return isalnum(ch) || strchr(valid, ch);
 #else
-    /* Note: not control character, not space character, not quote, doublequote, backquote coma # */
-    static const char *invalid = "\"'`,#:;()[] \x7F";
-    return !strchr(invalid, ch) && (ch > 31);
+    /* Exclude: control character and DEL, space, special reader chars, square brackets, utf-8 invalid bytes */
+    static const char *invalid = "\"'`,#:;()[] \x7F\xc1\xfe\xff";
+    return (NULL == strchr(invalid, ch)) && (ch > 31);
 #endif
 }
 int isDigitChar(int ch, size_t base)
@@ -1435,7 +1435,7 @@ Object *doReaderMacro(Object *interp, FILE *fd)
             number->type = type_double;
         return number;
     }
-    if (ch & 0x80)
+    if ((unsigned char)ch < 31 || (unsigned char)ch > 0x7F)
         return newErrorHexChar(interp, invalid_read_syntax, nil, "unknown read macro: #0x", ch);
     else
         return newErrorChar(interp, invalid_read_syntax, nil, "unknown read macro: #", ch);
@@ -1496,8 +1496,8 @@ Object *readExpr(Object *interp, FILE *fd)
             return readNumberOrSymbol(interp, fd);
         }
         else
-            if (ch & 0x80)
-                return newErrorHexChar(interp, invalid_read_syntax, nil, "unexpected character: 0x%", ch);
+            if ((unsigned char)ch < 31 || (unsigned char)ch > 0x7F)
+                return newErrorHexChar(interp, invalid_read_syntax, nil, "unexpected character: 0x", ch);
             else
                 return newErrorChar(interp, invalid_read_syntax, nil, "unexpected character: ", ch);
     }
@@ -2156,14 +2156,28 @@ Object *primitiveWValues(Object *interp, Object **args, Object **env, size_t nAr
 Primitive w_values_p = { .name = "write-values", .nMinArgs = 1, .nMaxArgs = 3, .argsType = (TypeObject*)&nil_obj, .eval = primitiveWValues };
 static SimpleObject write_values = { .type = &type_primitive_obj, .size = 0, .primitive = &w_values_p };
 
-
+char *flisp_type_name(TypeObject *object) {
+    Object *name = object->type.name;
+    if (name->type == type_str)
+        return ((SimpleObject*)name)->str;
+    else if (name->type == type_symbol)
+        return name->string;
+    else
+        return NULL;
+}
 
 Object *primitiveWType(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     FLISP_ASSERT(FLISP_ARG1, type_type, "(write-type o[ p[ s]]) - o");
+    char *name = flisp_type_name((TypeObject*)FLISP_ARG1);
+    if (NULL == name)
+        /* Note: missing "got " type of o.name */
+        return newError(interp, wrong_type_argument, FLISP_ARG1, "(write-type o[ p[ s]]) - o.name expected type-str or type-symbol");
+
     if (nArgs > 1 && FLISP_ARG2 != nil)
-        return print_string(interp, args, nArgs, ((SimpleObject*)((TypeObject*)FLISP_ARG1)->type.name)->str);
-    FLISP_CHECK_ERR(print_fmt(interp, args, nArgs, "#<type %s>", ((SimpleObject*)((TypeObject*)FLISP_ARG1)->type.name)->str+(sizeof("type-"))-1));
+        return print_string(interp, args, nArgs, name);
+    
+    FLISP_CHECK_ERR(print_fmt(interp, args, nArgs, "#<type %s>", name+(sizeof("type-"))-1));
     return FLISP_ARG1;
 }
 Primitive w_type_p = { .name = "write-type", .nMinArgs = 1, .nMaxArgs = 3, .argsType = (TypeObject*)&nil_obj, .eval = primitiveWType };
@@ -2336,17 +2350,22 @@ static SimpleObject write_error = { .type = &type_primitive_obj, .size = 0, .pri
  * If no stream is specified the interpreters output file descriptor is used.
  * If the interpreters output file descriptor is NULL, no output is written.
  */
-Object *print_object_fallback(Object *object, Object *output)
+Object *print_object_fallback(Object *interp, Object *object, Object *output)
 {
-    /* Note: the following assumes that type names are type-str, i.e. constants. */
+    puts("print_object_fallback\n");
+    char *type = flisp_type_name(object->type);
+    if (NULL == type)
+        /* Note: missing "got " type of o.name */
+        return newError(interp, wrong_type_argument, object, "print_object_fallback(object, output) - object type name expected type-str or type-symbol");
+
     if (object->size)
         fprintf(output->stream.fd, "#<%s, %zu, %zu>",
-                ((SimpleObject*)object->type->type.name)->str+(sizeof("type-"))-1,
+                type+(sizeof("type-"))-1,
                 object->length,
                 object->size
             );
     else
-        fprintf(output->stream.fd, "#<%s>", ((SimpleObject*)object->type->type.name)->str+(sizeof("type-"))-1);
+        fprintf(output->stream.fd, "#<%s>", type+(sizeof("type-"))-1);
     return object;
 }
 Object *primitiveWrite(Object *interp, Object **args, Object **env, size_t nArgs)
@@ -2360,8 +2379,8 @@ Object *primitiveWrite(Object *interp, Object **args, Object **env, size_t nArgs
     if (output->stream.fd == NULL)
         return newError(interp, invalid_value, nil, "(write o[ p [fd]) - fd already closed");
     if (writer == nil)
-        return print_object_fallback(FLISP_ARG1, output);
-
+        return print_object_fallback(interp, FLISP_ARG1, output);
+    fprintf(stdout, "writer: %p, nil: %p\n", writer, nil);
     GC_CHECKPOINT;
     GC_TRACE(gcObject, FLISP_ARG1);
     /* Note: temporary only allow primitives, later we want lambda's also. */

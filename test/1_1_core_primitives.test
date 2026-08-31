@@ -20,11 +20,15 @@ flisp_expr; ok reader-1 incomplete sexp error msg
 IN='"' OUT='#<error read-incomplete: unexpected end of stream while reading string literal, nil>'
 flisp_expr; ok reader-2 incomplete string error msg
 
-IN='}' OUT='#<error invalid-read-syntax: unexpected character: '"'}', nil>"
-flisp_expr; ok reader-3-1 unexpected ascii character error msg
+IN="\010" OUT='#<error invalid-read-syntax: unexpected character: 0x08, nil>'
+flisp_expr; ok reader-3-1 unexpected control character error msg
 
-IN='ä' OUT='#<error invalid-read-syntax: unexpected character: 0xC3, nil>'
-flisp_expr; ok reader-3-2 unexpected unicode character error msg
+# Note: test with 0x7f, 0xc1, 0xfe, 0xff
+IN="]" OUT='#<error invalid-read-syntax: unexpected character: ], nil>'
+flisp_expr; ok reader 3-2 unexpected ascii character error msg
+
+IN="\776" OUT='#<error invalid-read-syntax: unexpected character: 0xFE, nil>'
+flisp_expr; ok reader-3-3 unexpected unicode character error msg
 
 IN="0" OUT='0'
 flisp_expr; ok reader-4-1 read integer 0
@@ -38,17 +42,22 @@ flisp_expr; ok reader-4-3 read integer octal 10 is 8
 IN="0x10" OUT='16'
 flisp_expr; ok reader-4-4 read integer hex 10 is 16
 
-IN="#d.1" OUT='#D3FB999999999999A'
+# Note: type-double, and it's writer is moved to double extension
+IN="#d.1" OUT='#<double>'
 flisp_expr; ok reader-4-5 read double .1 is 0.1 at eof
 
-IN="#d3.14" OUT='#D40091EB851EB851F'
-flisp_expr; ok reader-4-6 read double 3.14 is 3.14 at eof
-
-IN="#d7." OUT='#D401C000000000000'
-flisp_expr; ok reader-4-7 read double 7. is 7 at eof
-
-IN="#d7. " OUT='#D401C000000000000'
-flisp_expr; ok reader-4-8 read double 7. is 7
+#  We just test the reader here, move the tests to the double extension test suite.
+#IN="#d.1" OUT='#D3FB999999999999A'
+#flisp_expr; ok reader-4-5 read double .1 is 0.1 at eof
+#
+#IN="#d3.14" OUT='#D40091EB851EB851F'
+#flisp_expr; ok reader-4-6 read double 3.14 is 3.14 at eof
+#
+#IN="#d7." OUT='#D401C000000000000'
+#flisp_expr; ok reader-4-7 read double 7. is 7 at eof
+#
+#IN="#d7. " OUT='#D401C000000000000'
+#flisp_expr; ok reader-4-8 read double 7. is 7
 
 IN="t" OUT='t'
 flisp_expr; ok reader-5 read constant t at eof
@@ -384,7 +393,7 @@ IN="(car '(1 2))" OUT='1'
 flisp_expr; ok car-1  car returns first element
 
 # Intermezzo
-IN="(car 1)" OUT="#<error wrong-type-argument: (car o) - o expected type-cons, got type-integer, 1>"
+IN="(car 1)" OUT="#<error wrong-type-argument: (car o) - o expected type-cons got type-integer, 1>"
 flisp_expr; ok arg_check-1  argument checking '(car 1)' fails
 
 IN="(cdr '(1 2))" OUT='(2)'
@@ -517,38 +526,41 @@ IN='(cdr (elements ((lambda (foo) (env)) "bar")))' OUT='((foo) ("bar"))'
 flisp_expr; ok elements-15 environments have elements
 
 
-IN="(vector 1 2 3)" OUT="#<vector 3>"
-flisp_expr; ok vector-1 vector of 3
-
-IN="(i+ (values 3 4))" OUT="7"
-flisp_expr; ok values-1-1 binary primitive all args
-
-IN="(i+ 3 (values 4))" OUT="7"
-flisp_expr; ok values-1-2 binary primitive last arg
-
-IN="(i+ (values 3) 4)" OUT="7"
-flisp_expr; ok values-1-3  binary primitive first arg
-
-true; ok values-1-4 n-ary primitive middle arg \# TODO test
-
-IN="(i+ (values (i+ 1 2)) 4)" OUT="7"
-flisp_expr; ok values-1-5  binary primitive first arg with recursive evaluation
-
-
-IN="((lambda (a b c) (i+ a (i+ b c))) (values 1 2 3))" OUT=6
-flisp_expr; ok values-2-1 trinary lambda all args
-
-IN="((lambda (a b c) (i+ a (i+ b c))) (values 1) 2 3)" OUT=6
-flisp_expr; ok values-2-2 trinary lambda first args
-
-IN="((lambda (a b c) (i+ a (i+ b c))) 1 (values 2 3))" OUT=6
-flisp_expr; ok values-2-3 trinary lambda last arg
-
-IN="((lambda (a b c) (i+ a (i+ b c))) 1 (values 2) 3)" OUT=6
-flisp_expr; ok values-2-4 trinary lambda middle arg
-
-IN="((lambda (a b c) (i+ a (i+ b c))) 1 (values (i+ 0 2)) 3)" OUT=6
-flisp_expr; ok values-2-5 trinary lambda middle arg with recursive evaluation
+# Note: vector and values are moved out of core,
+#  they will be moved to flisp.
+# maybe test values expansion here with the help of (object 1 type-values list)
+#IN="(vector 1 2 3)" OUT="#<vector 3>"
+#flisp_expr; ok vector-1 vector of 3
+#
+#IN="(i+ (values 3 4))" OUT="7"
+#flisp_expr; ok values-1-1 binary primitive all args
+#
+#IN="(i+ 3 (values 4))" OUT="7"
+#flisp_expr; ok values-1-2 binary primitive last arg
+#
+#IN="(i+ (values 3) 4)" OUT="7"
+#flisp_expr; ok values-1-3  binary primitive first arg
+#
+#true; ok values-1-4 n-ary primitive middle arg \# TODO test
+#
+#IN="(i+ (values (i+ 1 2)) 4)" OUT="7"
+#flisp_expr; ok values-1-5  binary primitive first arg with recursive evaluation
+#
+#
+#IN="((lambda (a b c) (i+ a (i+ b c))) (values 1 2 3))" OUT=6
+#flisp_expr; ok values-2-1 trinary lambda all args
+#
+#IN="((lambda (a b c) (i+ a (i+ b c))) (values 1) 2 3)" OUT=6
+#flisp_expr; ok values-2-2 trinary lambda first args
+#
+#IN="((lambda (a b c) (i+ a (i+ b c))) 1 (values 2 3))" OUT=6
+#flisp_expr; ok values-2-3 trinary lambda last arg
+#
+#IN="((lambda (a b c) (i+ a (i+ b c))) 1 (values 2) 3)" OUT=6
+#flisp_expr; ok values-2-4 trinary lambda middle arg
+#
+#IN="((lambda (a b c) (i+ a (i+ b c))) 1 (values (i+ 0 2)) 3)" OUT=6
+#flisp_expr; ok values-2-5 trinary lambda middle arg with recursive evaluation
 
 # I/O
 rm -f _file_

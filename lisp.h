@@ -73,7 +73,7 @@ typedef struct SimpleObject {
 
 typedef struct TypeExt {
     /* Note: currently it must be a str object */
-    Object *name;       /* string, symbol or str object */
+    Object *name;       /* symbol or str object */
     Object *write;      /* primitive or function, (write stream object) */
 } TypeExt;
 
