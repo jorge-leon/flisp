@@ -72,8 +72,8 @@ typedef struct SimpleObject {
 } SimpleObject;
 
 typedef struct TypeExt {
-    /* Note: currently it must be a str object */
     Object *name;       /* symbol or str object */
+    Object *init;       /* primitive or function to initialize the object */
     Object *write;      /* primitive or function, (write stream object) */
 } TypeExt;
 
@@ -196,6 +196,7 @@ extern int file_fclose(Object *, Object *);
 extern Object *print_fmt(Object *, Object **, size_t, char *, ...);
 extern SimpleObject nil_obj;
 extern TypeObject type_primitive_obj;
+extern SimpleObject flisp_init_error;
 
 /* Extensions */
 #define FLISP_IS_ERR(OBJECT) ((OBJECT)->type == type_error)
@@ -209,7 +210,7 @@ extern Object *flisp_register_extension(Object *, char *, ExtensionInit);
 
 extern Object *flisp_register_constant(Object *, Object *, Object *);
 extern Object *flisp_register_primitive(Object *, char *, int, int, TypeObject *, LispEval);
-extern Object *flisp_register_type(Object *, char *, TypeObject *, Object *);
+extern Object *flisp_register_type(Object *, char *, TypeObject *, Object *, Object *);
 
 
 // PROGRAMMING INTERFACE ////////////////////////////////////////////////
@@ -286,10 +287,11 @@ extern TypeObject type_symbol_obj, type_type_obj, type_str_obj, type_string_obj;
 #define FLISP_DEFINE_TYPE(NAME)                                         \
     TypeObject type_##NAME##_obj = {                                    \
         .self.type = &type_type_obj,                                    \
-        .self.size = sizeof(Object*[2]),                                \
-        .self.length = 2,                                               \
-        .type.name = (Object*)&(SimpleObject){ .type = &type_symbol_obj, .size = 0, .str = "type-" #NAME }, \
-        .type.write = (Object*)&nil_obj                                 \
+        .self.size = sizeof(Object*[3]),                                \
+        .self.length = 3,                                               \
+        .type.name =  (Object*)&(SimpleObject){ .type = &type_symbol_obj, .size = 0, .str = "type-" #NAME }, \
+        .type.init =  (Object*)&nil_obj,                                \
+        .type.write = (Object*)&nil_obj,                                \
     };                                                                  \
     TypeObject *type_##NAME = &type_##NAME##_obj
 

@@ -5,11 +5,12 @@
     - (object 0 type-x 1 2 3) => segfaults, should use print_object_fallback() but doesn't
 - merge primitiveWVector and primitiveWValues into primitiveWObject
 - Add init slot to type objects and use them if not set to nil.
-
+  + implemented as POC
+  - roll out to all types
 - Consider adding the following Lisp library functions (core?, cl?)
   - symbol-name: (elements symbol)
-  - vector (object 0 type-vector . args)
-  - (defun values args (object 1 type-values args))
+  - vector: (object 0 type-vector . args)
+  - values: (defun values args (object 1 type-values args))
 - test new write with gc-always on, resp. fix segfaults/missing GC_CHECKPOINT's
 - Fix all tests
   - move vector and values test to library test - out of core

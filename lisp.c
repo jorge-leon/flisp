@@ -117,17 +117,17 @@ FLISP_DEFINE_STR(write_char_failed,"failed to write character");
 FLISP_DEFINE_STR(write_string_failed,"failed to write string");
 FLISP_DEFINE_STR(write_invalid_object,"invalid object");
 
-Object init_error;
+Object init_error_obj;
 
 char *flisp_integer_char_map = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 Object *flisp_static_error(Object *error, SimpleObject *message)
 {
-    init_error.type = type_error;
-    init_error.error.type = error;
-    init_error.error.message = (Object *)message;
-    init_error.error.culprit = nil;
-    return &init_error;
+    init_error_obj.type = type_error;
+    init_error_obj.error.type = error;
+    init_error_obj.error.message = (Object *)message;
+    init_error_obj.error.culprit = nil;
+    return &init_error_obj;
 }
 
 // Scratchpad - format error strings, scan input ////
@@ -1926,6 +1926,37 @@ Object *primitiveEval(Object *interp, Object **args, Object **env, size_t nArgs)
     return evalExpr(interp, &(*args)->car, env);
 }
 
+// Type System
+/*
+ * Initializers create a new object of a specific type.
+ * They are responsible for checking the validity of the arguments.
+ *
+ * Note: currently they are anonymous primitives which are only used
+ * by (object length type[ ..]) and the caller takes care of argument
+ * checking for length and type.
+ *
+ */
+
+/* (init-error length type[ ..]) */
+Object *typeInitError(Object *interp, Object **args, Object **env, size_t nArgs)
+{
+    return newError(interp, wrong_type_argument, FLISP_ARG2, "(init-error type[ ..]) - type cannot be initialized");
+}
+Primitive t_ie_p = { .name = "init-error", .nMinArgs = 2, .nMaxArgs = -1, .argsType = (TypeObject*)&nil_obj, .eval = typeInitError };
+SimpleObject flisp_init_error = { .type = &type_primitive_obj, .size = 0, .primitive = &t_ie_p };
+
+/* (init-cons length type[ ..]) */
+Object *typeInitCons(Object *interp, Object **args, Object **env, size_t nArgs)
+{
+    if (FLISP_ARG1->value != 2)
+        return newError(interp, invalid_value, FLISP_ARG1, "(init-cons length type[ ..]) - length expected: 2");
+    return flisp_ext_obj(interp, (TypeObject*)FLISP_ARG2, &(*args)->cdr->cdr, 2, 0);
+}
+Primitive t_ic_p = { .name = "init-cons", .nMinArgs = 2, .nMaxArgs = 4, .argsType = (TypeObject*)&nil_obj, .eval = typeInitCons };
+SimpleObject type_init_cons = { .type = &type_primitive_obj, .size = 0, .primitive = &t_ic_p };
+
+
+
 // Write /////////////////////////////////////////////////////////////////////////////////
 
 // Output ////////
@@ -2377,6 +2408,7 @@ Object *primitiveWrite(Object *interp, Object **args, Object **env, size_t nArgs
 
     GC_CHECKPOINT;
     GC_TRACE(gcObject, FLISP_ARG1);
+    /* Note: why do we evaluate in the global environment? */
     GC_CHECK_ERR(writer->primitive->eval(interp, args, &interp->self.global, nArgs));
     GC_RETURN(*gcObject);
 }
@@ -2487,16 +2519,37 @@ Object *primitiveObject(Object *interp, Object **args, Object **env, size_t nArg
     if (FLISP_ARG1->value < 0)
         return newErrorI(interp, range_error, FLISP_ARG1,  "(object length type[ arg ..]) - length must be positive: ", FLISP_ARG1->value, "");
 
+    TypeObject *type = (TypeObject*)FLISP_ARG2;
+
     /* Note: for now we must prevent new types from Lisp beeing created, as they segfault upon printing */
-    if (((TypeObject*)FLISP_ARG2)->type.name->size)
+    if (type->type.name->size)
         return newError(interp, wrong_type_argument, FLISP_ARG2, "object length type[ arg ..]) - type must be a const");
 
-    GC_CHECKPOINT;
-    GC_TRACE(gcArgs, (*args)->cdr->cdr);
-    Object *object = flisp_ext_obj(interp, (TypeObject *)FLISP_ARG2, gcArgs, FLISP_ARG1->value ? FLISP_ARG1->value : nArgs-2, 0);
-    GC_RELEASE;
-    CHECK_OOM(object);
-    return object;
+    if (type->type.init != nil)
+        /* Note: for now only implement primitives, later we want also lambdas */
+        FLISP_ASSERT(type->type.init, type_primitive, "(object length type[ arg ..]) - type.init");
+
+    if (type->type.init == nil) {
+        GC_CHECKPOINT;
+        GC_TRACE(gcArgs, (*args)->cdr->cdr);
+        Object *object = flisp_ext_obj(interp, type, gcArgs, (FLISP_ARG1->value) ? (FLISP_ARG1->value) : nArgs-2, 0);
+        GC_RETURN(object);
+    }
+    Primitive *init = type->type.init->primitive;
+    /* Note: this is ripped out of the evaluator for the specific use
+     * case of init-cons. It is bad because:
+     * - We should not repeat ourself.
+     * - Min arg checking and n-tuple checking is not implemented here.
+     * - Instead of FLISP_ARG2 we want the name string of the init
+     *   primitive. Or we could rethink the approach so that the error
+     *   seems to come from (object ...).
+     */
+    if (nArgs > init->nMaxArgs && init->nMaxArgs >= 0)
+        return newErrorI(interp, wrong_number_of_arguments, FLISP_ARG2,
+                         "expects at most ", init->nMaxArgs, " arguments");
+
+    /* Note: why do we evaluate in the global environment? */
+    return init->eval(interp, args, &interp->self.global, nArgs);
 }
 /** (store obj index [..]) */
 Object *primitiveStore(Object *interp, Object **args, Object **env, size_t nArgs)
@@ -3084,8 +3137,9 @@ Object *primitiveInterpCountdown(Object *interp, Object **args, Object **env, si
 
 // MAIN ///////////////////////////////////////////////////////////////////////
 
-Object *flisp_register_type(Object *interp, char *name, TypeObject *type, Object *writer)
+Object *flisp_register_type(Object *interp, char *name, TypeObject *type, Object *init, Object *writer)
 {
+    type->type.init = init;
     type->type.write = writer;
     GC_CHECKPOINT;
     GC_TRACE(gcType, (Object *)type);
@@ -3233,24 +3287,24 @@ Object *initRootEnv(Object *interp)
         FLISP_WHILE_OK(flisp_register_constant(interp, t, NULL));
 
         /* Types */
-        FLISP_WHILE_OK(flisp_register_type(interp, "type-integer",     type_integer, (Object*)&write_integer));
-        FLISP_WHILE_OK(flisp_register_type(interp, "type-primitive",   type_primitive, (Object*)&write_primitive));
-        FLISP_WHILE_OK(flisp_register_type(interp, "type-str",         type_str, (Object*)&write_str));
+        FLISP_WHILE_OK(flisp_register_type(interp, "type-integer",     type_integer,     (Object*)&flisp_init_error, (Object*)&write_integer));
+        FLISP_WHILE_OK(flisp_register_type(interp, "type-primitive",   type_primitive,   (Object*)&flisp_init_error, (Object*)&write_primitive));
+        FLISP_WHILE_OK(flisp_register_type(interp, "type-str",         type_str,         (Object*)&flisp_init_error, (Object*)&write_str));
 
-        FLISP_WHILE_OK(flisp_register_type(interp, "type-type",        type_type, (Object*)&write_type));
-        FLISP_WHILE_OK(flisp_register_type(interp, "type-string",      type_string, (Object*)&write_string));
-        FLISP_WHILE_OK(flisp_register_type(interp, "type-symbol",      type_symbol, (Object*)&write_symbol));
-        FLISP_WHILE_OK(flisp_register_type(interp, "type-cons",        type_cons, (Object *)&write_cons));
-        FLISP_WHILE_OK(flisp_register_type(interp, "type-vector",      type_vector, (Object *)&write_vector));
-        FLISP_WHILE_OK(flisp_register_type(interp, "type-lambda",      type_lambda, (Object *)&write_closure));
-        FLISP_WHILE_OK(flisp_register_type(interp, "type-macro",       type_macro, (Object *)&write_closure));
-        FLISP_WHILE_OK(flisp_register_type(interp, "type-error",       type_error, (Object *)&write_error));
-        FLISP_WHILE_OK(flisp_register_type(interp, "type-stream",      type_stream, (Object*)&write_stream));
+        FLISP_WHILE_OK(flisp_register_type(interp, "type-type",        type_type,        (Object*)&flisp_init_error, (Object*)&write_type));
+        FLISP_WHILE_OK(flisp_register_type(interp, "type-string",      type_string,      (Object*)&flisp_init_error, (Object*)&write_string));
+        FLISP_WHILE_OK(flisp_register_type(interp, "type-symbol",      type_symbol,      (Object*)&flisp_init_error, (Object*)&write_symbol));
+        FLISP_WHILE_OK(flisp_register_type(interp, "type-cons",        type_cons,        (Object*)&type_init_cons,   (Object *)&write_cons));
+        FLISP_WHILE_OK(flisp_register_type(interp, "type-vector",      type_vector,      nil, (Object *)&write_vector));
+        FLISP_WHILE_OK(flisp_register_type(interp, "type-lambda",      type_lambda,      (Object*)&flisp_init_error, (Object *)&write_closure));
+        FLISP_WHILE_OK(flisp_register_type(interp, "type-macro",       type_macro,       (Object*)&flisp_init_error, (Object *)&write_closure));
+        FLISP_WHILE_OK(flisp_register_type(interp, "type-error",       type_error,       nil, (Object *)&write_error));
+        FLISP_WHILE_OK(flisp_register_type(interp, "type-stream",      type_stream,      (Object*)&flisp_init_error, (Object*)&write_stream));
 
-        FLISP_WHILE_OK(flisp_register_type(interp, "type-env",         type_env, (Object *)&write_env));
-        FLISP_WHILE_OK(flisp_register_type(interp, "type-interpreter", type_interpreter, (Object*)&write_interpreter));
-        FLISP_WHILE_OK(flisp_register_type(interp, "type-extension",   type_extension, (Object*)&write_extension));
-        FLISP_WHILE_OK(flisp_register_type(interp, "type-values",      type_values, (Object *)&write_values));
+        FLISP_WHILE_OK(flisp_register_type(interp, "type-env",         type_env,         (Object*)&flisp_init_error, (Object *)&write_env));
+        FLISP_WHILE_OK(flisp_register_type(interp, "type-interpreter", type_interpreter, (Object*)&flisp_init_error, (Object*)&write_interpreter));
+        FLISP_WHILE_OK(flisp_register_type(interp, "type-extension",   type_extension,   (Object*)&flisp_init_error, (Object*)&write_extension));
+        FLISP_WHILE_OK(flisp_register_type(interp, "type-values",      type_values,      nil, (Object *)&write_values));
 
                 /* Exceptions */
         FLISP_WHILE_OK(flisp_register_constant(interp, end_of_file, NULL));
