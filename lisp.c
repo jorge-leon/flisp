@@ -2527,8 +2527,10 @@ Object *primitiveElements(Object *interp, Object **args, Object **env, size_t nA
 
     Object *o = FLISP_ARG1;
     TypeObject *t = o->type;
-    if (t == type_string || t == type_symbol)
+    if (t == type_string || (t == type_symbol && o->size))
         end = o->size - 1;
+    else if (t == type_symbol && ! o->size)
+        end = strlen(((SimpleObject*)o)->str);
     else if (t == type_cons)
         end = -1; // Later: end = flisp_list_length(o);
     else if (o->size == 0) // simple object
@@ -2565,8 +2567,11 @@ Object *primitiveElements(Object *interp, Object **args, Object **env, size_t nA
             return flisp_empty_string;
         return nil;
     }
-    if (t == type_string || t == type_symbol)
-        return newStringWithLength(interp, &FLISP_ARG1->string[i], j-i);
+    if (t == type_string || (t == type_symbol && o->size))
+        return newStringWithLength(interp, &o->string[i], j-i);
+
+    if (t == type_symbol && !o->size)
+        return newStringWithLength(interp, &((SimpleObject*)o)->str[i], j-i);
 
     if (t == type_cons) {
         j -= i;

@@ -1,10 +1,11 @@
-- (elements t) segfaults: t, nil or any constant symbol segfaults here.
 - (objects 2 type-type 'type-x) setfaults: probably requires type-str, but should not segfault anyway
-  - fixed: primitiveWType already takes into account type-str/type-symbol for type name
-  - Printing a syntetic type segfaults:
+  + fixed: primitiveWType already takes into account type-str/type-symbol for type name
+  - Printing a synthetic type segfaults:
     - (setq type-x (object 2 type-type 'type-x)) => type-x
     - (object 0 type-x 1 2 3) => segfaults, should use print_object_fallback() but doesn't
 - merge primitiveWVector and primitiveWValues into primitiveWObject
+- Add init slot to type objects and use them if not set to nil.
+
 - Consider adding the following Lisp library functions (core?, cl?)
   - symbol-name: (elements symbol)
   - vector (object 0 type-vector . args)
@@ -24,3 +25,4 @@
 + fl.c remove write_ln
 + remove flisp_w_object, primitiveW and related functions from lisp.c.
 + move double to double extension
++ (elements t) segfaults: t, nil or any constant symbol segfaults here.
