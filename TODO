@@ -1,7 +1,3 @@
-- (objects 2 type-type 'type-x) setfaults: probably requires type-str, but should not segfault anyway
-  - Printing a synthetic type segfaults:
-    - (setq type-x (object 2 type-type 'type-x)) => type-x
-    - (object 0 type-x 1 2 3) => segfaults, should use print_object_fallback() but doesn't
 - merge primitiveWVector and primitiveWValues into primitiveWObject
 - Add init slot to type objects and use them if not set to nil.
   + implemented as POC

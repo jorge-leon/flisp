@@ -8,6 +8,11 @@
 - Add "trim" parameter to gc call: add or increase allocated memory.
 - Add "which" parameter to gc call, so we can have more then one space.
 - Add gc stat fields to interp object
+- Implement Lisp level type creation. For now suppressed because:
+  - (objects 2 type-type 'type-x) setfaults: probably requires type-str, but should not segfault anyway
+    - Printing a synthetic type segfaults:
+      - (setq type-x (object 2 type-type 'type-x)) => type-x
+      - (object 0 type-x 1 2 3) => segfaults, should use print_object_fallback() but doesn't
 
 ## Future
 
