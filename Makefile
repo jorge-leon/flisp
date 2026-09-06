@@ -106,11 +106,11 @@ doxygen: FORCE
 
 # Development
 fli: fl flisp FORCE
-	FLISP_DEBUG=f.log $$(which rlwrap) ./fl flisp
+	FLISP_DEBUG=f.log FLISPLIB=. $$(which rlwrap) ./fl flisp
 fld: fl FORCE
-	FLISP_DEBUG=f.log gdb ./fl
+	FLISP_DEBUG=f.log FLISPLIB=. gdb ./fl
 flv: fl FORCE
-	FLISP_DEBUG=f.log valgrind ./fl
+	FLISP_DEBUG=f.log FLISPLIB=. valgrind ./fl
 frama-c: FORCE
 	frama-c -c11 -cpp-extra-args="-I$(frama-c -print-path)/libc -I/usr/include -I." -kernel-msg-key pp -metrics *.c
 
