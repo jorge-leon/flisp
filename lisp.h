@@ -73,7 +73,7 @@ typedef struct SimpleObject {
 
 typedef struct TypeExt {
     Object *name;       /* symbol or str object */
-    Object *init;       /* primitive or function to initialize the object */
+    Object *new;        /* primitive or function to create the object */
     Object *write;      /* primitive or function, (write stream object) */
 } TypeExt;
 
@@ -164,12 +164,12 @@ struct Object {
 
 typedef struct TypeObject {
     SimpleObject self;
-    TypeExt type;  
+    TypeExt type;
 } TypeObject;
 
 typedef struct ConsObject {
     SimpleObject self;
-    ConsExt cons;  
+    ConsExt cons;
 } ConsObject;
 
 typedef struct Scratchpad {
@@ -179,7 +179,7 @@ typedef struct Scratchpad {
 } Scratchpad;
 
 // PUBLIC INTERFACE ///////////////////////////////////////////////////////
-extern Object *flisp_new(size_t size, char **, FILE*, FILE*, FILE*, FILE*);
+extern Object *flisp_interpreter(size_t size, char **, FILE*, FILE*, FILE*, FILE*);
 extern void flisp_destroy(Object *);
 extern Object *flisp_eval_object(Object *, Object *);
 extern Object *flisp_read_expr(Object *);
@@ -257,7 +257,7 @@ extern Object *flisp_empty_string;
 extern Object *flisp_integer_zero;
 extern Object *flisp_empty_vector;
 
-extern Object *flisp_ext_obj(Object *, TypeObject *, Object **, size_t, size_t);
+extern Object *flisp_new(Object *, TypeObject *, Object **, size_t, size_t);
 /* Note: flisp_' ify these names */
 extern Object *newObject(Object *, TypeObject *, size_t);
 extern Object *newInteger(Object *, int64_t);
@@ -290,7 +290,7 @@ extern TypeObject type_symbol_obj, type_type_obj, type_str_obj, type_string_obj;
         .self.size = sizeof(Object*[3]),                                \
         .self.length = 3,                                               \
         .type.name =  (Object*)&(SimpleObject){ .type = &type_symbol_obj, .size = 0, .str = "type-" #NAME }, \
-        .type.init =  (Object*)&nil_obj,                                \
+        .type.new =   (Object*)&nil_obj,                                \
         .type.write = (Object*)&nil_obj,                                \
     };                                                                  \
     TypeObject *type_##NAME = &type_##NAME##_obj
@@ -307,7 +307,7 @@ extern Object *gcReturn(Object *, Object *, Object *);
 
 #define GC_TRACE(name, init)                                            \
     Object GC_UNIQUE(gcTrace) = { .type = type_cons, .car = init, .cdr = interp->self.gcTop }; \
-    interp->self.gcTop = &GC_UNIQUE(gcTrace);                                \
+    interp->self.gcTop = &GC_UNIQUE(gcTrace);                           \
     Object **name = &GC_UNIQUE(gcTrace).car;
 
 /*  do while dispatcher */

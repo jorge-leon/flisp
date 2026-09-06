@@ -67,8 +67,11 @@
   - cons -> eval *new: this allows to override
 - move the following from C code to flisp.lsp:
   - symbol-name: (elements symbol)
-  - vector: (defun vectore args (object 0 type-vector . args))
-  - values: (defun values args (object 1 type-values args))
+  - vector: (defun vector args (new type-vector 0 . args))
+  - values: (defun values args (new type-values 1 args))
+  - Notes: cons and error objects are used in the core, for speed, space and
+    effort reasons we leave them as crude primitives. Otherwise we would have
+    to write at least the tests.
 - CAR() CDR() Macro: use it consistently
 
 ## fLisp 0.17

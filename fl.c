@@ -68,7 +68,7 @@ int main(int argc, char **argv)
             fatal("failed to open input file");
     interactive = isatty(fileno(input_fd));
     do {
-        FLISP_UNLESS_ERR(interp = flisp_new((size_t) size, argv, input_fd, stdout, stderr, debug_fd));
+        FLISP_UNLESS_ERR(interp = flisp_interpreter((size_t) size, argv, input_fd, stdout, stderr, debug_fd));
         FLISP_UNLESS_ERR(flisp_register_extension(interp, "string", flisp_string_init));
         FLISP_UNLESS_ERR(flisp_register_extension(interp, "double", flisp_double_init));
         FLISP_UNLESS_ERR(flisp_register_extension(interp, "posix", flisp_posix_init));
