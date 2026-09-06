@@ -3,10 +3,25 @@
 # ROADMAP
 
 ## Next
+- Make cloneList() available to Lisp as (list-append) and use e.g. in (append).
+- Make memory allocated parametrizable, allocate constants in separate mmap.
+- Add "trim" parameter to gc call: add or increase allocated memory.
+- Add "which" parameter to gc call, so we can have more then one space.
+- Add gc stat fields to interp object
 
 ## Future
 
-- expose the write_* functions in lisp.h, so extensions writes can use them
+- Namespace support for faster (?) symbol lookup with bigger programs
+  - each namespace has its own symbols tree
+  - when searching first the namespace is determined: prefix before '-', then
+	the namespace is looked up, if found the symbols w/o prefix and '-' is
+	looked up. If the namespace is not found, search the global namespace.
+- consider StreamObject and use it for interpreter streams.
+- Remove stdio.h from core:
+  - read(0,1,&inbuf) ~= getc, need a single char ungetc only.
+  - object fmt should not use printf anymore
+  - debug output: remoe printf also
+- expose the write(fmt)_* functions in lisp.h, so extensions writes can use them
 - Make symbol names huffman or algorithmic compressed int64_6 arrays for
   speedier lookups.
 - Add line , character and column counter to input stream
@@ -30,18 +45,26 @@
 - posit's: https://en.wikipedia.org/wiki/Unum_(number_format)
 - Event based I/O
   - Buffered I/O operations throw yield exception if buffers are full (w) /empty
-    (r).
+	(r).
 - Test more then one interpreter.
 - ? CSP between interpreters?
 
 
 ## fLisp 0.18
-- Make cloneList() available to Lisp as (list-append) and use e.g. in (append).
-- Make memory allocated parametrizable, allocate constants in separate mmap.
-- Add "trim" parameter to gc call: add or increase allocated memory.
-- Add "which" parameter to gc call, so we can have more then one space.
-- Add gc stat fields to interp object
-
+- object: move write out of core, replace with fmt.
+  - instead of writer slot have a fmt slot in the type object.
+  - consider eliminating readably formatting from core.
+  - fl: read, eval, fmt, puts()
+  - rationale: embedded operation most likely doesn't want to print neither fmt.
+- object: new and fmt slot contain either:
+  - nil -> fallback operation
+  - primitive -> execute
+  - cons -> eval *new: this allows to override
+- move the following from C code to flisp.lsp:
+  - symbol-name: (elements symbol)
+  - vector: (defun vectore args (object 0 type-vector . args))
+  - values: (defun values args (object 1 type-values args))
+- CAR() CDR() Macro: use it consistently
 
 ## fLisp 0.17
 - Allow all characters except controls and (ASCII) whitespace for symbol names
@@ -58,7 +81,10 @@
 - Femto integration.
 - Cleaner object types:, base object and object extension.
 - Lisp objects host their writer function.
-- `store` function to (destructively) set a slot's value in an extensible object.
+- `store` function to (destructively) set a slot's value in an extensible
+  object.
+- type-symbol: string can be C string or stored in object.
+  flisp_symbol_string() is accessor to symbol name: can be str or inline.
 
 
 ## flisp 0.17α
@@ -167,4 +193,3 @@
 ## fLisp 0.8
 
 - error and object types are Lisp symbols instead of C-enums.
-

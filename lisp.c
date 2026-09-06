@@ -2145,7 +2145,7 @@ static SimpleObject write_str = { .type = &type_primitive_obj, .size = 0, .primi
 
 char *flisp_symbol_string(Object *symbol)
 {
-    /* Note: "const" symbols are defined in C-code as SimpleObject, have size 0 and the symbol string is stored in .str */
+    /* Note: "const" symbols are defined in C-code as SimpleObject, have size 0 and the pointer to the symbol string is stored in .str */
     return symbol->size ? symbol->string : ((SimpleObject*)symbol)->str;
 }
 /* (write-symbol o[ p[ s]])*/

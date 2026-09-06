@@ -1,27 +1,23 @@
 - (objects 2 type-type 'type-x) setfaults: probably requires type-str, but should not segfault anyway
-  + fixed: primitiveWType already takes into account type-str/type-symbol for type name
   - Printing a synthetic type segfaults:
     - (setq type-x (object 2 type-type 'type-x)) => type-x
     - (object 0 type-x 1 2 3) => segfaults, should use print_object_fallback() but doesn't
 - merge primitiveWVector and primitiveWValues into primitiveWObject
 - Add init slot to type objects and use them if not set to nil.
   + implemented as POC
+  - rename slot to new, (object) to new, flisp_ext_object to object (it's the normal one)
   - roll out to all types
-- Consider adding the following Lisp library functions (core?, cl?)
-  - symbol-name: (elements symbol)
-  - vector: (object 0 type-vector . args)
-  - values: (defun values args (object 1 type-values args))
+  - pass type-cons to primitiveCons
 - test new write with gc-always on, resp. fix segfaults/missing GC_CHECKPOINT's
 - Fix all tests
   - move vector and values test to library test - out of core
 - Test flisp_write_object:
   - trace-read flag, debug output
   - trace-primitives
-- CAR() CDR() Macro: either use it consistently or remove it
 - all primitives: parameters which are not of specific type should be
   checked with CHECK_ERR(), unless errors are explicitely allowed.
-- consider StreamObject and use it for interpreter streams
-- (elements (interp)) crashes on the eight element.
+- (elements (interp)) crashes on the eight element. (elements (interp) 7 8)
+- Fix type-check error message in e.g. (string-length 'abc)
 + (write type-* t) must print type-*, not #<type type-*>.
 + fl.c remove write_ln
 + remove flisp_w_object, primitiveW and related functions from lisp.c.
