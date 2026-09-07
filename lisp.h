@@ -190,13 +190,14 @@ extern Object *flisp_lookup(Object *, Object *);
 /* Note: to be documented */
 extern Object *flisp_find_symbol(Object *, char*, size_t);
 extern Object *flisp_nreverse(Object *, Object *);
+extern char *flisp_symbol_string(Object *);
 extern Object *file_fopen(Object *, char *, char*);
 extern int file_fclose(Object *, Object *);
 
 extern Object *print_fmt(Object *, Object **, size_t, char *, ...);
 extern SimpleObject nil_obj;
 extern TypeObject type_primitive_obj;
-extern SimpleObject flisp_init_error;
+extern SimpleObject flisp_init_invalid;
 
 /* Extensions */
 #define FLISP_IS_ERR(OBJECT) ((OBJECT)->type == type_error)
@@ -329,9 +330,9 @@ void flisp_debug(Object *, char *, ...);
         return newError8(interp, wrong_type_argument, PARAM,            \
                          SIGNATURE,                                     \
                          " expected ",                                  \
-                         ((SimpleObject*)(TYPE)->type.name)->str,       \
+                         flisp_symbol_string((TYPE)->type.name),        \
                          " got ",                                       \
-                         ((SimpleObject*)(PARAM)->type->type.name)->str, \
+                         flisp_symbol_string((PARAM)->type->type.name), \
                          "", "", "")
 
 #define FLISP_INTERP interp->self
