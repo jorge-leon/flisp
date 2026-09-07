@@ -98,6 +98,8 @@
 
 (defun prog1 (arg . args) arg)
 
+(defun symbol-name (symbol) (elements symbol))
+
 (defun string (o)
   ;; Convert argument to string.
   ;; Common Lisp

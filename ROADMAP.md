@@ -8,11 +8,6 @@
 - Add "trim" parameter to gc call: add or increase allocated memory.
 - Add "which" parameter to gc call, so we can have more then one space.
 - Add gc stat fields to interp object
-- Implement Lisp level type creation. For now suppressed because:
-  - (objects 2 type-type 'type-x) setfaults: probably requires type-str, but should not segfault anyway
-    - Printing a synthetic type segfaults:
-      - (setq type-x (object 2 type-type 'type-x)) => type-x
-      - (object 0 type-x 1 2 3) => segfaults, should use print_object_fallback() but doesn't
 
 ## Future
 
@@ -65,13 +60,6 @@
   - nil -> fallback operation
   - primitive -> execute
   - cons -> eval *new: this allows to override
-- move the following from C code to flisp.lsp:
-  - symbol-name: (elements symbol)
-  - vector: (defun vector args (new type-vector 0 . args))
-  - values: (defun values args (new type-values 1 args))
-  - Notes: cons and error objects are used in the core, for speed, space and
-    effort reasons we leave them as crude primitives. Otherwise we would have
-    to write at least the tests.
 - CAR() CDR() Macro: use it consistently
 
 ## fLisp 0.17
@@ -93,6 +81,10 @@
   object.
 - type-symbol: string can be C string or stored in object.
   flisp_symbol_string() is accessor to symbol name: can be str or inline.
+- move the following from C code to:
+  - symbol-name: core.lsp
+  - vector:  flisp.lsp
+  - values: flisp.lsp
 
 
 ## flisp 0.17α

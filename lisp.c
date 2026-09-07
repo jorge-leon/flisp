@@ -2473,13 +2473,6 @@ Object *primitiveIntern(Object *interp, Object **args, Object **env, size_t nArg
 {
     return newSymbol(interp, FLISP_ARG1->string);
 }
-/* Note: obsolete with (elements symbol) */
-Object *primitiveSymbolName(Object *interp, Object **args, Object **env, size_t nArgs)
-{
-    GC_CHECKPOINT;
-    GC_TRACE(gcFirst, FLISP_ARG1);
-    GC_RETURN(newString(interp, (*gcFirst)->string));
-}
 
 /** (same o1 o2) - object comparison
  *
@@ -3222,8 +3215,6 @@ Object *flisp_core_init(Object *interp, Object *extension)
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "consp",                  1,  1, (TypeObject*)nil,            primitiveConsP));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "nreverse",               1,  1, (TypeObject*)nil,            primitiveNreverse));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "intern",                 1,  1, type_string,    primitiveIntern));
-        /* Note: can be replaced by (elements symbol) */
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "symbol-name",            1,  1, type_symbol,    primitiveSymbolName));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "same",                   2,  2, (TypeObject*)nil,            primitiveSame));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "car",                    1,  1, (TypeObject*)nil,            primitiveCar  /* Note: nil|cons */ ));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "cdr",                    1,  1, (TypeObject*)nil,            primitiveCdr  /* Note: nil|cons */ ));
