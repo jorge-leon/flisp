@@ -323,20 +323,25 @@ mechanism allows macros and lambdas to return more then one object.
 
 #### Objects and Data Types
 
-Lisp objects come in two clases:
+Lisp objects have a type and can hold any number of Lisp objects and/or
+an arbitrary sized block of binary data. The embedded Lisp objects are
+accessible directly from within Lisp, the binary data only from C-code.
 
-<span class="dfn">Simple Objects</span>  
-Hold a single constant value.
+The type of the object defines how the embedded objects and data are to
+be interpreted.
 
-<span class="dfn">(Extended) Objects</span>  
-Can hold any number of Lisp objects and/or an arbitrary sized block of
-binary data.
+The number of embeded Lisp objects is the
+<span class="dfn">length</span> of the extended object. The object
+<span class="dfn">size</span> is the number of allocated bytes for the
+object value(s). Extended objects are completely covered by the garbage
+collection process, their contained Lisp objects can be accessed by
+the `elements `primitive.
 
-The number of Lisp objects is the <span class="dfn">length</span> of the
-extended object. The object <span class="dfn">size</span> is the number
-of allocated bytes for the object value(s). Extended objects are
-completely covered by the garbage collection process, their contained
-Lisp objects can be accessed by the `elements `primitive.
+Some object types are implemented as <span class="dfn">simple
+objects</span>. They hold a single constant value: an integer value, a
+double number, or a pointer to a C-data structure. Simple objects don't
+embed Lisp objects or additional binary data, they are of length zero
+and size zero.
 
 The *fLisp* core provides the following simple object types:
 
@@ -351,6 +356,10 @@ Pointer to a C-string.
 
 <span class="dfn">ptr</span>  
 Pointer to any place in memory.
+
+constant symbols  
+symbols which use a pointer to a C-string for their name instead of
+allocating a Lisp string.
 
 Extended object types:
 
@@ -415,8 +424,22 @@ existing ones. There are two exceptions:
 Characters do not have their own type. A single character is represented
 by a *string* with length one.
 
-User provided C-extensions can define their own object types. Currently
-type objects cannot be created from Lisp.
+*strings and symbols *are created by the Lisp reader.
+
+*cons*, *lambdas,* *macros* and *errors* are created by the respective
+primitive.
+
+*envs* and also *errors* are created by the evaluator.
+
+*interpreters* and *extensions* are created in C-code.
+
+*moved* objects are epehemerial and should never surface to Lisp or
+C-code.
+
+*types*, *cons*, *vectors*, *errors*, and *values*, as well as user
+defined types can be created with the `(new …)` primitive.
+
+User provided C-extensions can define their own object types.
 
 #### Environments, Functions, Evaluation
 

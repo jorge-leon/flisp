@@ -1,3 +1,5 @@
+- creating a type w/o type- prefix makes the objects segfault
+  - force type- prefix...
 - test new write with gc-always on, resp. fix segfaults/missing GC_CHECKPOINT's
 - Fix FLISP_ASSERT to print: given type name, culprit's type-name
 - (elements (interp)) crashes on the eight element. (elements (interp)
