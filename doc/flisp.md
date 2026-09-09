@@ -658,11 +658,29 @@ which gives the same object when read again. When stream *fd* is given
 output is written to the given stream else to the output stream. `write`
 returns the *object*.
 
-`(ifmt args)`  
+`(ifmt «i»[ «base»[ «map»[ «padding»[ «length»]]]])`  
 Convert an integer into a string object.
 
-   
- 
+*i*  
+Integer
+
+*base*  
+Conversion base, default 10.
+
+*map*  
+Conversion map, must be at least of size *base*. If `nil`, the default
+map \[0-9\]\[A-Z\] is used.
+
+*padding*  
+The first character of this string is used for left padding of the
+output string. Default is a space
+
+*length*  
+Length of the string to output. If not given no padding occurs, if zero,
+one zero is prepended to a single padding character.
+`(ifmt 17 16 nil "x" 0)` ⇒ `0x11`. If *length* is shorter then the
+number string, characters are stripped from the left to acchieve the
+given length.
 
 #### Object Operations
 
@@ -718,7 +736,7 @@ Returns the size property of *o*.
 `(object-length «o»)`  
 Returns the length property of *o*.
 
-`(object «length» «type» [«arg» ..])`  
+`(new «type» «length»[ «arg» ..])`  
 Creates an object of the specified *type* with *length* embeded objects.
 Objects *arg* .. are stored sequentially in the new object. If there are
 more then *length* *arg*'s the rest is ignored, if there are less the
@@ -855,8 +873,14 @@ return an error after *i* cycles, if *i* is set to not-zero.
 #### *fLisp* Core Library
 
 The core library complements the built in primitives with basic Lisp
-programming idioms. It is included in the startup file of the flisp(d)
-command line interpreter.
+programming idioms. It is included in the startup file of the fl command
+line interpreter.
+
+It's goal is threefold:
+
+- Stay Minimal.
+- Implement a library loader.
+- Provide Lisp functions for writing easily readable Lisp code.
 
 `(list` \[*element* ..\]`)` ⇒ *list*  
 Returns the list of all provided elements.
@@ -946,6 +970,9 @@ Sequentually bind all *names* to the respective *values* then evaluate
 
 `(prog1 «sexp»[«sexp»..])` ⇒ *p*  
 Evaluate all *sexp* in turn and return the value of the first.
+
+`(symbol-name «symbol»)` ⇒ *string*` `  
+Return the name of *symbol* as a string.
 
 `(string «arg»)` ⇒ *string*  
 Returns the string conversion of argument.
@@ -1045,55 +1072,99 @@ Helper function for n-ary generic number type arithmetic.
 applying *ifunc* or *dfunc* respectively. Helper function for n-ary
 generic number type arithmetic.
 
-If the double floating point extension is loaded the following
-arithmethic functions coerce their arguments to double if any of them is
-double, then they use double arithmetic operators. If all arguments are
-integer they use integer arthmetic. If the double extension is not
-loaded, no coercion is applied and integer arithmetic operators are
-used.
+If the double floating point extension is loaded before the core
+library, the following arithmethic functions coerce their arguments to
+double if any of them is double, then they use double arithmetic
+operators. If all arguments are integer they use integer arthmetic. If
+the double extension is not loaded, no coercion is applied and integer
+arithmetic operators are used.
 
-`(+[ «num»..])` ⇒ *n*  
+`(+[ «num»..])` ⇒ *n*
+
 Returns the sum of all *num*s or `0` if none is given.
 
-`(*[ «num»..])` ⇒ *n*  
+`(*[ «num»..])` ⇒ *n*
+
 Returns the product of all *num*s or `1` if none given.
 
-`(-[ «num»..])` ⇒ *n*  
+`(-[ «num»..])` ⇒ *n*
+
 Returns 0 if no *num* is given, -*num* if only one is given, *num* minus
 the sum of all others otherwise.
 
-`(/ «num»[ «div»..])` ⇒ *p*  
+`(/ «num»[ «div»..])` ⇒ *p*
+
 Returns 1/*num* if no *div* is given, *num*/*div*\[/*div*..\] if one or
 more *div*s are given, With double numbers `inf` if one of the *div*s is
 `0` and the sum of the signs of all operands is even, `-inf` if it is
 odd. With only integers division by zero throws an exception.
 
-`(% «num»[ «div»..])` ⇒ *n*  
+`(% «num»[ «div»..])` ⇒ *n*
+
 Returns `1` if no *div* is given, *num*%*div*\[%*div*..\] if one or more
 *div*s are given. If one of the *div*s is `0`, the program returns -nan
 with double numbers. With only intergers an exception is throwsn.
 
-`(= «num»[ «num»..])` ⇒ *p*  
-`(< «num»[ «num»..])` ⇒ *p*  
-`(> «num»[ «num»..])` ⇒ *p*  
-`(<= «num»[ «num»..])` ⇒ *p*  
-`(>= «num»[ «num»..])` ⇒ *p*  
+`(= «num»[ «num»..])` ⇒ *p*
+
+`(< «num»[ «num»..])` ⇒ *p*
+
+`(> «num»[ «num»..])` ⇒ *p*
+
+`(<= «num»[ «num»..])` ⇒ *p*
+
+`(>= «num»[ «num»..])` ⇒ *p*
+
 These predicate functions apply the respective comparison operator
 between all *num*s and return the respective result as `t` or `nil`. If
 only one *num* is given they all return `t`.
 
-`(min «n»[ «n»..])` ⇒ *n*  
-`(max «n»[ «n»..])` ⇒ *n*  
+`(min «n»[ «n»..])` ⇒ *n*
+
+`(max «n»[ «n»..])` ⇒ *n*
+
 Return the smallest/biggest number of all given *n*s.
 
-`(or[ o..])` ⇒ *p*  
+`(or[ o..])` ⇒ *p*
+
 Evaluates each argument in turn, returns the first non-`nil` argument or
 `nil` if there is none.
 
-`(and[ o..])` ⇒ *p*  
+`(and[ o..])` ⇒ *p*
+
 Evaluates each argument in turn, returns the first `nil` argument or the
 last object *o* if none evaluates to `nil. Returns` `t` if no argument
 is given.
+
+`(length «o») ⇒ «n»`
+
+Returns the length of *o*. For strings, the number of characters, for
+lists the number of elements, for other objects the number of embedded
+objects. For simple objects therefore zero.
+
+`(join «sep» «l»)` ⇒ *string* <u>f</u>
+
+Return a string with all elements of *l* concatenated with *sep* between
+each of them.
+
+`(fload` *stream*`)` ⇒ *0* <u>f</u>
+
+Reads and evaluates all Lisp objects in *stream*.
+
+`(load` *path*`)` ⇒ *o*
+
+Reads and evaluates all Lisp objects in file at *path*.
+
+`(provide «feature»)` ⇒ *feature*
+
+Used as the final expression of a library to register symbol *feature*
+as loaded into the interpreter.
+
+`(require «feature»)` ⇒ *feature*
+
+If the *feature* is not alreaded loaded, the file *feature*`.lsp` is
+loaded from the library path and registers the *feature* if loading was
+successful. The register is the global variable *features*.
 
 `(interp-extensions)`  
 Returns the list of all registered extensions of the current
@@ -1101,25 +1172,6 @@ interpreter.
 
 `(error-type «error»)`  
 Evaluates to the error type of *error*.
-
-`(join «sep» «l»)` ⇒ *string* <u>f</u>  
-Return a string with all elements of *l* concatenated with *sep* between
-each of them.
-
-`(fload` *stream*`)` ⇒ *0* <u>f</u>  
-Reads and evaluates all Lisp objects in *stream*.
-
-`(load` *path*`)` ⇒ *o*  
-Reads and evaluates all Lisp objects in file at *path*.
-
-`(provide «feature»)` ⇒ *feature*  
-Used as the final expression of a library to register symbol *feature*
-as loaded into the interpreter.
-
-`(require «feature»)` ⇒ *feature*  
-If the *feature* is not alreaded loaded, the file *feature*`.lsp` is
-loaded from the library path and registers the *feature* if loading was
-successful. The register is the global variable *features*.
 
 ### fLisp Extensions
 
@@ -1279,83 +1331,7 @@ between *x* *y*.
 
 [^](#toc)
 
-### *fLisp* Command Line Interpreters
-
-### The `fl` Micro Repl
-
-The binary `fl` implements a minimalistic REPL, it registers all
-extensions but only preloads the *core* primitives. When started without
-arguments with a ttyp on standard input it reads Lisp expressions on
-standard input, writes results to standard output and errors to standard
-error. It exits when encountering end of file on standard input. On
-startup the version string is printed and after printing the result (or
-error) of an expresion a prompt `“> ”` is printed before waiting for
-more input. This is called the <span class="dfn">interactive
-mode.</span>
-
-When standard input is not a ttyp, e.g. a pipe, version string and
-prompt printing are suppressed.
-
-When given a file as first argument on the commandline, `fl` opens this
-file on its standard input and reads all its Lisp expressions until end
-of file. This is done in non-interactive `quiet mode`: standard output
-is suppresed, but errors are still printed on standard error. This mode
-allows to use fl as a script language by using it in a shebang line:
-`#!/usr/local/bin/fl …`
-
-The following environment variables are taken into account by `fl`:
-
-`FLISP_SIZE`  
-The number of bytes to pre-allocate for the Lisp objects space. Defaults
-to zero.
-
-`FLISP_DEBUG`  
-When set to a file name, `fl` tries to truncate and open the file for
-writing and uses it as debug output. When set to “`-`”debug output is
-sent to *stdout*, when set to “`&`” debug output is sent to *stderr*.
-
-`FLISP_QUIET`  
-When set to 0, quiet mode is disabled, otherwise quiet mode is forced.
-
-`FLISP_INTERACTIVE`  
-When set to 0, interactive mode is disabled, otherwise interactive mode
-is forced.
-
-#### The `flisp` Repl
-
-`flisp` is a `fl` script which implements a slightly more comfortable
-Lisp repl. It loads all extensions and the `core` library. Also `flisp`
-can be used for Lisp scripting if the operating system allows for
-chained interpreters.
-
-`flisp` can `require` any of the provided Lisp libraries by `load`'ing
-them from the `script_dir` directory which defaults to
-`/usr/local/share/flisp`. This can be overriden by the environment 
-variable FLISPLIB.
-
-All environment variables recognized by `fl` are taken into account,
-however it is wise to only use `FLISP_SIZE« and »FLISP_DEBUG`.
-
-The original *argv0* command line argument, the full path to `fl`, is
-bound to the symbol *flisp_interpreter*, The full path to `flisp` is
-bound to the symbol *argv0* and the rest of the command line arguments
-are bound as a list of string to the symbol *argv*.
-
-`flisp` tries to load a user specific rc file from
-`~/.config/flisp/init.lsp`. Then all arguments on the command line are
-tried to be loaded as Lisp files. If no arguments are given, `flisp`
-enters an interactive read-eval-print loop. In a similar manner to `fl`,
-the startup version banner and prompts are suppressed if the standard
-input is not a ttyp.
-
-#### Lisp Libraries
-
-*fLisp* provides the following set of libraries:
-
-*core*  
-Integrated in the startup file, always loaded. The core library
-implements a minimum set of Lisp features including code for loading
-additional libraries.
+### Complementary Lisp Libraries
 
 *flisp*  
 Implements some additional standard Lisp functions.
@@ -1472,3 +1448,72 @@ Return the last segment of path *s*.
 Return the extension of path *s*, or nil if there is none.
 
 [^](#toc)
+
+### *fLisp* Command Line Interpreters
+
+### The `fl` Micro Repl
+
+The binary `fl` implements a minimalistic REPL, it registers all
+extensions but only preloads the *core* primitives. When started without
+arguments with a ttyp on standard input it reads Lisp expressions on
+standard input, writes results to standard output and errors to standard
+error. It exits when encountering end of file on standard input. On
+startup the version string is printed and after printing the result (or
+error) of an expresion a prompt `“> ”` is printed before waiting for
+more input. This is called the <span class="dfn">interactive
+mode.</span>
+
+When standard input is not a ttyp, e.g. a pipe, version string and
+prompt printing are suppressed.
+
+When given a file as first argument on the commandline, `fl` opens this
+file on its standard input and reads all its Lisp expressions until end
+of file. This is done in non-interactive `quiet mode`: standard output
+is suppresed, but errors are still printed on standard error. This mode
+allows to use fl as a script language by using it in a shebang line:
+`#!/usr/local/bin/fl …`
+
+The following environment variables are taken into account by `fl`:
+
+`FLISP_SIZE`  
+The number of bytes to pre-allocate for the Lisp objects space. Defaults
+to zero.
+
+`FLISP_DEBUG`  
+When set to a file name, `fl` tries to truncate and open the file for
+writing and uses it as debug output. When set to “`-`”debug output is
+sent to *stdout*, when set to “`&`” debug output is sent to *stderr*.
+
+`FLISP_QUIET`  
+When set to 0, quiet mode is disabled, otherwise quiet mode is forced.
+
+`FLISP_INTERACTIVE`  
+When set to 0, interactive mode is disabled, otherwise interactive mode
+is forced.
+
+#### The `flisp` Repl
+
+`flisp` is a `fl` script which implements a slightly more comfortable
+Lisp repl. It loads all extensions and the `core` library. `flisp` can
+be used for Lisp scripting if the operating system allows for chained
+interpreters.
+
+`flisp` can `require` any of the provided Lisp libraries by `load`'ing
+them from the `script_dir` directory which defaults to
+`/usr/local/share/flisp`. This can be overriden by the environment 
+variable FLISPLIB.
+
+All environment variables recognized by `fl` are taken into account,
+however it is wise to only use `FLISP_SIZE« and »FLISP_DEBUG`.
+
+The original *argv0* command line argument, the full path to `fl`, is
+bound to the symbol *flisp_interpreter*, The full path to `flisp` is
+bound to the symbol *argv0* and the rest of the command line arguments
+are bound as a list of string to the symbol *argv*.
+
+`flisp` tries to load a user specific rc file from
+`~/.config/flisp/init.lsp`. Then all arguments on the command line are
+tried to be loaded as Lisp files. If no arguments are given, `flisp`
+enters an interactive read-eval-print loop. In a similar manner to `fl`,
+the startup version banner and prompts are suppressed if the standard
+input is not a ttyp.

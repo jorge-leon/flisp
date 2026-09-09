@@ -589,10 +589,26 @@
       stream <var>fd</var> is given output is written to the given stream else to the output stream. <code>write</code>
       returns the <var>object</var>.</p>
     </dd>
-    <dt><code>(ifmt args)</code></dt>
+    <dt><code>(ifmt <var>i</var>[ <var>base</var>[ <var>map</var>[&nbsp;<var>padding</var>[
+    <var>length</var>]]]])</code></dt>
     <dd>Convert an integer into a string object.</dd>
-    <dt>&nbsp;</dt>
-    <dd>&nbsp;</dd>
+    <dd>
+      <dl>
+        <dt><var>i</var></dt>
+        <dd>Integer</dd>
+        <dt><var>base</var></dt>
+        <dd>Conversion base, default 10.</dd>
+        <dt><var>map</var></dt>
+        <dd>Conversion map, must be at least of size <var>base</var>. If <code>nil</code>, the default
+        map&nbsp;[0-9][A-Z] is used.</dd>
+        <dt><var>padding</var></dt>
+        <dd>The first character of this string is used for left padding of the output string. Default is a space</dd>
+        <dt><var>length</var></dt>
+        <dd>Length of the string to output. If not given no padding occurs, if zero, one zero is prepended to a single
+        padding character. <code>(ifmt 17 16 nil "x" 0)</code> ⇒ <code>0x11</code>. If <var>length</var> is shorter
+        then the number string, characters are stripped from the left to acchieve the given length.</dd>
+      </dl>
+    </dd>
   </dl>
   <h4 id="object_ops">Object Operations</h4>
   <dl>
@@ -639,7 +655,7 @@
     <dd>&nbsp;</dd>
     <dt><code>(object-length <var>o</var>)</code></dt>
     <dd>Returns the length property of <var>o</var>.</dd>
-    <dt><code>(object <var>length</var> <var>type</var> [<var>arg</var> ..])</code></dt>
+    <dt><code>(new&nbsp;<var>type</var>&nbsp;<var>length</var>[&nbsp;<var>arg</var> ..])</code></dt>
     <dd>Creates an object of the specified <var>type</var> with <var>length</var> embeded objects. Objects
     <var>arg</var> .. are stored sequentially in the new object. If there are more then <var>length</var>
     <var>arg</var>'s the rest is ignored, if there are less the length <var>arg</var>'s the rest is if filled with
@@ -743,7 +759,13 @@
   <nav>
     <h4 id="core_lib"><i>fLisp</i> Core Library</h4>
     <p>The core library complements the built in primitives with basic Lisp programming idioms. It is included in the
-    startup file of the flisp(d) command line interpreter.</p>
+    startup file of the fl command line interpreter.</p>
+    <p>It's goal is threefold:</p>
+    <ul>
+      <li>Stay Minimal.</li>
+      <li>Implement a library loader.</li>
+      <li>Provide Lisp functions for writing easily readable Lisp code.</li>
+    </ul>
     <dl class="function">
       <dt><code>(list</code> [<code><var>element</var></code> ..]<code>)</code> ⇒ <i>list</i></dt>
       <dd>Returns the list of all provided elements.</dd>
@@ -825,6 +847,8 @@
       <var>body</var>.</dd>
       <dt><code>(prog1 <var>sexp</var>[<var>sexp</var>..])</code> ⇒ <i>p</i></dt>
       <dd>Evaluate all <var>sexp</var> in turn and return the value of the first.</dd>
+      <dt><code>(symbol-name <var>symbol</var>)</code> ⇒ <i>string</i><code>&nbsp;</code></dt>
+      <dd>Return the name of <var>symbol</var> as a string.</dd>
       <dt><code>(string <var>arg</var>)</code> ⇒ <i>string</i></dt>
       <dd>Returns the string conversion of argument.</dd>
       <dt><code>(concat</code> [<code><var>arg</var></code>..]<code>)</code> ⇒ <i>string</i>&nbsp;<u>Ce</u></dt>
@@ -898,10 +922,10 @@
       applying <var>ifunc</var> or <var>dfunc</var> respectively. Helper function for n-ary generic number type
       arithmetic.</dd>
     </dl>
-    <p>If the double floating point extension is loaded the following arithmethic functions coerce their arguments to
-    double if any of them is double, then they use double arithmetic operators. If all arguments are integer they use
-    integer arthmetic. If the double extension is not loaded, no coercion is applied and integer arithmetic operators
-    are used.</p>
+    <p>If the double floating point extension is loaded before the core library, the following arithmethic functions
+    coerce their arguments to double if any of them is double, then they use double arithmetic operators. If all
+    arguments are integer they use integer arthmetic. If the double extension is not loaded, no coercion is applied and
+    integer arithmetic operators are used.</p>
     <dl>
       <dt><code>(+[ <var>num</var>..])</code> ⇒ <i>n</i></dt>
       <dd>Returns the sum of all <var>num</var>s or <code>0</code> if none is given.</dd>
@@ -936,10 +960,9 @@
       <dt><code>(and[&nbsp;o..])</code> ⇒ <i>p</i></dt>
       <dd>Evaluates each argument in turn, returns the first&nbsp;<code>nil</code>&nbsp;argument or the last object
       <var>o</var> if none evaluates to <code>nil. Returns</code> <code>t</code> if no argument is given.</dd>
-      <dt><code>(interp-extensions)</code></dt>
-      <dd>Returns the list of all registered extensions of the current interpreter.</dd>
-      <dt><code>(error-type <var>error</var>)</code></dt>
-      <dd>Evaluates to the error type of <var>error</var>.</dd>
+      <dt><code>(length <var>o</var>) ⇒&nbsp;<var>n</var></code></dt>
+      <dd>Returns the length of <var>o</var>. For strings, the number of characters, for lists the number of elements,
+      for other objects the number of embedded objects. For simple objects therefore zero.</dd>
       <dt><code>(join <var>sep</var> <var>l</var>)</code> ⇒ <var>string</var> <u>f</u></dt>
       <dd>Return a string with all elements of <var>l</var> concatenated with <var>sep</var> between each of them.</dd>
       <dt><code>(fload</code> <code><var>stream</var>)</code> ⇒ <i>0</i>&nbsp;<u>f</u></dt>
@@ -952,11 +975,15 @@
         interpreter.</p>
       </dd>
       <dt><code>(require <var>feature</var>)</code> ⇒ <i>feature</i></dt>
-      <dd>
-        <p>If the <var>feature</var> is not alreaded loaded, the file <code><var>feature</var>.lsp</code> is loaded
-        from the library path and registers the <var>feature</var> if loading was successful. The register is the
-        global variable <code><var>features</var></code>.</p>
-      </dd>
+    </dl>
+    <p>If the <var>feature</var> is not alreaded loaded, the file <code><var>feature</var>.lsp</code> is loaded from
+    the library path and registers the <var>feature</var> if loading was successful. The register is the global
+    variable <code><var>features</var></code>.</p>
+    <dl>
+      <dt><code>(interp-extensions)</code></dt>
+      <dd>Returns the list of all registered extensions of the current interpreter.</dd>
+      <dt><code>(error-type <var>error</var>)</code></dt>
+      <dd>Evaluates to the error type of <var>error</var>.</dd>
     </dl>
   </nav>
   <h3 id="flisp_extensions">fLisp Extensions</h3>
@@ -1077,55 +1104,8 @@
   <nav>
     <a href="#toc">^</a>
   </nav>
-  <h3><i>fLisp</i> Command Line Interpreters</h3>
-  <h3 id="flisp">The <code>fl</code>&nbsp;Micro Repl</h3>
-  <p>The binary <code>fl</code> implements a minimalistic REPL, it registers all extensions but only preloads the
-  <i>core</i> primitives. When started without arguments with a ttyp on standard input it reads Lisp expressions on
-  standard input, writes results to standard output and errors to standard error. It exits when encountering end of
-  file on standard input. On startup the version string is printed and after printing the result (or error) of an
-  expresion a prompt <code><q>&gt;&nbsp;</q></code> is printed before waiting for more input. This is called the
-  <dfn>interactive mode.</dfn></p>
-  <p>When standard input is not a ttyp, e.g. a pipe, version string and prompt printing are suppressed.</p>
-  <p>When given a file as first argument on the commandline, <code>fl</code>&nbsp;opens this file on its standard input
-  and reads all its Lisp expressions until end of file. This is done in non-interactive <code>quiet mode</code>:
-  standard output is suppresed, but errors are still printed on standard error. This mode allows to use fl as a script
-  language by using it in a shebang line: <code>#!/usr/local/bin/fl&nbsp;…</code></p>
-  <p>The following environment variables are taken into account by <code>fl</code>:</p>
+  <h3>Complementary Lisp Libraries</h3>
   <dl>
-    <dt><var><code>FLISP_SIZE</code></var></dt>
-    <dd>The number of bytes to pre-allocate for the Lisp objects space. Defaults to zero.</dd>
-    <dt><var><code>FLISP_DEBUG</code></var></dt>
-    <dd>When set to a file name, <code>fl</code> tries to truncate and open&nbsp;the file for writing and uses it as
-    debug output. When set to <q><code>-</code></q>debug output is sent to <i>stdout</i>, when set to
-    <q><code>&amp;</code></q> debug output is sent to <i>stderr</i>.</dd>
-    <dt><var><code>FLISP_QUIET</code></var></dt>
-    <dd>When set to 0, quiet mode is disabled, otherwise quiet mode is forced.</dd>
-    <dt><var><code>FLISP_INTERACTIVE</code></var></dt>
-    <dd>When set to 0, interactive mode is disabled, otherwise interactive mode is forced.</dd>
-  </dl>
-  <h4>The <code>flisp</code> Repl</h4>
-  <p><code>flisp</code>&nbsp;is a <code>fl</code> script which implements a slightly more comfortable Lisp repl. It
-  loads all extensions and the <code>core</code> library. Also <code>flisp</code> can be used for Lisp scripting if the
-  operating system allows for chained interpreters.</p>
-  <p><code>flisp</code> can <code>require</code> any of the provided Lisp libraries by <code>load</code>'ing them from
-  the <var><code>script_dir</code></var> directory which defaults to <code>/usr/local/share/flisp</code>. This can be
-  overriden by the&nbsp;environment&nbsp; variable FLISPLIB.</p>
-  <p>All environment variables recognized by <code>fl</code> are taken into account, however it is wise to only
-  use&nbsp;<var><code>FLISP_SIZE</code> and&nbsp;<code>FLISP_DEBUG</code></var>.</p>
-  <p>The original <code><var>argv0</var></code> command line argument, the full path to <code>fl</code>, is bound to
-  the symbol <code><var>flisp_interpreter</var></code>, The full path to <code>flisp</code> is bound to the symbol
-  <code><var>argv0</var></code> and the rest of the command line arguments are bound as a list of string to the symbol
-  <code><var>argv</var></code>.</p>
-  <p><code>flisp</code> tries to load a user specific rc file from <code>~/.config/flisp/init.lsp</code>. Then all
-  arguments on the command line are tried to be loaded as Lisp files. If no arguments are given, <code>flisp</code>
-  enters an interactive read-eval-print loop. In a similar manner to <code>fl</code>, the startup version banner and
-  prompts are suppressed if the standard input is not a ttyp.</p>
-  <h4>Lisp Libraries</h4>
-  <p id="startup"><i>fLisp</i> provides the following set of libraries:</p>
-  <dl>
-    <dt><i>core</i></dt>
-    <dd>Integrated in the startup&nbsp;file, always loaded. The core library implements a&nbsp;minimum set of Lisp
-    features including code for loading additional libraries.</dd>
     <dt><i>flisp</i></dt>
     <dd>Implements some additional standard Lisp functions.</dd>
     <dt><i>string</i></dt>
@@ -1218,7 +1198,50 @@
     <dt><code>(file-name-extension <var>s</var>)</code> ⇒ <var>s</var> <u>e</u></dt>
     <dd>Return the extension&nbsp;of path <var>s</var>, or nil if there is none.</dd>
   </dl>
-  <p><a href="#toc">^</a></p><!--
+  <p><a href="#toc">^</a></p>
+  <h3><i>fLisp</i> Command Line Interpreters</h3>
+  <h3 id="flisp">The <code>fl</code>&nbsp;Micro Repl</h3>
+  <p>The binary <code>fl</code> implements a minimalistic REPL, it registers all extensions but only preloads the
+  <i>core</i> primitives. When started without arguments with a ttyp on standard input it reads Lisp expressions on
+  standard input, writes results to standard output and errors to standard error. It exits when encountering end of
+  file on standard input. On startup the version string is printed and after printing the result (or error) of an
+  expresion a prompt <code><q>&gt;&nbsp;</q></code> is printed before waiting for more input. This is called the
+  <dfn>interactive mode.</dfn></p>
+  <p>When standard input is not a ttyp, e.g. a pipe, version string and prompt printing are suppressed.</p>
+  <p>When given a file as first argument on the commandline, <code>fl</code>&nbsp;opens this file on its standard input
+  and reads all its Lisp expressions until end of file. This is done in non-interactive <code>quiet mode</code>:
+  standard output is suppresed, but errors are still printed on standard error. This mode allows to use fl as a script
+  language by using it in a shebang line: <code>#!/usr/local/bin/fl&nbsp;…</code></p>
+  <p>The following environment variables are taken into account by <code>fl</code>:</p>
+  <dl>
+    <dt><var><code>FLISP_SIZE</code></var></dt>
+    <dd>The number of bytes to pre-allocate for the Lisp objects space. Defaults to zero.</dd>
+    <dt><var><code>FLISP_DEBUG</code></var></dt>
+    <dd>When set to a file name, <code>fl</code> tries to truncate and open&nbsp;the file for writing and uses it as
+    debug output. When set to <q><code>-</code></q>debug output is sent to <i>stdout</i>, when set to
+    <q><code>&amp;</code></q> debug output is sent to <i>stderr</i>.</dd>
+    <dt><var><code>FLISP_QUIET</code></var></dt>
+    <dd>When set to 0, quiet mode is disabled, otherwise quiet mode is forced.</dd>
+    <dt><var><code>FLISP_INTERACTIVE</code></var></dt>
+    <dd>When set to 0, interactive mode is disabled, otherwise interactive mode is forced.</dd>
+  </dl>
+  <h4>The <code>flisp</code> Repl</h4>
+  <p><code>flisp</code>&nbsp;is a <code>fl</code> script which implements a slightly more comfortable Lisp repl. It
+  loads all extensions and the <code>core</code> library. <code>flisp</code> can be used for Lisp scripting if the
+  operating system allows for chained interpreters.</p>
+  <p><code>flisp</code> can <code>require</code> any of the provided Lisp libraries by <code>load</code>'ing them from
+  the <var><code>script_dir</code></var> directory which defaults to <code>/usr/local/share/flisp</code>. This can be
+  overriden by the&nbsp;environment&nbsp; variable FLISPLIB.</p>
+  <p>All environment variables recognized by <code>fl</code> are taken into account, however it is wise to only
+  use&nbsp;<var><code>FLISP_SIZE</code> and&nbsp;<code>FLISP_DEBUG</code></var>.</p>
+  <p>The original <code><var>argv0</var></code> command line argument, the full path to <code>fl</code>, is bound to
+  the symbol <code><var>flisp_interpreter</var></code>, The full path to <code>flisp</code> is bound to the symbol
+  <code><var>argv0</var></code> and the rest of the command line arguments are bound as a list of string to the symbol
+  <code><var>argv</var></code>.</p>
+  <p><code>flisp</code> tries to load a user specific rc file from <code>~/.config/flisp/init.lsp</code>. Then all
+  arguments on the command line are tried to be loaded as Lisp files. If no arguments are given, <code>flisp</code>
+  enters an interactive read-eval-print loop. In a similar manner to <code>fl</code>, the startup version banner and
+  prompts are suppressed if the standard input is not a ttyp.</p><!--
                                             Emacs:
                                             Local Variables:
                                             fill-column: 120
