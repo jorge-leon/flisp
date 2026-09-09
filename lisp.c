@@ -1958,6 +1958,13 @@ SimpleObject flisp_init_invalid = { .type = &type_primitive_obj, .size = 0, .pri
 Object *typeInitType(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     FLISP_ASSERT(FLISP_ARG3, type_symbol, "(init-type type length name[ init[ write]]) - name");
+    /* Note: we want to strip type- when fmt'ing an object so it looks
+     * nice. So we must extra check if it's there. That could be
+     * taken away completely: type- would be just a convention
+     */
+    if (strncmp("type-", flisp_symbol_string(FLISP_ARG3), sizeof("type-")-1))
+        return newError(interp, invalid_value, FLISP_ARG3, "(init-type type length name[ init[ write]])) - name must start with \"type-\"");
+    
     /* Note: init and write must be nil, primitive or (closure)
        but: DRY
      */
