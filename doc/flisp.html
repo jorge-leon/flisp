@@ -76,7 +76,7 @@
           <a href="#evaluation">Environments, Functions, Evaluation</a>
         </li>
         <li>
-          <a href="#exceptions">Error Handling</a>
+          <a href="#errors">Error Handling</a>
         </li>
         <li>
           <a href="#globals">Global Variables</a>
@@ -84,10 +84,10 @@
       </ol>
     </li>
     <li>
-      <a href="#primitives"><i>fLisp</i> Primitives</a>
+      <a href="#primitives"><i>fLisp</i> core Primitives</a>
       <ol>
         <li>
-          <a href="#interp_ops">Interpreter Operations</a>
+          <a href="#lang_ops">Lisp Language Operations</a>
         </li>
         <li>
           <a href="#in_out">Input / Output and Others</a>
@@ -105,12 +105,15 @@
           <a href="#string_ops">String Operations</a>
         </li>
         <li>
+          <a href="#interp_ops">Interpreter Management and Introspection</a>
+        </li>
+        <li>
           <a href="#core_lib"><i>fLisp</i> Core Library</a>
         </li>
       </ol>
     </li>
     <li>
-      <a href="#extend"><i>fLisp</i> Extensions</a>
+      <a href="#flisp_extensions"><i>fLisp</i> Extensions</a>
       <ol>
         <li>
           <a href="#string">String Extension</a>
@@ -124,9 +127,6 @@
       </ol>
     </li>
     <li>
-      <a href="#flisp"><i>fLisp</i> Command Line Interpreters</a>
-    </li>
-    <li>
       <a href="#libraries">Lisp Libraries</a>
       <ol>
         <li>
@@ -137,6 +137,17 @@
         </li>
         <li>
           <a href="#file_lib">File Library</a>
+        </li>
+      </ol>
+    </li>
+    <li>
+      <a href="#flisp"><i>fLisp</i> Command Line Interpreters</a>
+      <ol>
+        <li>
+          <a href="#fl_repl">The <code>fl</code> Micro Repl</a>
+        </li>
+        <li>
+          <a href="#flisp_repl">The <code>flisp</code> Repl</a>
         </li>
       </ol>
     </li>
@@ -310,7 +321,7 @@
     <dt><code>t</code></dt>
     <dd><q>true</q>, a predefined, non-false value.</dd>
   </dl>
-  <p>Error symbols are listed in the <a href="#exceptions">Error Handling</a> section.</p>
+  <p>Error symbols are listed in the <a href="#errors">Error Handling</a> section.</p>
   <p>Numbers, strings, types and most other object types evaluate to themself.</p>
   <p>If a list starts with a <i>macro</i> or a special form <i>primitive</i>, the rest of the list is passed as
   arguments to it. The list then evaluates to the result of the macro / special form invocation.</p>
@@ -418,7 +429,7 @@
   <p>When a symbol is encounter while evaluating a sexp, the symbol is looked up in the current environment, and then
   recursively in the parent environments. It is then replaced by the first value found. If the symbol is not found it
   is replaced with an error object.</p>
-  <h4 id="exceptions">Error handling</h4>
+  <h4 id="errors">Error handling</h4>
   <p><i>fLisp</i> primitives return an error object upon abnormal conditions, when <i>fLisp</i> runs out of memory or
   encounters in input/output error. Errors have an&nbsp;<dfn>error type</dfn> symbol, a human readable <dfn>error
   message</dfn> and the <dfn>object in error</dfn>, also called <dfn>culprit.</dfn>&nbsp; With generic error conditions
@@ -472,7 +483,7 @@
     <dd>The initial output stream, or&nbsp;<code>nil</code> if there is none.</dd>
     <dt><code>*standard-error*</code></dt>
     <dd>The initial error output stream, or <code>nil</code> if there is none.</dd>
-    <dt>*debug-output*</dt>
+    <dt><code>*debug-output*</code></dt>
     <dd>The initial debug output stream, or <code>nil</code> if there is none.</dd>
     <dt><code>argv</code></dt>
     <dd>Is bound to a list of all command line arguments of the invoking program in order. Each element is of type
@@ -483,13 +494,13 @@
   <nav>
     <a href="#toc">^</a>
   </nav>
-  <h3 id="flisp_primitives"><i>fLisp</i>&nbsp;core Primitives</h3>
+  <h3 id="flisp_primitives"><i>fLisp</i> core Primitives</h3>
   <p>The built-in primitives of&nbsp;<i>fLisp</i> are divided into a minimal pre-loaded core&nbsp;primitives set,&nbsp;
   and the optional <i>double</i>, <i>string</i> and <i>posix</i> extensions. The complete <i>fLisp</i> language is
   built on top of the core and string primitives.</p>
   <p>In the following sub section the core primitives are documented, grouped by the type of objects they operate
   on.</p>
-  <h4 id="interp_ops">Interpreter Operations</h4>
+  <h4 id="lang_ops">Lisp Language Operations</h4>
   <p>This are the special form primitives.</p>
   <dl>
     <dt><code>(progn[&nbsp;<var>expr</var>..])</code> ⇒ <var>val<sub>n</sub></var></dt>
@@ -721,7 +732,7 @@
     <dd>Returns <code>0</code> if strings <var>s1</var> and <var>s2</var> are the same, a negative intetger if s1 is
     less then s2, a positive integer otherwise. See strcmp(3).</dd>
   </dl>
-  <h4>Interpreter Management and Introspection</h4>
+  <h4 id="interp_ops">Interpreter Management and Introspection</h4>
   <dl>
     <dt><code>(extension symbol)</code></dt>
     <dd>When <var>symbol</var> is a registered extension and the extension is not yet loaded its primitivies are loaded
@@ -986,7 +997,7 @@
       <dd>Evaluates to the error type of <var>error</var>.</dd>
     </dl>
   </nav>
-  <h3 id="flisp_extensions">fLisp Extensions</h3>
+  <h3 id="flisp_extensions"><i>fLisp</i> Extensions</h3>
   <p>Extensions are C libraries which implement additional primitives. Extensions must be registered with
   an&nbsp;<i>fLisp</i> interpreter after creation within C-code. They can then be loaded either in C-code or on demand
   from Lisp code with the <code>extension</code>&nbsp;function. An extension has a&nbsp; name, represented by a symbol
@@ -1003,7 +1014,7 @@
     <dt>Floating point arithmetic.</dt>
     <dd>&nbsp;</dd>
   </dl>
-  <h4 id="string">String Extensions</h4>
+  <h4 id="string">String Extension</h4>
   <dl>
     <dt><code>(char-length <var>string</var>)</code> ⇒ <i>i</i>&nbsp;<u>f</u></dt>
     <dd>Calculates&nbsp;the number of bytes occupied by the first character of <var>string</var>.</dd>
@@ -1200,18 +1211,18 @@
   </dl>
   <p><a href="#toc">^</a></p>
   <h3><i>fLisp</i> Command Line Interpreters</h3>
-  <h3 id="flisp">The <code>fl</code>&nbsp;Micro Repl</h3>
+  <h3 id="fl_repl">The <code>fl</code>&nbsp;Micro Repl</h3>
   <p>The binary <code>fl</code> implements a minimalistic REPL, it registers all extensions but only preloads the
   <i>core</i> primitives. When started without arguments with a ttyp on standard input it reads Lisp expressions on
   standard input, writes results to standard output and errors to standard error. It exits when encountering end of
   file on standard input. On startup the version string is printed and after printing the result (or error) of an
   expresion a prompt <code><q>&gt;&nbsp;</q></code> is printed before waiting for more input. This is called the
   <dfn>interactive mode.</dfn></p>
-  <p>When standard input is not a ttyp, e.g. a pipe, version string and prompt printing are suppressed.</p>
-  <p>When given a file as first argument on the commandline, <code>fl</code>&nbsp;opens this file on its standard input
-  and reads all its Lisp expressions until end of file. This is done in non-interactive <code>quiet mode</code>:
-  standard output is suppresed, but errors are still printed on standard error. This mode allows to use fl as a script
-  language by using it in a shebang line: <code>#!/usr/local/bin/fl&nbsp;…</code></p>
+  <p>When standard input is not a tty, e.g. a pipe, version string and prompt printing are suppressed.</p>
+  <p>When given a file as first argument on the commandline, <code>fl</code> opens this file on its standard input and
+  reads all its Lisp expressions until end of file. This is done in non-interactive <code>quiet mode</code>: standard
+  output is suppresed, but errors are still printed on standard error. This mode allows to use fl as a script language
+  by using it in a shebang line: <code>#!/usr/local/bin/fl&nbsp;…</code></p>
   <p>The following environment variables are taken into account by <code>fl</code>:</p>
   <dl>
     <dt><var><code>FLISP_SIZE</code></var></dt>
@@ -1225,10 +1236,12 @@
     <dt><var><code>FLISP_INTERACTIVE</code></var></dt>
     <dd>When set to 0, interactive mode is disabled, otherwise interactive mode is forced.</dd>
   </dl>
-  <h4>The <code>flisp</code> Repl</h4>
-  <p><code>flisp</code>&nbsp;is a <code>fl</code> script which implements a slightly more comfortable Lisp repl. It
-  loads all extensions and the <code>core</code> library. <code>flisp</code> can be used for Lisp scripting if the
-  operating system allows for chained interpreters.</p>
+  <p><code>fl</code> does not load any Lisp library, only the <a href="#flisp_primitives">core primitives</a> are
+  available. Therefore <code>fl</code> is suited for small scripts or for building one's own Lisp variant.</p>
+  <h4 id="flisp_repl">The <code>flisp</code> Repl</h4>
+  <p><code>flisp</code>&nbsp;is a <code>fl</code> script which implements a slightly more comfortable Lisp repl than
+  <code>fl</code>. It loads all extensions and the <code>core</code> library. <code>flisp</code> can be used for Lisp
+  scripting if the operating system allows for chained interpreters.</p>
   <p><code>flisp</code> can <code>require</code> any of the provided Lisp libraries by <code>load</code>'ing them from
   the <var><code>script_dir</code></var> directory which defaults to <code>/usr/local/share/flisp</code>. This can be
   overriden by the&nbsp;environment&nbsp; variable FLISPLIB.</p>

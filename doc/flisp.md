@@ -49,25 +49,28 @@ Other documentation topics on *fLisp*:
     2.  [Syntax](#syntax)
     3.  [Objects and Data Types](#objects_and_data_types)
     4.  [Environments, Functions, Evaluation](#evaluation)
-    5.  [Error Handling](#exceptions)
+    5.  [Error Handling](#errors)
     6.  [Global Variables](#globals)
-5.  [*fLisp* Primitives](#primitives)
-    1.  [Interpreter Operations](#interp_ops)
+5.  [*fLisp* core Primitives](#primitives)
+    1.  [Lisp Language Operations](#lang_ops)
     2.  [Input / Output and Others](#in_out)
     3.  [Object Operations](#object_ops)
     4.  [Arithmetic Operations](#arithmetic_ops)
     5.  [Bitwise Integer Operations](#bitwise_ops)
     6.  [String Operations](#string_ops)
-    7.  [*fLisp* Core Library](#core_lib)
-6.  [*fLisp* Extensions](#extend)
+    7.  [Interpreter Management and Introspection](#interp_ops)
+    8.  [*fLisp* Core Library](#core_lib)
+6.  [*fLisp* Extensions](#flisp_extensions)
     1.  [String Extension](#string)
     2.  [POSIX Extension](#posix)
     3.  [Double Extension](#double)
-7.  [*fLisp* Command Line Interpreters](#flisp)
-8.  [Lisp Libraries](#libraries)
+7.  [Lisp Libraries](#libraries)
     1.  [fLisp Library](#flisp_lib)
     2.  [String Library](#string_lib)
     3.  [File Library](#file_lib)
+8.  [*fLisp* Command Line Interpreters](#flisp)
+    1.  [The `fl` Micro Repl](#fl_repl)
+    2.  [The `flisp` Repl](#flisp_repl)
 
 ### Notation Conventions
 
@@ -301,7 +304,7 @@ value in logical operations.
 `t`  
 “true”, a predefined, non-false value.
 
-Error symbols are listed in the [Error Handling](#exceptions) section.
+Error symbols are listed in the [Error Handling](#errors) section.
 
 Numbers, strings, types and most other object types evaluate to
 themself.
@@ -531,7 +534,7 @@ The initial output stream, or `nil` if there is none.
 `*standard-error*`  
 The initial error output stream, or `nil` if there is none.
 
-\*debug-output\*  
+`*debug-output*`  
 The initial debug output stream, or `nil` if there is none.
 
 `argv`  
@@ -543,7 +546,7 @@ Is bound to the name of the invoking program. It is of type string.
 
 [^](#toc)
 
-### *fLisp* core Primitives
+### *fLisp* core Primitives
 
 The built-in primitives of *fLisp* are divided into a minimal pre-loaded
 core primitives set,  and the optional *double*, *string* and *posix*
@@ -553,7 +556,7 @@ and string primitives.
 In the following sub section the core primitives are documented, grouped
 by the type of objects they operate on.
 
-#### Interpreter Operations
+#### Lisp Language Operations
 
 This are the special form primitives.
 
@@ -1173,7 +1176,7 @@ interpreter.
 `(error-type «error»)`  
 Evaluates to the error type of *error*.
 
-### fLisp Extensions
+### *fLisp* Extensions
 
 Extensions are C libraries which implement additional primitives.
 Extensions must be registered with an *fLisp* interpreter after creation
@@ -1197,7 +1200,7 @@ with the operating system.
 Floating point arithmetic.  
  
 
-#### String Extensions
+#### String Extension
 
 `(char-length «string»)` ⇒ *i* <u>f</u>  
 Calculates the number of bytes occupied by the first character of
@@ -1463,10 +1466,10 @@ error) of an expresion a prompt `“> ”` is printed before waiting for
 more input. This is called the <span class="dfn">interactive
 mode.</span>
 
-When standard input is not a ttyp, e.g. a pipe, version string and
-prompt printing are suppressed.
+When standard input is not a tty, e.g. a pipe, version string and prompt
+printing are suppressed.
 
-When given a file as first argument on the commandline, `fl` opens this
+When given a file as first argument on the commandline, `fl` opens this
 file on its standard input and reads all its Lisp expressions until end
 of file. This is done in non-interactive `quiet mode`: standard output
 is suppresed, but errors are still printed on standard error. This mode
@@ -1491,12 +1494,16 @@ When set to 0, quiet mode is disabled, otherwise quiet mode is forced.
 When set to 0, interactive mode is disabled, otherwise interactive mode
 is forced.
 
+`fl` does not load any Lisp library, only the [core
+primitives](#flisp_primitives) are available. Therefore `fl` is suited
+for small scripts or for building one's own Lisp variant.
+
 #### The `flisp` Repl
 
 `flisp` is a `fl` script which implements a slightly more comfortable
-Lisp repl. It loads all extensions and the `core` library. `flisp` can
-be used for Lisp scripting if the operating system allows for chained
-interpreters.
+Lisp repl than `fl`. It loads all extensions and the `core` library.
+`flisp` can be used for Lisp scripting if the operating system allows
+for chained interpreters.
 
 `flisp` can `require` any of the provided Lisp libraries by `load`'ing
 them from the `script_dir` directory which defaults to

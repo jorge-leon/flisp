@@ -36,49 +36,84 @@
       <a href="#">Embedding Overview</a>
     </li>
     <li>
-      <a href="#c_api">fLisp C Interface</a>
+      <a href="#c_api"><i>fLisp</i> C Interface</a>
+      <ol>
+        <li>
+          <a href="#creation">Interpreter Creation</a>
+        </li>
+        <li>
+          <a href="#execution">Interpreter Execution</a>
+        </li>
+        <li>
+          <a href="#destruction">Interpreter Destruction</a>
+        </li>
+      </ol>
     </li>
     <li>
-      <a href="#utf8">UTF-8 Support</a>
+      <a href="#loading_extensions">Loading fLisp Extensions</a>
     </li>
     <li>
-      <a href="#loading_flisp_extensions">Loading fLisp Extensions</a>
+      <a href="#utf8">String Extension, UTF-8 Support</a>
     </li>
     <li>
       <a href="#extensions">Building Extensions</a>
+      <ol>
+        <li>
+          <a href="#primitive_register">Registering Primitives</a>
+        </li>
+        <li>
+          <a href="#primitive_writing">Writing Primitives</a>
+        </li>
+        <li>
+          <a href="#constants"><i>fLisp</i> Constants</a>
+        </li>
+        <li>
+          <a href="#objects"><i>fLisp</i> Objects Reference</a>
+        </li>
+        <li>
+          <a href="#objects_implement">Implementing New Object Types</a>
+        </li>
+      </ol>
     </li>
   </ol>
-  <h3 id="embed_overview">Embedding</h3>
-  <p><i>fLisp</i> can be embedded into a C application. Two examples of embedding are the <a href=
+  <h3 id="embed_overview">Embedding Overview</h3>
+  <p>The <i>fLisp</i> interpreter can be embedded into a C application. Two examples of embedding are the <a href=
   "https://github.com/jorge-leon/femto">Femto text editor</a>&nbsp; and the&nbsp;<code>fl</code>&nbsp;command line Lisp
   interpreter.</p>
   <p>Applications can use the <i>fLisp</i> API to run Lisp programs and access the results and they can extend the
   fLisp interpreter with new primitives which potentially have access to C structures.</p>
   <p>Extension primitives receive arguments as a list, eventually have to take care of effects of garbage collections
-  and must return a Lisp object.&nbsp;C macros facilitate these tasks. The primitives are either directly registered
-  with an <i>fLisp</i> interpreter with the <code>flisp_register_primitive()</code> function or bundled into an
-  extensions which can then be loaded on demand in the interpreter.</p>
+  and must return a Lisp object.&nbsp;C macros facilitate these tasks. The primitives can then be either directly
+  registered with an <i>fLisp</i> interpreter with the <code>flisp_register_primitive()</code> function or bundled into
+  an extensions which can then be loaded on demand in the interpreter.</p>
+  <p>Extension can also implement their own object types. This are registered with the
+  <code>flisp_register_type()</code> function.</p>
   <p>Three extensions are already provided with <i>fLisp</i>. <i>string</i>,&nbsp;&nbsp;<i>posix</i>&nbsp;and
-  <i>double</i>. They are described in the <i>fLisp</i> manual.</p>
+  <i>double</i>. They are described in the <a href="flisp.html#flisp_extensions"><i>fLisp</i>&nbsp;Extensions</a>
+  section of the <i>fLisp</i> manual.</p>
   <p>Operating the <var>fLisp</var> interpreter in an application involves the following steps:</p>
   <ol>
-    <li>Creation of an <i>fLisp</i> interpreter with <code>flisp_new()</code>.</li>
+    <li>Creation of an <i>fLisp</i> interpreter with <code>flisp_interpreter()</code>.</li>
     <li>Optional: registering of primitives and/or extensions.</li>
     <li>Evaluation/execution of Lisp commands with <code>flisp_eval_expr().</code></li>
   </ol>
-  <p>Different flows of operation can be implemented. For example the Femto editor initializes the interpreter without
-  input/output file descriptors and sends strings of Lisp commands to the interpreter, either when a key is pressed or
-  upon explicit request via the editor user interface. Another example is the&nbsp;<code>fl</code>&nbsp;command line
-  interpreter which sets <code>stdout</code>&nbsp;and <code>stderr</code> as the default output file descriptors of the
-  <i>fLisp</i> interpreter either sets <code>stdin</code> or a Lisp source file as standard input of the
-  interpreter.</p>
+  <p>Different flows of operation can be implemented. Two examples:</p>
+  <ul>
+    <li>The Femto editor initializes the interpreter without input/output file descriptors and sends strings of Lisp
+    commands to the interpreter, either when a key is pressed or upon explicit request via the editor user
+    interface.</li>
+    <li>The <code>fl</code> command line interpreter sets <code>stdout</code>&nbsp;and <code>stderr</code> as the
+    default output file descriptors of the <i>fLisp</i> interpreter either sets <code>stdin</code> or a Lisp source
+    file as standard input of the interpreter and then evaluates the input until end-of-file.</li>
+  </ul>
   <nav>
     <a href="#toc">^</a>
   </nav>
   <h3 id="c_api">fLisp C Interface</h3>
+  <p><mark>Most signatures have to be documented yet</mark></p>
   <p><i>fLisp</i> exposes the following public interface functions:</p>
   <dl>
-    <dt><code>flisp_new()</code></dt>
+    <dt><code>flisp_interpreter()</code></dt>
     <dd>Create a new interpreter.</dd>
     <dt><code>flisp_destroy()</code></dt>
     <dd>Destroy an interpreter, releasing resources. <mark>Experimental/untested</mark></dd>
@@ -96,16 +131,18 @@
     <dd>Register a global symbol binding. <mark>Experimental/to be changed</mark></dd>
     <dt><code>flisp_register_primitive()</code></dt>
     <dd>Register an extensions primitive.</dd>
+    <dt><code>flisp_register_type()</code></dt>
+    <dd>Register an extensions Lisp object type.</dd>
     <dt><code>flisp_register_extension()</code></dt>
     <dd>Register a collection of constants and/or primitives for loading in an <i>fLisp</i> interpreter.</dd>
-    <dt>flisp_debug()</dt>
-    <dd>printf to an&nbsp;interpreters debug output.</dd>
+    <dt><code>flisp_debug()</code></dt>
+    <dd>printf to an interpreters debug output.</dd>
   </dl>
   <p>Helper functions for writing primitives:</p>
   <dl>
     <dt><code>flisp_static_error()</code></dt>
     <dd>Return an error object without memory allocation.</dd>
-    <dt><code>flisp_ext_obj()</code></dt>
+    <dt><code>flisp_new()</code></dt>
     <dd>Create an extensible object.</dd>
     <dt><code>flisp_find_symbol()</code></dt>
     <dd>Check if a symbol is available in an interpreter.</dd>
@@ -123,8 +160,9 @@
     <dt><code>file_fclose()</code></dt>
     <dd>Close a stream object.</dd>
   </dl>
-  <p><code>nil</code>, <code>t</code> and all type and error symbols are exported with dashes <q><code>-</code></q>
-  replaced by underscores <q><code>_</code></q>.</p>
+  <p>All type and error symbols are exported with dashes <q><code>-</code></q> replaced by underscores
+  <q><code>_</code></q>. Example: the <code>type-string</code> Lisp symbol is exported as <code>TypeObject
+  *type_string</code></p>
   <p>Convenience objects:&nbsp;<code>flisp_empty_string</code>,&nbsp;<code>flisp_integer_zero</code>,
   <code>flisp_empty_vector</code>.</p>
   <p>Additionally exported, names to be sanitized:</p>
@@ -138,15 +176,18 @@
     <dt><code>flisp_not_same(), flisp_is_error()</code></dt>
     <dd>Sequential operation helpers.</dd>
   </dl>
-  <h4>Interpreter Creation</h4>
-  <p>A new <i>fLisp</i> interpreter is created with the function <code>flisp_new()</code>. Upon success a pointer to an
-  initialized <i>Interpreter</i> structure is returned, which is required for all other <i>fLisp</i> operations. If the
-  required memory for the interpreter cannot be allocated a <code>NULL</code> pointer is returned instead. If the
-  interpreter can be allocated but then cannot create the initial objects an error object is returned.</p>
-  <p>The signature of <code>flisp_new()</code> is:</p>
+  <p>Several CPP macros are provided for writing smoother code. They are described in <a href="#extensions">Building
+  Extensions</a>.</p>
+  <h4 id="creation">Interpreter Creation</h4>
+  <p>A new <i>fLisp</i> interpreter is created with the function <code>flisp_interpreter()</code>. Upon success a
+  pointer to an initialized <i>Interpreter</i> structure is returned, which is required for all other <i>fLisp</i>
+  operations. If the required memory for the interpreter cannot be allocated a <code>NULL</code> pointer is returned
+  instead. If the interpreter can be allocated but then cannot create the initial objects an error object is
+  returned.</p>
+  <p>The signature of <code>flisp_interpreter()</code> is:</p>
   <blockquote>
     <pre>
-<code>Object *flisp_new(site_t <var>size</var>, char **<var>argv</var>, FILE *<var>input</var>, FILE *<var>output</var>, FILE* <var>error</var>, FILE* <var>debug</var>)</code></pre>
+        <code>Object *flisp_interpreter(site_t <var>size</var>, char **<var>argv</var>, FILE *<var>input</var>, FILE *<var>output</var>, FILE* <var>error</var>, FILE* <var>debug</var>)</code></pre>
   </blockquote>
   <dl>
     <dt><code><var>size</var></code></dt>
@@ -158,15 +199,15 @@
       <p><var>argv0</var> .. bound to&nbsp;the string stored in <code>*<var>argv</var>[0]</code></p>
       <p><var>argv ..&nbsp;</var>The list of strings stored in <code><var>argv++</var></code></p>
     </dd>
-    <dt><var>input</var></dt>
+    <dt><code><var>input</var></code></dt>
     <dd>Default input stream. If <var>input</var> is&nbsp;<code>NULL</code>&nbsp;no&nbsp;<i>fLisp</i> input stream is
     set up.</dd>
-    <dt><var>output</var></dt>
+    <dt><code><var>output</var></code></dt>
     <dd>Default output stream. If <var>output</var> is&nbsp;<code>NULL</code> a memory stream is created at the first
     invocation of the interpreter and set as the default output stream.</dd>
-    <dt><var>error</var></dt>
+    <dt><code><var>error</var></code></dt>
     <dd>Error output stream. If set to <code>NULL</code> no error output&nbsp;is generated.</dd>
-    <dt><var>debug</var></dt>
+    <dt><code><var>debug</var></code></dt>
     <dd>Debug output stream. If set to <code>NULL</code> no debug information is generated.</dd>
   </dl>
   <p>The Lisp interpreter allocates new object space in chunks of 16 kilobytes (by default) whenever a garbage
@@ -175,31 +216,31 @@
   amount required by an application and initialize the interpreter with a corresponding <var>size</var> argument.</p>
   <p><var>argv</var>&nbsp;is meant to be set to the applications <var>argv</var> vector, however it can be set to any
   other array of strings if needed.</p>
-  <h4>Interpreter Execution</h4>
+  <h4 id="execution">Interpreter Execution</h4>
   <p>The signature of <code>flisp_eval_expr()</code> is:</p>
   <blockquote>
     <pre>
-<code>Object *flisp_eval_expr(Interpreter *<var>interp</var>, bool <var>readably</var>)</code></pre>
+        <code>Object *flisp_eval_expr(Interpreter *<var>interp</var>, bool <var>readably</var>)</code></pre>
   </blockquote>
   <p>After evaluation of the next expression in the input stream&nbsp;<i>fLisp</i> writes the result to the default
   output stream. If the output stream is set to <code>NULL</code> on initialization, output is suppressed altogether.
   If <var>readably</var> is <code>true</code>, output is written in a format that allows to read it in again with the
   <i>fLisp</i> reader.</p>
-  <p>The returned object is either the result of the last expression in the input stream, or an error object.</p>
+  <p>The returned object is either the result of the last expression in the input stream, or an error object. It can be
+  printed to any output stream with:</p>
   <dl>
     <dt><code>void flisp_write_object(FILE&nbsp;<var>*fd</var>, Object&nbsp;*<var>object</var>,
     bool&nbsp;readably)</code></dt>
     <dd>Format <var>object</var> into a string and write it to <var>stream</var>. If <var>readably</var> is true, the
     string can be read in by the interpreter and results in the same object.</dd>
-    <dt>&nbsp;</dt>
   </dl>
-  <h4>Interpreter Destruction</h4>
+  <h4 id="destruction">Interpreter Destruction</h4>
   <p><mark>Note: current applications only use a single interpreter and leave freeing of interpreter memory to the
   <code>exit()</code> function. Destruction of interpreters is untested and is likely to cause segmentation
   faults.</mark></p>
   <p><code>void flisp_destroy(Interpreter&nbsp;*<var>interp</var>)</code></p>
   <p>Frees all resources used by the interpreter.</p>
-  <h3 id="utf8">Loading <i>fLisp</i> Extensions</h3>
+  <h3 id="loading_extensions">Loading <i>fLisp</i> Extensions</h3>
   <p><i>fLisp</i> provides the following extensions:</p>
   <dl>
     <dt><i>string</i></dt>
@@ -209,31 +250,36 @@
     <dt><i>double</i></dt>
     <dd>IEEE double floating point arithmetic.</dd>
   </dl>
-  <p>Each extension implements a function: <code>flisp_<var>name</var>_init(<var>interp, extension</var>)</code>, where
-  <var>name</var> is the name of the extension and <var>interp</var> the interpter into which to load the extension.
-  The <var>extension</var> parameter is the extension object with which <code>flisp_<var>name</var>_init()</code> is
-  registered in the respective interpreter. It is either obtained
-  by&nbsp;<code>flisp_register_extension()</code>&nbsp;after creating the interpreter, or later filled in when the
-  extension is loaded from Lisp code.</p>
-  <h4>String Extension, UTF-8 Support</h4>
-  <p><code>string.h</code> exposes the
-  functions&nbsp;&nbsp;<code>flisp_code_length()</code>,&nbsp;<code>flisp_char_offest(),</code>&nbsp;<code>flisp_string_length(),</code>
-  <code>flisp_char_code()</code> and&nbsp;<code>flisp_code_char()</code>. These function are clean room public domain
-  implementations.</p>
+  <p>Each extension implements a function:
+  <code>flisp_<var>name</var>_init(<var>interp</var>,&nbsp;<var>extension</var>)</code>, where <var>name</var> is the
+  name of the extension and <var>interp</var> the interpter into which to load the extension. The <var>extension</var>
+  parameter is the extension object registered by
+  <code>flisp_register_extension(<var>interp</var>,&nbsp;<var>name</var>,&nbsp;flisp_<var>name</var>_init)</code> in
+  the interpreter.</p>
+  <p>To have the extension already present after startup call <code>flisp_<var>name</var>_init(interp,
+  FLISP_INTERP.extensions-&gt;car)</code> immediately after <code>flisp_register_extension()</code>.</p>
+  <p>Alternatively the extension can later be loaded from Lisp code with the <code>(extension '<var>name</var>)</code>
+  primitive.</p>
+  <h4 id="utf8">String Extension, UTF-8 Support</h4>
+  <p><code>string.h</code> exposes the functions <code>flisp_code_length()</code>, <code>flisp_char_offset()</code>,
+  <code>flisp_string_length()</code>, <code>flisp_char_code()</code> and <code>flisp_code_char()</code>. These function
+  are clean room public domain implementations for processing UTF-8 strings.</p>
+  <p>See Section <a href="flisp.html#string">String Extension</a> in the <i>fLisp</i> manual for the provided
+  functionality.</p>
   <p><a href="#toc">^</a></p>
   <h3 id="extensions">Building Extensions</h3>
-  <h4>Registering Primitives</h4>
+  <h4 id="primitive_register">Registering Primitives</h4>
   <p>An extensions has to create C functions, called&nbsp;<dfn>primitives</dfn> with the signature:</p>
   <blockquote>
     <pre>
-<code>Object *<var>primitive</var>(Interpreter *interp, Object **args, Object **env, size_t nArgs)</code></pre>
+        <code>Object *<var>primitive</var>(Interpreter *interp, Object **args, Object **env, size_t nArgs)</code></pre>
   </blockquote>
   <p><var>primitive</var>&nbsp;must be a distinct name in C space. This signatures is typedef'd to
   <code>LispEval</code>.</p>
   <p>To make the primitive available to an fLisp interpreter the following function has to be executed:</p>
   <blockquote>
     <pre>
-<code>Object *flisp_register_primitive(Interpreter *<var>interp</var>, char *<var>name</var>, int <var>min_args</var>, int <var>max_args</var>, Object *<var>args_type</var>, LispEval <var>func</var>)</code></pre>
+        <code>Object *flisp_register_primitive(Interpreter *<var>interp</var>, char *<var>name</var>, int <var>min_args</var>, int <var>max_args</var>, Object *<var>args_type</var>, LispEval <var>func</var>)</code></pre>
   </blockquote>
   <dl>
     <dt><var>interp</var></dt>
@@ -257,7 +303,7 @@
   <nav>
     <a href="#toc">^</a>
   </nav>
-  <h4>Writing primitives</h4>
+  <h4 id="primitive_writing">Writing primitives</h4>
   <p>When a primitive is called from Lisp, the arguments are handed over in the <code>Object **<var>args</var></code>
   argument. This is a list of Lisp objects. The number of arguments is handed over in <var>nArgs</var>.</p>
   <p>Some CPP macros are provided to simplify argument access and validation in primitives:</p>
@@ -273,17 +319,17 @@
   </dl>
   <p>Example:</p>
   <pre>
-<code>/* (foo integer string) =&gt; 42 - just check if the first argument is an integer and the second a string, then return the integer 42 */
-Object *foo(Interpreter *interp, Object **args, Object **env)
-{
-    FLISP_ASSERT(FLISP_ARG1, type_integer, "(foo integer string) - integer");
-    FLISP_ASSERT(FLISP_ARG2, type_string, "(foo integer string) - string");
-    return newInteger(interp, 42);
-}
-</code>…
-    flisp_register_primitive(interp, "foo", 2, 2, nil, foo);
-…
-</pre>
+      <code>/* (foo integer string) =&gt; 42 - just check if the first argument is an integer and the second a string, then return the integer 42 */
+        Object *foo(Interpreter *interp, Object **args, Object **env)
+        {
+        FLISP_ASSERT(FLISP_ARG1, type_integer, "(foo integer string) - integer");
+        FLISP_ASSERT(FLISP_ARG2, type_string, "(foo integer string) - string");
+        return newInteger(interp, 42);
+        }
+      </code>…
+      flisp_register_primitive(interp, "foo", 2, 2, nil, foo);
+      …
+    </pre>
   <p>The Lisp object constructors will eventually trigger garbage collection. This will move all objects into a new
   memory region. Therefore when&nbsp;creating more then one object within a primitive care has to be taken to register
   the objects with the garbage collector. Registration is started with the <code>GC_CHECKPOINT</code>&nbsp;macro.
@@ -294,31 +340,31 @@ Object *foo(Interpreter *interp, Object **args, Object **env)
   returns <var>object</var>.</p>
   <p>Example:</p>
   <pre>
-<code>/* (bar) =&gt; (nil . 42) - return a cons with nil and the integer 42 */
-#if USING_GC_RELEASE
-Object *bar(Interpreter *interp, Object **args, Object **env)
-{
-  GC_CHECKPOINT;
-  GC_TRACE(gcAnswer, newInteger(interp, 42));
-  GC_RETURN(newCons(interp, &amp;nil, gcAnswer));
-}</code>
-<code>#else
-Object *bar(Interpreter *interp, Object **args, Object **env)
-{
-    Object *object;
-    GC_CHECKPOINT;
-    GC_TRACE(gcAnswer, newInteger(interp, 42));
-    object = newCons(interp, &amp;nil, gcAnswer);
-    GC_RELEASE;
-    return object;
-}
-#endif
-</code>…
-    flisp_register_primitive(interp, "bar", 0, 0, nil, bar);
-…</pre>
+      <code>/* (bar) =&gt; (nil . 42) - return a cons with nil and the integer 42 */
+        #if USING_GC_RELEASE
+        Object *bar(Interpreter *interp, Object **args, Object **env)
+        {
+        GC_CHECKPOINT;
+        GC_TRACE(gcAnswer, newInteger(interp, 42));
+        GC_RETURN(newCons(interp, &amp;nil, gcAnswer));
+        }</code>
+      <code>#else
+        Object *bar(Interpreter *interp, Object **args, Object **env)
+        {
+        Object *object;
+        GC_CHECKPOINT;
+        GC_TRACE(gcAnswer, newInteger(interp, 42));
+        object = newCons(interp, &amp;nil, gcAnswer);
+        GC_RELEASE;
+        return object;
+        }
+        #endif
+      </code>…
+      flisp_register_primitive(interp, "bar", 0, 0, nil, bar);
+      …</pre>
   <nav>
     <p><a href="#toc">^</a></p>
-    <h4>fLisp Constants</h4>
+    <h4 id="constants"><i>fLisp</i> Constants</h4>
     <p>It is often desirable to introduce application specific symbols. Symbols take the role of enums or are needed to
     create error codes. In order to use symbols both from C code and from Lisp, they must not be subject to garbage
     collection. The <i>fLisp</i> garbage collector skips all objects which are allocated outside of the Lisp object
@@ -327,18 +373,20 @@ Object *bar(Interpreter *interp, Object **args, Object **env)
     <var>value</var>)</code>. Here is an example usage where the symbol <code>foobar</code> is registered to have the
     value 42.:</p>
     <pre>
-<code>Object * foobar = &amp;(Object) { NULL, .string = "foobar" };
-Object * answer = &amp;(Object) { NULL, .integer = 42 };
-…
-    answer-&gt;type = type_integer;
-    flisp_register_constant(interp, foobar, answer);
-…</code>
-</pre>
+        <code>Object * foobar = &amp;(Object) { NULL, .string = "foobar" };
+          Object * answer = &amp;(Object) { NULL, .integer = 42 };
+          …
+          answer-&gt;type = type_integer;
+          flisp_register_constant(interp, foobar, answer);
+          …</code>
+      </pre>
     <p>The type of a statically allocated object can only be set at runtime.
     <code>flisp_register_constant()</code>&nbsp;sets the type of the symbol to <code>type_symbol</code>, but does not
     touch the type of the value. This has to be done by the application code.</p>
-    <p>The length of the symbol name must be shorter then PATH_MAX.</p>
-    <h4><i>fLisp</i> Objects Reference</h4>
+    <p><del>The length of the symbol name must be shorter then
+    PATH_MAX.</del></p><mark>FLISP_DEFINE_CONSTANT(c-name,list-name) creates arbitrary length const symbols. to be
+    described.</mark>
+    <h4 id="objects"><i>fLisp</i> Objects Reference</h4>
     <p>Lisp objects are structs with their value as a union field. The following object types are available:</p>
     <table>
       <thead>
@@ -512,7 +560,7 @@ Object * answer = &amp;(Object) { NULL, .integer = 42 };
           <td style="width: 129px;"><code>type-interpreter</code></td>
           <td style="width: 102px;">&nbsp;</td>
           <td style="width: 291px;">&nbsp;</td>
-          <td style="width: 364px;"><code>flisp_new(...)</code></td>
+          <td style="width: 364px;"><code>flisp_interpreter(...)</code></td>
         </tr>
         <tr>
           <td><code>type_extension</code></td>
@@ -529,15 +577,13 @@ Object * answer = &amp;(Object) { NULL, .integer = 42 };
           <td style="width: 364px;">&nbsp;</td>
         </tr>
         <tr>
-          <td>&nbsp;</td>
-          <td style="width: 129px;">&nbsp;</td>
-          <td style="width: 102px;"><code>ExtensionInit</code></td>
+          <td><code>ExtensionInit</code></td>
           <td style="width: 291px;"><code>object-&gt;extension.init</code></td>
           <td style="width: 364px;">Function pointer <code>Object* init(Object *interp, Object*extension)</code></td>
         </tr>
       </tbody>
     </table>
-    <h4>Implementing New Object Types</h4>
+    <h4 id="objects_implement">Implementing New Object Types</h4>
     <p><i>fLisp</i> objects are either simple or extended. A simple object has the following structure:</p>
     <dl>
       <dt><code><var>type</var></code></dt>

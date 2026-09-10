@@ -57,10 +57,12 @@
   - fl: read, eval, fmt, puts()
   - rationale: embedded operation most likely doesn't want to print neither fmt.
 - object: new and fmt slot contain either:
-  - nil -> fallback operation
-  - primitive -> execute
+  + nil -> fallback operation
+  + primitive -> execute
   - cons -> eval *new: this allows to override
 - CAR() CDR() Macro: use it consistently
+- Remove global variables (except argv, argv0) - they are covered by (interp-[input|output|debug).
+
 
 ## fLisp 0.17
 - Allow all characters except controls and (ASCII) whitespace for symbol names
@@ -76,7 +78,7 @@
 - More testing, stress-testing.
 - Femto integration.
 - Cleaner object types:, base object and object extension.
-- Lisp objects host their writer function.
+- Lisp type objects host their init and writer function.
 - `store` function to (destructively) set a slot's value in an extensible
   object.
 - type-symbol: string can be C string or stored in object.

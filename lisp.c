@@ -3359,7 +3359,7 @@ Object *initRootEnv(Object *interp)
         FLISP_WHILE_OK(flisp_register_type(interp, "type-extension",   type_extension,   (Object*)&flisp_init_invalid, (Object*)&write_extension));
         FLISP_WHILE_OK(flisp_register_type(interp, "type-values",      type_values,      nil, (Object *)&write_values));
 
-                /* Exceptions */
+                /* Errors */
         FLISP_WHILE_OK(flisp_register_constant(interp, end_of_file, NULL));
         FLISP_WHILE_OK(flisp_register_constant(interp, read_incomplete, NULL));
         FLISP_WHILE_OK(flisp_register_constant(interp, invalid_read_syntax, NULL));
