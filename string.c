@@ -103,7 +103,7 @@ Object *stringCharOffset(Object *interp, Object **args, Object **env, size_t nAr
     FLISP_ASSERT(FLISP_ARG2, type_integer, "(char-offset string index) - index");
 
     int64_t index = FLISP_ARG2->value;
-    
+
     if (index < 0) {
         int64_t end = flisp_string_length(FLISP_ARG1->string, FLISP_ARG1->size);
         index += end;

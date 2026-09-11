@@ -1892,8 +1892,8 @@ Object *evalExpr(Object *interp, Object ** object, Object **env)
                         if (!d) return flisp_static_error(out_of_memory, &fmt_oom_message);
                         return newError8(interp, wrong_type_argument, args->car,
                                          "(", primitive->name, " args) - arg ", d,
-                                         " expected ", primitive->argsType->type.name->string,
-                                         "  got ", args->car->type->type.name->string);
+                                         " expected ", flisp_symbol_string(primitive->argsType->type.name),
+                                         "  got ", flisp_symbol_string(args->car->type->type.name));
                     }
                 }
                 if (nArgs < primitive->nMinArgs)
@@ -1943,7 +1943,7 @@ Object *primitiveEval(Object *interp, Object **args, Object **env, size_t nArgs)
  * for pure vector type objects.
  *
  * Extensions can implement their own initializers.
- * 
+ *
  */
 
 /* (init-invalid type length[ ..]) */
@@ -1964,7 +1964,7 @@ Object *typeInitType(Object *interp, Object **args, Object **env, size_t nArgs)
      */
     if (strncmp("type-", flisp_symbol_string(FLISP_ARG3), sizeof("type-")-1))
         return newError(interp, invalid_value, FLISP_ARG3, "(init-type type length name[ init[ write]])) - name must start with \"type-\"");
-    
+
     /* Note: init and write must be nil, primitive or (closure)
        but: DRY
      */
@@ -1990,7 +1990,7 @@ Object *typeInitType(Object *interp, Object **args, Object **env, size_t nArgs)
                         "(init-type type length name[ init[ write]]) - write neither nil, type_primitive nor closure");
     if (FLISP_ARG2->value != 3)
         return newError(interp, invalid_value, FLISP_ARG2, "(init-type type length name[ init[ write]) - length expected: 3");
-    
+
     return flisp_new(interp, type_type, &(*args)->cdr->cdr, 3, 0);
 }
 Primitive t_it_p = { .name = "init-type", .nMinArgs = 3, .nMaxArgs = 5, .argsType = (TypeObject*)&nil_obj, .eval = typeInitType };
@@ -2016,7 +2016,7 @@ Object *typeInitError(Object *interp, Object **args, Object **env, size_t nArgs)
                          flisp_symbol_string(FLISP_ARG4->type->type.name));
     if (FLISP_ARG2->value != 3)
         return newError(interp, invalid_value, FLISP_ARG2, "(init-error type length[ ..]) - length expected: 3");
-    
+
     return newError(interp, FLISP_ARG3, nArgs == 4 ? nil : FLISP_ARG5, FLISP_ARG4->string);
 }
 Primitive t_ie_p = { .name = "init-error", .nMinArgs = 4, .nMaxArgs = 5, .argsType = (TypeObject*)&nil_obj, .eval = typeInitError };
@@ -3435,7 +3435,8 @@ Object *flisp_interpreter(
 
     interp->type = type_interpreter;
     interp->size = sizeof(InterpreterExt);
-    interp->length = sizeof(InterpreterExt)/sizeof(Object *);
+    /* Note: 7 is the number of Lisp objects stored in InterpreterExt */
+    interp->length = 7;
 
     FLISP_INTERP.memory = memory;
 

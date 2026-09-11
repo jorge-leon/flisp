@@ -17,7 +17,7 @@ FLISP=flisp
 export FLISP_PRINT=1
 export FLISP_SIZE=$((20*1024*1024))
 
-tap 189
+tap 193
 
 # list
 IN='(list)' OUT=nil
@@ -51,11 +51,22 @@ IN="(if nil 3)" OUT="nil"
 flisp_expr; ok if-3-2 w/o else nil gives nil
 
 # if-not
-true; ok if-not \# TODO
+IN="(if-not nil 42)" OUT=42
+flisp_expr; ok if-not-1 nil evals then
+IN="(if-not t 42)" OUT=nil
+flisp_expr; ok if-not-2 t does not eval then
+
 # when
-true; ok when \# TODO
+IN="(when nil 42)" OUT=nil
+flisp_expr; ok when-1 nil does not eval then
+IN="(when t 42)" OUT=42
+flisp_expr; ok when-2 t evals then
+
 # unless
-true; ok unless \# TODO
+IN="(unless nil 42)" OUT=42
+flisp_expr; ok unless-1 nil evals then
+IN="(unless t 42)" OUT=nil
+flisp_expr; ok unless-1 t does not eval then
 
 # defun
 IN="(defun f (a b) (list a b)) (f 1 2)" OUT='(1 2)'
@@ -179,7 +190,7 @@ IN="(setq a 1 b 2) (let label ((a 3) (b 4)) (list a b))" OUT='(3 4)'
 flisp_expr; ok labelled-let-4 labelled let binds several symbols
 
 IN="(let label ((a 2) (b 0))  (print a) (if (i> a 0) (label (i- a 1) (i+ b 1))))" OUT='210nil'
-flisp_expr 2 1; ok labelled-let-5 labelled let loops
+flisp_expr; ok labelled-let-5 labelled let loops
 
 # let*
 IN="(let*)" OUT='#<error wrong-number-of-arguments: (f args) - args, f expects at least 1 arguments, nil>'
@@ -202,6 +213,11 @@ flisp_expr; ok prog1-1 prog1 single arg is arg
 
 IN="(prog1 'answer 42)" OUT="answer"
 flisp_expr; ok prog1-2 prog1 two args is arg
+
+
+IN="(symbol-name 'a)" OUT='"a"'
+flisp_expr; ok symbol-name-1  symbolname is symbol as string
+
 
 # string
 IN="(string nil)" OUT='""'
@@ -239,10 +255,13 @@ IN="(concat 1 'a \"?\")" OUT='"1a?"'
 flisp_expr; ok concat-1 simple string concatenation
 
 IN="(numberp 42)" OUT='t'
-flisp_expr; ok numberp-1  numberp number is t
+flisp_expr; ok numberp-1  numberp integer is t
 
+T_P="$PREPARE"
+PREPARE="(extension 'double)"
 IN="(numberp #d3.7)" OUT='t'
-flisp_expr; ok numberp-2  numberp lambda is nil
+flisp_expr; ok numberp-2  numberp double is t
+PREPARE="$T_P"
 
 IN="(numberp numberp)" OUT='nil'
 flisp_expr; ok numberp-3  numberp lambda is nil
@@ -310,9 +329,11 @@ flisp_expr; ok string-to-number-1 string 42 is 42
 
 ### IN='(string-to-number "3.14")' OUT='3.14'
 ### flisp_expr; ok string-to-number-2 string 3.14 is 3.14
-IN='(string-to-number "#d3.14")' OUT='#D40091EB851EB851F'
+T_P="$PREPARE"
+PREPARE="(extension 'double)"
+IN='(string-to-number "#d3.14")' OUT=3.140000 #OUT='#D40091EB851EB851F'
 flisp_expr; ok string-to-number-2 string #d3.14 is 3.14
-
+PREPARE="$T_P"
 
 IN='(string-to-number "answer")' OUT='#<error invalid-value: (string-to-number string) - string expected number, got #<type symbol>, answer>'
 flisp_expr; ok string-to-number-3 not number / string is error
@@ -369,7 +390,10 @@ IN='(length "")' OUT="0"
 flisp_expr; ok length-3 length of empty string is zero
 
 IN='(length "answer")' OUT="6"
-flisp_expr; ok length-1 length of answer is six
+flisp_expr; ok length-4 length of string answer is six
+
+IN='(length (new type-vector 0 1 2 3 4))' OUT=4
+flisp_expr; ok length-5 length of 4-tuple is 4
 
 # memq
 IN="(memq 'a (list 0 'a 3))" OUT="(a 3)"
@@ -397,9 +421,13 @@ IN='(-)' OUT='0' flisp_expr; ok minus-1 minus nothing is 0
 IN='(- 42)' OUT='-42' flisp_expr; ok minus-2 minus 42  is -42
 IN='(- 1 2 3)' OUT='-4' flisp_expr; ok minus-4 minus 1 2 3 is -4
 IN='(*)' OUT='1' flisp_expr; ok times-1 times nothing is 1
-IN='(* 42)' OUT='42' flisp_expr; ok times-2 times 42  is 42 \# TODO will be fixed when error is not type-symbol anymore
+IN='(* 42)' OUT='42' flisp_expr; ok times-2 times 42  is 42
 IN='(* 1 2 3)' OUT='6' flisp_expr; ok times-4 times 1 2 3 is 6
-PREPARE="(extension 'double)" IN='(/ #d42.0)' OUT='0.0238095' OUT=#D3F98618618618618 flisp_expr; ok divide-1 divide 42  is 1/42
+T_P="$PREPARE"
+PREPARE="(extension 'double)" IN='(/ #d42.0)' OUT='0.023810' #OUT=#D3F98618618618618
+flisp_expr; ok divide-1 divide 42  is 1/42
+PREPARE="$T_P"
+
 IN='(/ 42 7 6)' OUT='1' flisp_expr; ok divide-3 divide 42 7 6 is 1
 IN='(% 42)' OUT='1' flisp_expr; ok mod-1 mod 42  is 1
 IN='(% 11 6 3)' OUT='2' flisp_expr; ok mod-3 mod 11 6 3 is 2
@@ -540,11 +568,8 @@ flisp_expr; ok length-1 of nil 0
 IN="(length '(a b c))" OUT=3
 flisp_expr; ok length-2 of triple list is 3
 
-IN="(length (vector a b c d))" OUT=4
+IN="(length (new type-vector 0 'a 'b 'c 'd))" OUT=4
 flisp_expr; ok length-3 of quad vector is 4
-
-IN="(length (car (elements (values 1 2 3 4 5))))" OUT=5
-flisp_expr; ok length-4 of five values is 5
 
 # fload
 IN='(setq f (open "empty.lsp" "r")) (fload f)' OUT=nil

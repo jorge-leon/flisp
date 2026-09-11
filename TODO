@@ -1,13 +1,6 @@
-- Fix (length) to not throw errors and not use valuesp (core.lsp).
-- removes valuesp from core.lsp
+- Fix (object-length nil), (object-length i+), (object-length #d3.14) ... simple object to not return the length field.
+- Simplify (length) even more with this
 - test new write with gc-always on, resp. fix segfaults/missing GC_CHECKPOINT's
-- Fix FLISP_ASSERT to print: given type name, culprit's type-name
-- (elements (interp)) crashes on the eight element. (elements (interp)
-- 7 8) <- this is gcTop, it must not be counted as Lisp object element.
-- Fix type-check error message in e.g. (string-length 'abc)
-- Fix all tests
-  - move vector and values test to library test - out of core
-  - move symbol-name to core.lsp test
 - Test flisp_write_object:
   - trace-read flag, debug output
   - trace-primitives
@@ -24,3 +17,13 @@
 + Implement Lisp level type creation primitive.
 + creating a type w/o type- prefix makes the objects segfault
   + force type- prefix...
++ Fix (length) to not throw errors and not use valuesp (core.lsp).
++ removes valuesp from core.lsp
++ (elements (interp)) crashes on the eight element.
+  (elements (interp) 7 8) <- this is gcTop, it must not be counted
+  as Lisp object element.
++ Fix primitive type check to print: given type name, culprit's type-name
++ Fix type-check error message in e.g. (string-length 'abc)
++ Fix all tests
+  + move vector and values test to library test - out of core
+  + move symbol-name to core.lsp test

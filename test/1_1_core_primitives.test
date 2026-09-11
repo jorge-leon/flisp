@@ -11,7 +11,7 @@ export FLISP_PRINT=1
 export PREPARE="(interp-gc-always t)"
 #export FLISP_SIZE=$((20*1024*1024))
 
-tap 198
+tap 197
 
 # reader
 IN='(' OUT='#<error read-incomplete: unexpected end of stream while reading list, nil>'
@@ -357,9 +357,6 @@ flisp_expr; ok nreverse-3 nreverse four elements is reverse of list
 # intern
 IN='(type-of (intern "SYMBOL"))' OUT='type-symbol'
 flisp_expr; ok intern-1  intern of string is symbol
-
-IN="(symbol-name 'a)" OUT='"a"'
-flisp_expr; ok symbol-name-1  symbolname is symbol as string
 
 IN="(same 1 1)" OUT='nil'
 flisp_expr; ok same-1_1  same number is false

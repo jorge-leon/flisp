@@ -74,7 +74,7 @@
   (elements o n n+1).
 - Review error behavior for all primitives.
 - Clean up and document internal and exported flisp_* functions and FLISP_* macros.
-- ! don't! Remove argv0 and argv from flisp_new(), inject them at startup <- or maybe not.
+- ! don't! Remove argv0 and argv from flisp_interpreter(), inject them at startup <- or maybe not.
 - More testing, stress-testing.
 - Femto integration.
 - Cleaner object types:, base object and object extension.

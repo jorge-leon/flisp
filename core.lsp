@@ -234,10 +234,10 @@
 	 (cond  ((doublep x) (if (integerp y)  (dfunc x (double y))  (dfunc x y)))
 		((doublep y) (if (integerp x)  (dfunc (double x) y)  (dfunc x y)))
 		(t (ifunc x y)) ))
-       
+
        (defun coercec (ifunc dfunc) ; coerce "curry"
 	 (lambda (x y) (coerce ifunc dfunc x y)))
-       
+
        (defun +  args (fold-left (coercec i+ d+)  0 args))
        (defun -  args (nfold     (coercec i- d-)  0 args))
        (defun *  args (fold-left (coercec i* d*)  1 args))
@@ -277,10 +277,7 @@
     ((stringp o) (i- (object-size o) 1))
     ((consp o)
      (fold-left (lambda (x y) (i+ x 1)) 0 o))
-    ((vectorp o) (object-length o))
-    ((valuesp o) (length (elements o)))
-    (t (error wrong-type-argument "(length object) - object unknown length for this type" (type-of o)))))
-
+    (t (object-length o))))
 
 ;;; Concatenate each element of l with separator f
 (defun join (f l)

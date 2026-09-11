@@ -121,6 +121,7 @@ typedef struct InterpreterExt {
     Object *extensions;
     Object *symbols;
     Object *global;
+    /* vector ends here */
     Object *gcTop;
     Memory *memory;
     int64_t countdown;

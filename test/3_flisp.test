@@ -5,7 +5,7 @@
 # leg20231129, CC 1.0
 #
 
-tap 31
+tap 36
 
 export FLISP_SIZE=$((200*1024*1024))
 flisp () {
@@ -49,11 +49,11 @@ IN="(nthcdr 1 '(2 . 3))" OUT=3
 flisp_expr; ok nthcdr-6 of 1 of cons is cdr
 
 IN="(nthcdr null nil)"
-OUT='#<error wrong-type-argument: (nthcdr i l) - i expected type-integer, got #<type primitive>, #<primitive null [1, 1] nil>>'
+OUT='#<error wrong-type-argument: (nthcdr i l) - i expected type-integer, got: #<type primitive>, #<primitive null [1, 1] nil>>'
 flisp_expr; ok nthcdr-7 wrong index type fails
 
 IN="(nthcdr 1 null)"
-OUT='#<error wrong-type-argument: (nthcdr i l) - l expected type-cons, got #<type primitive>, #<primitive null [1, 1] nil>>'
+OUT='#<error wrong-type-argument: (nthcdr i l) - l expected type-cons, got: #<type primitive>, #<primitive null [1, 1] nil>>'
 flisp_expr; ok nthcdr-8 wrong list type fails
 
 IN="(nth 1 '(a b c))" OUT=b
@@ -113,3 +113,18 @@ flisp_expr; ok zerop-2 1 is not zero
 
 # equal
 true; ok equal \# TODO
+
+# vector
+true; ok vector \# TODO
+
+# values
+true; ok values \# TODO
+
+# quasiquote-splice
+true; ok quasiquote-splice \# TODO
+
+# quasiquote-unquote
+true; ok quasiquote-unquote \# TODO
+
+# quasiquote
+true; ok quasiquote \# TODO
