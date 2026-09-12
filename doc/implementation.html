@@ -12,7 +12,7 @@
 </head>
 <body data-wsc-instance="true">
   <h1><i>fLisp</i> Implementation Details</h1>
-  <h3 id="introduciton">Introduction</h3>
+  <h3 id="introduction">Introduction</h3>
   <p>This document discusses some of the design decisions taken in <i>fLisp</i>. Other documentation topics are:</p>
   <ul>
     <li>
@@ -34,6 +34,26 @@
     <li>Table of Contents</li>
     <li>
       <a href="#objects"><i>fLisp</i> Objects</a>
+      <ol>
+        <li>
+          <a href="#object_size">Object Size</a>
+        </li>
+        <li>
+          <a href="#constant_objects">Constant Objects</a>
+        </li>
+      </ol>
+    </li>
+    <li>
+      <a href="#types">The Type System</a>
+    </li>
+    <li>
+      <a href="#errors">Error Handling</a>
+    </li>
+    <li>
+      <a href="#values">Multivalue Returns</a>
+    </li>
+    <li>
+      <a href="#utf8">Unicode / UTF-8</a>
     </li>
     <li>
       <a href="#gc">Garbage Collection</a>
@@ -46,7 +66,7 @@
     </li>
   </ol>
   <h3 id="objects"><i>fLisp</i> Objects</h3>
-  <h4>Object Size</h4>
+  <h4 id="object_size">Object Size</h4>
   <p><i>fLisp</i> implements Lisp objects with a minimal memory footprint. No space is reserved for a documentation
   string, function slots or other properties. Objects contain a fixed sized structure and optionally a variable length
   extensions structure. The fixed fields are: the <var>type</var>&nbsp;of the object, the <var>size</var>&nbsp;of the
@@ -72,7 +92,7 @@
   around with each operation (objects are inmutable) as well as during the garbage collection cycle. An application
   which wants to work with large strings would instead implement an external mechanism for string handling, like it is
   done with the Femto editor.</p>
-  <h4>Constant Objects</h4>
+  <h4 id="constant_objects">Constant Objects</h4>
   <p>Several symbols are predefined in C code&nbsp;and bound to some value in the&nbsp;root environment, examples are
   <code>t</code> and <code>nil</code> which are bound to themselves. <i>fLisp</i> does not garbage collect symbols
   outside the semi spaces nor does it allow to bind them to a different value, thus effectively creating immutable
@@ -82,88 +102,32 @@
   Their&nbsp;<var>size</var>&nbsp;is 0 and the <var>length</var> field is used as a pointer to a static C-string with
   their name.&nbsp;<i>fLisp</i> distinguishes constant symbols&nbsp; from Lisp created ones by looking at the
   <var>size</var>.</p>
-  <h3>The Type System</h3>
-  <h3>Error Handling</h3>
-  <h3>Multivalue Returns</h3>
+  <h3 id="types">The Type System</h3>
+  <p>The <i>type</i> field of a Lisp object is by itself a Lisp objects of <code>type-type</code>. A type object is of
+  length three and has the fields <var>name</var>, <var>new</var> and <var>write</var>. The <var>name</var> field is a
+  symbol and must start with the prefix <code>type-</code>. <var>new</var> and <var>write</var> are primitives for
+  creating a new object/writing an object of the respective type. If they are set to <code>nil</code> a default
+  creator/writer is used.</p>
+  <h3 id="errors">Error Handling</h3>
+  <p>All Lisp primitives either return the result of their operation, or an error object. Error objects have a length
+  of three and contain the fields <var>type</var>, <var>message</var> and <var>culprit</var>. <var>type</var> must be a
+  symbol, <var>message</var> must be a string.</p>
+  <p>Lisp primitives check their parameter types either already in the evaluator or before processing the parameters.
+  With a type mismatch they return an error before using the parameter, thus errors as parameters are often returned as
+  <var>culprits</var> of new error messages.</p>
+  <p>The following primitives do not err on errors as their arguments: <code>write</code>, <code>null</code>,
+  <code>type-of</code>, <code>consp</code>, <code>same</code>, <code>elements</code>, <code>object-size</code>,
+  <code>object-length</code>, <code>new</code>, <code>store</code>.</p>
+  <h3 id="values">Multivalue Returns</h3>
+  <p>A <abbr>sexp</abbr> evaluates to exactly one object. <i>fLisp</i> supports returning multiple return values with
+  the <i>values</i> type. A <dfn>values</dfn> objects contains a single element, which must be the first car of a
+  list.</p>
+  <p>When the evaluator of a lambda, a macro or a primitive encounters an argument of <code>type-value</code>, the
+  value is discarded and its values list is spliced into the argument list. After splicing processing continues with
+  the first element of the values list. Thus values are replaced recursively.</p>
+  <p>Note that Lisp code will never <q>see</q> a value object.</p>
   <p><a href="#toc">^</a></p>
-  <h3 id="gc">Garbage Collection</h3>
-  <p><i>fLisp</i> implements a variant of&nbsp;<a href="https://en.wikipedia.org/wiki/Cheney%27s_algorithm">Cheney's
-  copying garbage collector</a>, with which memory is divided into two equal halves (semi spaces): <i>from</i>&nbsp;and
-  <i>to</i> space. <dfn>from</dfn> space is where new objects are allocated, whereas <dfn>to</dfn> space is used during
-  garbage collection. The <i>from</i> space part of the memory is also called the <dfn>Lisp object space</dfn>.</p>
-  <p>When garbage collection is performed, objects that are still in use (live) are copied from <i>from</i> space to
-  <i>to</i> space. <i>to</i> space then becomes the new <i>from</i> space and vice versa, thereby discarding all
-  objects that have not been copied.</p>
-  <p>The <i>fLisp</i> garbage collector <a href="https://man7.org/linux/man-pages/man2/mmap.2.html">mmap()</a>'s the
-  <i>to</i> space when garbage collection starts and unmaps the <i>from</i> space afterwards.&nbsp;If after garbage
-  collection the free space is less then the required memory (<mark>plus some reserved space for exception
-  reporting</mark>) the memory is increased by a multiple of the amount specified in the C-macro
-  <code>FLISP_MEMORY_INC_SIZE</code>, defined in <code>lisp.h</code>. The multiple is calculated to hold at least the
-  additional requested space. This allows the object space to grow on demand.</p>
-  <p>The garbage collector takes as input a list of root objects. Objects that can be reached by recursively traversing
-  this list are considered live and will be moved to to-space. When we move an object, we must also update its pointer
-  within the list to point to the objects new location in memory.</p>
-  <p>The root objects of an fLisp interpreter are found in the following fields of the <code>Interpreter</code>
-  struct:</p>
-  <dl>
-    <dt><code>gcTop</code></dt>
-    <dd>List of active variables along the call stack.</dd>
-    <dt><code>symbols</code></dt>
-    <dd>The list of Lisp symbols.</dd>
-    <dt><code>global</code></dt>
-    <dd>The root environment.</dd>
-    <dt><code>result</code></dt>
-    <dd>The result object of the <code>flisp_eval()</code> call.</dd>
-    <dt><code>error</code></dt>
-    <dd>The error type symbol of the <code>flisp_eval()</code> call.</dd>
-    <dt><code>debug.path</code></dt>
-    <dd>&nbsp;</dd>
-    <dt><code>input.path</code></dt>
-    <dd>&nbsp;</dd>
-    <dt><code>output.path</code></dt>
-    <dd>The path string object of the debug, input and output stream.</dd>
-  </dl>
-  <p>With respect to the active variables in the call stack the interpreter cannot use raw pointers to objects: any
-  function that might trigger garbage collection would move the object pointed to, causing a SEGV when accessing the
-  pointer. Instead, objects must be added to the <code>gcTop</code> list and then only accessed through the pointers
-  inside the list.</p>
-  <p>Thus, whenever we would have used a raw pointer to an object, we use a pointer to the pointer inside the list
-  instead:</p>
-  <pre>
-      function:              pointer to pointer inside list (Object **)
-      |
-      v
-      list of root objects:  pointer to object (Object *)
-      |
-      v
-      semi space:             object in memory
-    </pre>
-  <p><code><var>GC_TRACE(gcX, X)</var></code>&nbsp;add object <var>X</var> to the <code>gcTop</code> list and declares
-  the variable <var>gcX</var> which points to the objects pointer inside the list. The list chains&nbsp;are uniquely
-  named variables based on the line number of the <code>GC_TRACE</code> macro. Therefore each <code>GC_TRACE</code>
-  invocation must occur on a different line.</p>
-  <p>Information about each&nbsp;garbage collection process and memory status is written to the debug file descriptor.
-  By recompiling <i>fLisp</i> with <code>DEBUG_GC</code> set to 1 much more debug information is&nbsp;produced. Setting
-  <code>FLISP_TRACK_GCTOP</code> to 1 will add information about garbage collection of the active variables in the call
-  stack. Finally every now and then the <i>fLisp</i>&nbsp;garbage collector is stress tested by setting
-  <code>DEBUG_GC_ALWAYS</code> to 1. This forces garbage collection on <strong>each</strong> object allocation.</p>
-  <p><a href="#toc">^</a></p>
-  <h3 id="memory">Memory Allocation</h3>
-  <p><code>lisp_new()</code>&nbsp;sets the initial size of the semi-spaces to the given value,&nbsp;&nbsp;but at least
-  to <code>FLISP_MEMORY_INC_SIZE</code> which defaults to 16 kilobytes.&nbsp; An application should initialize the
-  semi-space size to a value above its typical object space demand to avoid repeated garbage collection cycles on
-  startup.</p>
-  <p>The <code>flisp</code> command line utility which loads just the file extension and the core Lisp library grows
-  its object space to about 100kB during startup, femto requires about 345kB.</p>
-  <p>Some other compile time adjustable limits in <code>lisp.h</code>:</p>
-  <dl>
-    <dt>Input buffer</dt>
-    <dd>2048, <code>INPUT_FMT_BUFSIZ</code>, size of the formatting buffer for <code>lisp_eval()</code> and for the
-    input buffer of <code>(fgets)</code>.</dd>
-    <dt>Output buffer</dt>
-    <dd>2048, <code>WRITE_FMT_BUFSIZ</code>, size of the output and message formatting buffer.</dd>
-  </dl>
-  <h3>Unicode / UTF-8</h3>
+  <h3 id="utf8">Unicode / UTF-8</h3>
   <p><i>fLisp</i> has basic support for Unicode via the UTF-8 encoding.</p>
   <p>The Lisp reader is agnostic of Unicode. Syntactic elements and symbols are ASCII only. When an invalid symbol
   character is encountered it is printed ASCII characters when possible, otherwise its hex code is printed. Unicode
@@ -178,7 +142,86 @@
   <p>The string extension primitives however perform some checks.</p>
   <nav>
     <p><a href="#toc">^</a></p>
-    <h3>References</h3>
+    <h3 id="gc">Garbage Collection</h3>
+    <p><i>fLisp</i> implements a variant of&nbsp;<a href="https://en.wikipedia.org/wiki/Cheney%27s_algorithm">Cheney's
+    copying garbage collector</a>, with which memory is divided into two equal halves (semi spaces):
+    <i>from</i>&nbsp;and <i>to</i> space. <dfn>from</dfn> space is where new objects are allocated, whereas
+    <dfn>to</dfn> space is used during garbage collection. The <i>from</i> space part of the memory is also called the
+    <dfn>Lisp object space</dfn>.</p>
+    <p>When garbage collection is performed, objects that are still in use (live) are copied from <i>from</i> space to
+    <i>to</i> space. <i>to</i> space then becomes the new <i>from</i> space and vice versa, thereby discarding all
+    objects that have not been copied.</p>
+    <p>The <i>fLisp</i> garbage collector <a href="https://man7.org/linux/man-pages/man2/mmap.2.html">mmap()</a>'s the
+    <i>to</i> space when garbage collection starts and unmaps the <i>from</i> space afterwards.&nbsp;If after garbage
+    collection the free space is less then the required memory (<mark>plus some reserved space for exception
+    reporting</mark>) the memory is increased by a multiple of the amount specified in the C-macro
+    <code>FLISP_MEMORY_INC_SIZE</code>, defined in <code>lisp.h</code>. The multiple is calculated to hold at least the
+    additional requested space. This allows the object space to grow on demand.</p>
+    <p>The garbage collector takes as input a list of root objects. Objects that can be reached by recursively
+    traversing this list are considered live and will be moved to to-space. When we move an object, we must also update
+    its pointer within the list to point to the objects new location in memory.</p>
+    <p>The root objects of an fLisp interpreter are found in the following fields of the <code>Interpreter</code>
+    struct:</p>
+    <dl>
+      <dt><code>gcTop</code></dt>
+      <dd>List of active variables along the call stack.</dd>
+      <dt><code>symbols</code></dt>
+      <dd>The list of Lisp symbols.</dd>
+      <dt><code>global</code></dt>
+      <dd>The root environment.</dd>
+      <dt><code>result</code></dt>
+      <dd>The result object of the <code>flisp_eval()</code> call.</dd>
+      <dt><code>error</code></dt>
+      <dd>The error type symbol of the <code>flisp_eval()</code> call.</dd>
+      <dt><code>debug.path</code></dt>
+      <dd>&nbsp;</dd>
+      <dt><code>input.path</code></dt>
+      <dd>&nbsp;</dd>
+      <dt><code>output.path</code></dt>
+      <dd>The path string object of the debug, input and output stream.</dd>
+    </dl>
+    <p>With respect to the active variables in the call stack the interpreter cannot use raw pointers to objects: any
+    function that might trigger garbage collection would move the object pointed to, causing a SEGV when accessing the
+    pointer. Instead, objects must be added to the <code>gcTop</code> list and then only accessed through the pointers
+    inside the list.</p>
+    <p>Thus, whenever we would have used a raw pointer to an object, we use a pointer to the pointer inside the list
+    instead:</p>
+    <pre>
+        function:              pointer to pointer inside list (Object **)
+        |
+        v
+        list of root objects:  pointer to object (Object *)
+        |
+        v
+        semi space:             object in memory
+      </pre>
+    <p><code><var>GC_TRACE(gcX, X)</var></code>&nbsp;add object <var>X</var> to the <code>gcTop</code> list and
+    declares the variable <var>gcX</var> which points to the objects pointer inside the list. The list chains&nbsp;are
+    uniquely named variables based on the line number of the <code>GC_TRACE</code> macro. Therefore each
+    <code>GC_TRACE</code> invocation must occur on a different line.</p>
+    <p>Information about each&nbsp;garbage collection process and memory status is written to the debug file
+    descriptor. By recompiling <i>fLisp</i> with <code>DEBUG_GC</code> set to 1 much more debug information
+    is&nbsp;produced. Setting <code>FLISP_TRACK_GCTOP</code> to 1 will add information about garbage collection of the
+    active variables in the call stack. Finally every now and then the <i>fLisp</i>&nbsp;garbage collector is stress
+    tested by setting <code>DEBUG_GC_ALWAYS</code> to 1. This forces garbage collection on <strong>each</strong> object
+    allocation.</p>
+    <p><a href="#toc">^</a></p>
+    <h3 id="memory">Memory Allocation</h3>
+    <p><code>lisp_new()</code>&nbsp;sets the initial size of the semi-spaces to the given value,&nbsp;&nbsp;but at
+    least to <code>FLISP_MEMORY_INC_SIZE</code> which defaults to 16 kilobytes.&nbsp; An application should initialize
+    the semi-space size to a value above its typical object space demand to avoid repeated garbage collection cycles on
+    startup.</p>
+    <p>The <code>flisp</code> command line utility which loads just the file extension and the core Lisp library grows
+    its object space to about 100kB during startup, femto requires about 345kB.</p>
+    <p>Some other compile time adjustable limits in <code>lisp.h</code>:</p>
+    <dl>
+      <dt>Input buffer</dt>
+      <dd>2048, <code>INPUT_FMT_BUFSIZ</code>, size of the formatting buffer for <code>lisp_eval()</code> and for the
+      input buffer of <code>(fgets)</code>.</dd>
+      <dt>Output buffer</dt>
+      <dd>2048, <code>WRITE_FMT_BUFSIZ</code>, size of the output and message formatting buffer.</dd>
+    </dl>
+    <h3 id="references">References</h3>
     <p>The following is a list of references used for designing the <i>fLisp</i> language, specifically the Lisp
     libraries. All credits for <i>fLisp</i> goes to the Authors of these works.</p>
     <ol>
@@ -212,10 +255,10 @@
       </li>
     </ol>
   </nav><!--
-    Emacs:
-    Local Variables:
-    fill-column: 120
-    End:
-  -->
+              Emacs:
+              Local Variables:
+              fill-column: 120
+              End:
+            -->
 </body>
 </html>

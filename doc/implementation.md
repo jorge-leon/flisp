@@ -15,9 +15,15 @@ Other documentation topics are:
 1.  [Introduction](#introduction)
 2.  Table of Contents
 3.  [*fLisp* Objects](#objects)
-4.  [Garbage Collection](#gc)
-5.  [Memory Allocation](#memory)
-6.  [References](#references)
+    1.  [Object Size](#object_size)
+    2.  [Constant Objects](#constant_objects)
+4.  [The Type System](#types)
+5.  [Error Handling](#errors)
+6.  [Multivalue Returns](#values)
+7.  [Unicode / UTF-8](#utf8)
+8.  [Garbage Collection](#gc)
+9.  [Memory Allocation](#memory)
+10. [References](#references)
 
 ### *fLisp* Objects
 
@@ -81,9 +87,71 @@ distinguishes constant symbols  from Lisp created ones by looking at the
 
 ### The Type System
 
+The *type* field of a Lisp object is by itself a Lisp objects of
+`type-type`. A type object is of length three and has the fields *name*,
+*new* and *write*. The *name* field is a symbol and must start with the
+prefix `type-`. *new* and *write* are primitives for creating a new
+object/writing an object of the respective type. If they are set to
+`nil` a default creator/writer is used.
+
 ### Error Handling
 
+All Lisp primitives either return the result of their operation, or an
+error object. Error objects have a length of three and contain the
+fields *type*, *message* and *culprit*. *type* must be a symbol,
+*message* must be a string.
+
+Lisp primitives check their parameter types either already in the
+evaluator or before processing the parameters. With a type mismatch they
+return an error before using the parameter, thus errors as parameters
+are often returned as *culprits* of new error messages.
+
+The following primitives do not err on errors as their arguments:
+`write`, `null`, `type-of`, `consp`, `same`, `elements`, `object-size`,
+`object-length`, `new`, `store`.
+
 ### Multivalue Returns
+
+A sexp evaluates to exactly one object. *fLisp* supports returning
+multiple return values with the *values* type. A
+<span class="dfn">values</span> objects contains a single element, which
+must be the first car of a list.
+
+When the evaluator of a lambda, a macro or a primitive encounters an
+argument of `type-value`, the value is discarded and its values list is
+spliced into the argument list. After splicing processing continues with
+the first element of the values list. Thus values are replaced
+recursively.
+
+Note that Lisp code will never “see” a value object.
+
+[^](#toc)
+
+### Unicode / UTF-8
+
+*fLisp* has basic support for Unicode via the UTF-8 encoding.
+
+The Lisp reader is agnostic of Unicode. Syntactic elements and symbols
+are ASCII only. When an invalid symbol character is encountered it is
+printed ASCII characters when possible, otherwise its hex code is
+printed. Unicode multi-byte characters produce as many error messages as
+there are bytes.
+
+Strings are read in as-is, non-ASCII characters between double quotes
+are stored as they appear. The string extension primitives:
+`string-length`, `string-search, string-spn, string-cspn` and
+`substring` have a notion of the size of UTF-8 character encodings and
+count the string indices and lenghts in Unicode characters instead of
+bytes.
+
+The primitive `(object-size «object»)` returns the length of the
+character array used to store the string, including the terminating
+`NUL` character.
+
+*Caution*: *fLisp* takes no measures against incorrectly encoded UTF-8
+string.
+
+The string extension primitives however perform some checks.
 
 [^](#toc)
 
@@ -154,14 +222,14 @@ list and then only accessed through the pointers inside the list.
 Thus, whenever we would have used a raw pointer to an object, we use a
 pointer to the pointer inside the list instead:
 
-          function:              pointer to pointer inside list (Object **)
-          |
-          v
-          list of root objects:  pointer to object (Object *)
-          |
-          v
-          semi space:             object in memory
-        
+            function:              pointer to pointer inside list (Object **)
+            |
+            v
+            list of root objects:  pointer to object (Object *)
+            |
+            v
+            semi space:             object in memory
+          
 
 *GC_TRACE(gcX, X)* add object *X* to the `gcTop` list and declares the
 variable *gcX* which points to the objects pointer inside the list. The
@@ -201,34 +269,6 @@ Input buffer
 Output buffer  
 2048, `WRITE_FMT_BUFSIZ`, size of the output and message formatting
 buffer.
-
-### Unicode / UTF-8
-
-*fLisp* has basic support for Unicode via the UTF-8 encoding.
-
-The Lisp reader is agnostic of Unicode. Syntactic elements and symbols
-are ASCII only. When an invalid symbol character is encountered it is
-printed ASCII characters when possible, otherwise its hex code is
-printed. Unicode multi-byte characters produce as many error messages as
-there are bytes.
-
-Strings are read in as-is, non-ASCII characters between double quotes
-are stored as they appear. The string extension primitives:
-`string-length`, `string-search, string-spn, string-cspn` and
-`substring` have a notion of the size of UTF-8 character encodings and
-count the string indices and lenghts in Unicode characters instead of
-bytes.
-
-The primitive `(object-size «object»)` returns the length of the
-character array used to store the string, including the terminating
-`NUL` character.
-
-*Caution*: *fLisp* takes no measures against incorrectly encoded UTF-8
-string.
-
-The string extension primitives however perform some checks.
-
-[^](#toc)
 
 ### References
 

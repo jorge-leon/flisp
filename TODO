@@ -1,3 +1,8 @@
+- (cons 1 . error-object) fails
+- rewrite values to be simple objects
+- segfault: (type-of (new type-values 0 1 2 3)). root cause: a
+  type-value is of size 1 and receives a list. Reason: we must have a
+  type-values new primitive.
 - all primitives: parameters which are not of specific type should be
   checked with CHECK_ERR(), unless errors are explicitely allowed.
 + (write type-* t) must print type-*, not #<type type-*>.
