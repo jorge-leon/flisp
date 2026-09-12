@@ -8,7 +8,11 @@
 export FLISP=../fl
 export FLISP_DEBUG=../f.log
 export FLISP_PRINT=1
-export PREPARE="(interp-gc-always t)"
+#export PREPARE="(interp-gc-always t)"
+#PREPARE="(interp-trace-read t)$PREPARE"
+#PREPARE="(interp-trace-primitives t)$PREPARE"
+
+
 #export FLISP_SIZE=$((20*1024*1024))
 
 tap 201

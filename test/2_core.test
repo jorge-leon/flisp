@@ -6,6 +6,8 @@
 #
 
 PREPARE=
+#PREPARE="(interp-gc-always t)"
+
 flisp () {
     { echo '(bind t script_dir "..")';
       echo "$PREPARE"

@@ -9,6 +9,9 @@ export FLISP=../fl
 export FLISP_PRINT=1
 unset FLISP_DEBUG
 PREPARE="(extension 'double)"
+#PREPARE="(interp-gc-always t)$PREPARE"
+#PREPARE="(interp-trace-read t)$PREPARE"
+#PREPARE="(interp-trace-primitives t)$PREPARE"
 
 export FLISP_DEBUG=f.log
 export FLISP_SIZE=$((20*1024*1024))
