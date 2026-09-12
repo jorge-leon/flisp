@@ -2567,7 +2567,7 @@ Object *primitiveObjectSize(Object *interp, Object **args, Object **env, size_t 
 }
 Object *primitiveObjectLength(Object *interp, Object **args, Object **env, size_t nArgs)
 {
-    return newInteger(interp, FLISP_ARG1->length);
+    return newInteger(interp, FLISP_ARG1->size ? FLISP_ARG1->length : 0);
 }
 /** (new type length[arg ..]) => extended_object */
 Object *primitiveNew(Object *interp, Object **args, Object **env, size_t nArgs)

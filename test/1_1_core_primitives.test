@@ -11,7 +11,7 @@ export FLISP_PRINT=1
 export PREPARE="(interp-gc-always t)"
 #export FLISP_SIZE=$((20*1024*1024))
 
-tap 197
+tap 201
 
 # reader
 IN='(' OUT='#<error read-incomplete: unexpected end of stream while reading list, nil>'
@@ -414,14 +414,26 @@ flisp_expr; ok object-size-4  stream is two cells plus two pointers
 IN='(object-length "abc")' OUT=0
 flisp_expr; ok object-length-1 string is zero
 
-IN='(object-length 42)' OUT=42
-flisp_expr; ok object-length-2 integer is integer
+IN="(object-length 'abc)" OUT=0
+flisp_expr; ok object-length-2 symbol is 0
 
 IN="(object-length '(a . b))" OUT=2
 flisp_expr; ok object-length-3 cons is two cells
 
 IN="(object-length *standard-input*)" OUT=1
 flisp_expr; ok object-length-4  stream is one cell
+
+IN='(object-length 42)' OUT=0
+flisp_expr; ok object-length-5 simple object integer is 0
+
+IN='(object-length nil)' OUT=0
+flisp_expr; ok object-length-6 simple object const symbol is 0
+
+IN='(object-length i+)' OUT=0
+flisp_expr; ok object-length-7 simple object primitive is 0
+
+IN='(object-length #d3.14)' OUT=0
+flisp_expr; ok object-length-6 simple object double is 0
 
 IN='(elements 1)' OUT=nil
 flisp_expr; ok elements-1 of integer is nil

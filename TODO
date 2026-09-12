@@ -1,5 +1,3 @@
-- Fix (object-length nil), (object-length i+), (object-length #d3.14) ... simple object to not return the length field.
-- Simplify (length) even more with this
 - test new write with gc-always on, resp. fix segfaults/missing GC_CHECKPOINT's
 - Test flisp_write_object:
   - trace-read flag, debug output
@@ -27,3 +25,5 @@
 + Fix all tests
   + move vector and values test to library test - out of core
   + move symbol-name to core.lsp test
++ Fix (object-length nil), (object-length i+), (object-length #d3.14) ... simple object to not return the length field.
++ Simplify (length) even more with this

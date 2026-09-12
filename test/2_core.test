@@ -17,7 +17,7 @@ FLISP=flisp
 export FLISP_PRINT=1
 export FLISP_SIZE=$((20*1024*1024))
 
-tap 193
+tap 192
 
 # list
 IN='(list)' OUT=nil
@@ -379,8 +379,9 @@ IN="(not 1)" OUT="nil"
 flisp_expr;  ok not-3 not number is nil
 
 
-IN="(length nil)" OUT="0"
-flisp_expr; ok length-1 length of nil is zero
+# length
+IN="(length nil)" OUT="3"
+flisp_expr; ok length-1 length of const symbol is string length
 
 IN="(length '(a b c))" OUT="3"
 flisp_expr; ok length-2 length of triple list is three
@@ -394,6 +395,14 @@ flisp_expr; ok length-4 length of string answer is six
 
 IN='(length (new type-vector 0 1 2 3 4))' OUT=4
 flisp_expr; ok length-5 length of 4-tuple is 4
+
+IN="(length 'änswer)" OUT="7"
+flisp_expr; ok length-6 length of symbol w/o string extension is byte length
+
+T_P="$PREPARE"
+PREPARE="(extension 'string)"
+IN="(length 'änswer)" OUT="6"
+flisp_expr; ok length-7 length of symbol with string extension is string length
 
 # memq
 IN="(memq 'a (list 0 'a 3))" OUT="(a 3)"
@@ -560,16 +569,6 @@ flisp_expr; ok join-5 join with empty separator concats
 
 IN='(join "nswe" (list "a" "r"))' OUT='"answer"'
 flisp_expr; ok join-6 with long separator inserts long separator
-
-# length
-IN='(length nil)' OUT=0
-flisp_expr; ok length-1 of nil 0
-
-IN="(length '(a b c))" OUT=3
-flisp_expr; ok length-2 of triple list is 3
-
-IN="(length (new type-vector 0 'a 'b 'c 'd))" OUT=4
-flisp_expr; ok length-3 of quad vector is 4
 
 # fload
 IN='(setq f (open "empty.lsp" "r")) (fload f)' OUT=nil
