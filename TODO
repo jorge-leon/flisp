@@ -1,6 +1,3 @@
-- Test flisp_write_object:
-  - trace-read flag, debug output
-  + trace-primitives
 - all primitives: parameters which are not of specific type should be
   checked with CHECK_ERR(), unless errors are explicitely allowed.
 + (write type-* t) must print type-*, not #<type type-*>.
@@ -27,3 +24,6 @@
 + Fix (object-length nil), (object-length i+), (object-length #d3.14) ... simple object to not return the length field.
 + Simplify (length) even more with this
 + test new write with gc-always on, resp. fix segfaults/missing GC_CHECKPOINT's
++ Test flisp_write_object:
+  + trace-primitives
+- trace-read is not working

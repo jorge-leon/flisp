@@ -24,31 +24,44 @@ Other documentation topics are:
 #### Object Size
 
 *fLisp* implements Lisp objects with a minimal memory footprint. No
-space is reserved for a documentation string or properties. For simple
-objects the object struct contains the *type*, a *size* field set to
-zero and a 64 bit *value* field used by the core for integers, double
-floats and pointers to Lisp primitives. Extended objects contain the
-type, a size field set to the number of additional bytes allocated, a
-*count* field which indicates the number of Lisp objects stored in the
-object, an (optionally empty) *objects*\[\] array and (optionally) empty
-private data.
+space is reserved for a documentation string, function slots or other
+properties. Objects contain a fixed sized structure and optionally a
+variable length extensions structure. The fixed fields are: the
+*type* of the object, the *size* of the extension structure in bytes and
+the *length* which is the number of Lisp objects stored in the extension
+structure. The Lisp Objects are stored in an array at the start of the
+extension, any extra space allocated by size is used as space for
+C-level data. The garbage collector copies first the whole object and
+then all embedded Lisp objects in the extension structure.
 
-The simple objects amounts to three pointers, on a 64 bit architectures
-this requires 24 bytes. The biggest core object is of `type-stream`. It
-holds three additional Lisp objects and a `size_t` field and therefore
-requires 56 bytes.  The most common extended object type is the cons,
-which holds two Lisp objects and requires 40 bytes.
+Strings and symbols are a special case where *length* is 0 and *size*
+indicates the byte length of the respective string.
 
-There are two <span class="dfn">string type</span> objects: *symbols*
-and *strings*. They can have arbitrary length. When allocating a string
-type object *fLisp* allocates the required size to hold the entire
-string in the object space. The downside of this design is, that it is
-not feasible to use *fLisp* for applications with very large strings
-because of the high memory demand on the semi spaces and the effort to
-copy them around with each operation and during the garbage collection
-cycle. An application which wants to work with large strings would
-instead implement an external mechanism for string handling, like it is
-done with the Femto editor.
+When *size* is 0 we talk about <span class="dfn">simple objects</span>.
+With simple objects the *length* field is reused either as a 64 bit
+integer or as a pointer to some C-level data. The *size* field is of
+`size_t`, so it is big enough to address the available address space of
+the underlying hardware architecture.
+
+The *fLisp* core uses simple objects for integers, double floats,
+constant strings (`type-str`) and pointers to Lisp primitives.
+
+The simple objects amounts to three pointers. On a 64 bit architectures
+this requires 24 bytes. The biggest core object is of
+`type-interpreter`, it requires a total of 112 bytes.  The most common
+object type is the *cons*, which holds two Lisp objects and requires 40
+bytes.
+
+The two <span class="dfn">string type</span> objects: *symbol* and
+*string* can have arbitrary length. When allocating a string type object
+*fLisp* allocates the required size to hold the entire string in the
+object space. The downside of this design is, that it is not feasible to
+use *fLisp* for applications with very large strings because of the high
+memory demand on the semi spaces and the effort to copy them around with
+each operation (objects are inmutable) as well as during the garbage
+collection cycle. An application which wants to work with large strings
+would instead implement an external mechanism for string handling, like
+it is done with the Femto editor.
 
 #### Constant Objects
 
@@ -60,31 +73,44 @@ effectively creating immutable bindings – constants. This technique is
 used to define type and error symbols which are then easy to compare by
 pointer comparision.
 
+Constant symbols are of `type-symbol` but do not store their string in
+the extension structure. Their *size* is 0 and the *length* field is
+used as a pointer to a static C-string with their name. *fLisp*
+distinguishes constant symbols  from Lisp created ones by looking at the
+*size*.
+
+### The Type System
+
+### Error Handling
+
+### Multivalue Returns
+
 [^](#toc)
 
 ### Garbage Collection
 
 *fLisp* implements a variant of [Cheney's copying garbage
 collector](https://en.wikipedia.org/wiki/Cheney%27s_algorithm), with
-which memory is divided into two equal halves (semi spaces): from- and
-to-space. From-space is where new objects are allocated, whereas
-to-space is used during garbage collection. The from-space part of the
-memory is also called the <span class="dfn">Lisp object space</span>.
+which memory is divided into two equal halves (semi spaces): *from* and
+*to* space. <span class="dfn">from</span> space is where new objects are
+allocated, whereas <span class="dfn">to</span> space is used during
+garbage collection. The *from* space part of the memory is also called
+the <span class="dfn">Lisp object space</span>.
 
 When garbage collection is performed, objects that are still in use
-(live) are copied from from-space to to-space. To-space then becomes the
-new from-space and vice versa, thereby discarding all objects that have
-not been copied.
+(live) are copied from *from* space to *to* space. *to* space then
+becomes the new *from* space and vice versa, thereby discarding all
+objects that have not been copied.
 
 The *fLisp* garbage collector
-[mmap()](https://man7.org/linux/man-pages/man2/mmap.2.html)'s the
-to-space when garbage collection starts and unmaps the from-space
+[mmap()](https://man7.org/linux/man-pages/man2/mmap.2.html)'s the *to*
+space when garbage collection starts and unmaps the *from* space
 afterwards. If after garbage collection the free space is less then the
-required memory (plus some reserved space for exception reporting) the
-memory is increased by a multiple of the amount specified in the C-macro
-`FLISP_MEMORY_INC`, defined in `lisp.h`. The multiple is calculated to
-hold at least the additional requested space. This allows the object
-space to grow on demand.
+required memory (<span class="mark">plus some reserved space for
+exception reporting</span>) the memory is increased by a multiple of the
+amount specified in the C-macro `FLISP_MEMORY_INC_SIZE`, defined in
+`lisp.h`. The multiple is calculated to hold at least the additional
+requested space. This allows the object space to grow on demand.
 
 The garbage collector takes as input a list of root objects. Objects
 that can be reached by recursively traversing this list are considered
@@ -208,7 +234,7 @@ The string extension primitives however perform some checks.
 
 The following is a list of references used for designing the *fLisp*
 language, specifically the Lisp libraries. All credits for *fLisp* goes
-to the work of the Authors of these works.
+to the Authors of these works.
 
 1.  [Tiny Lisp](https://github.com/matp/tiny-lisp)
 2.  [Emacs
