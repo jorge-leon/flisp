@@ -1869,17 +1869,25 @@ Object *evalExpr(Object *interp, Object ** object, Object **env)
                     }
                     if (args->car->type == type_values) {
                         if (args->cdr == nil) {
-                            /* Special case, if values is at end of parameter list, destructively insert its arguments and restart checking */
-                            if (prev == nil)
+                            /* Special case, if values is at end of parameter list */
+                            if (args->car->values == nil) break;
+                            /* destructively insert its arguments and restart checking */
+                            if (prev == nil) /* at start of args list and no more arguments, a single values */
                                 *gcArgs = args = args->car->values;
                             else
                                 prev->cdr = args = args->car->values;
                         } else {
                             /* splice in a copy of the values list */
-                            if (prev == nil) {
-                                *gcArgs = args = cloneList(interp, args->car->values, args->cdr);
-                            } else {
-                                prev->cdr = args = cloneList(interp, args->car->values, args->cdr);
+                            if (prev == nil) { /* at start of args list with more arguments*/
+                                if (args->car->values == nil)
+                                    *gcArgs = args = args->cdr;
+                                else
+                                    *gcArgs = args = cloneList(interp, args->car->values, args->cdr);
+                            } else { /* values in between arguments */
+                                if (args->car->values == nil)
+                                    prev->cdr = args = args->cdr;
+                                else
+                                    prev->cdr = args = cloneList(interp, args->car->values, args->cdr);
                             }
                             GC_CHECK_OOM(args);
                         }

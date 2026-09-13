@@ -5,7 +5,7 @@
 # leg20231129, CC 1.0
 #
 
-tap 36
+tap 35
 
 export FLISP_SIZE=$((200*1024*1024))
 flisp () {
@@ -115,10 +115,8 @@ flisp_expr; ok zerop-2 1 is not zero
 true; ok equal \# TODO
 
 # vector
-true; ok vector \# TODO
-
-# values
-true; ok values \# TODO
+IN="(vector 1 2 3)" OUT="#<vector 3>"
+flisp_expr; ok vector-1 vector of 3
 
 # quasiquote-splice
 true; ok quasiquote-splice \# TODO
