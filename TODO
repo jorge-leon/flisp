@@ -1,6 +1,7 @@
-- (cons 1 . error-object) fails 
 - all primitives: parameters which are not of specific type should be
-  checked with CHECK_ERR(), unless errors are explicitely allowed.
+  checked with FLISP_IS_ERR(), unless errors are explicitely allowed.
+  + plain objects as parameters
+  - predicates (nil, error, any), e.g.: (interp-gc-trace[ p])
 + (write type-* t) must print type-*, not #<type type-*>.
 + fl.c remove write_ln
 + remove flisp_w_object, primitiveW and related functions from lisp.c.
@@ -28,4 +29,5 @@
 + values don't expand correctly, and they segfault, see tests
 + Test flisp_write_object:
   + trace-primitives
++ (cons 1 . error-object) does not err. but that seems more a feature then a bug. (cons 1 error-object) fails as it should.
 - trace-read is not working

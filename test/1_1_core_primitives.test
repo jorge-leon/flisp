@@ -15,7 +15,7 @@ export FLISP_PRINT=1
 
 #export FLISP_SIZE=$((20*1024*1024))
 
-tap 212
+tap 214
 
 # reader
 IN='(' OUT='#<error read-incomplete: unexpected end of stream while reading list, nil>'
@@ -308,6 +308,9 @@ flisp_expr; ok null-6 null lambda is  nil
 IN="(null macro)" OUT="nil"
 flisp_expr; ok null-7 null macro is  nil
 
+IN="(null (1))" OUT="error:wrong-type-argument: is not a function: '1'"
+flisp_expr; ok null-8 null error is error
+
 # type-of
 IN='(type-of 1)' OUT='type-integer'
 flisp_expr; ok type-of-1 type-of 1 is integer
@@ -348,6 +351,10 @@ flisp_expr; ok consp-5  consp list is t
 
 IN="(consp consp)" OUT='nil'
 flisp_expr; ok consp-5  consp lambda is nil
+
+IN="(consp (1))" OUT="error:wrong-type-argument: is not a function: '1'"
+flisp_expr; ok consp-6  consp error is error
+
 
 IN="(nreverse nil)" OUT="nil"
 flisp_expr; ok nreverse-1 nreveverse nil is nil

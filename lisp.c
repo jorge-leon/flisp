@@ -2527,6 +2527,8 @@ Object* flisp_write_object(Object *interp, Object *object, Object *readably, Obj
 
 Object *primitiveNullP(Object *interp, Object **args, Object **env, size_t nArgs)
 {
+    if (FLISP_IS_ERR(FLISP_ARG1))
+        return newError(interp, invalid_value, FLISP_ARG1, "(null o) - o");
     return (FLISP_ARG1 == nil) ? t : nil;
 }
 Object *primitiveTypeOf(Object *interp, Object **args, Object **env, size_t nArgs)
@@ -2535,6 +2537,8 @@ Object *primitiveTypeOf(Object *interp, Object **args, Object **env, size_t nArg
 }
 Object *primitiveConsP(Object *interp, Object **args, Object **env, size_t nArgs)
 {
+    if (FLISP_IS_ERR(FLISP_ARG1))
+        return newError(interp, invalid_value, FLISP_ARG1, "(consp o) - o");
     return (FLISP_ARG1->type == type_cons) ? t : nil;
 }
 Object *primitiveIntern(Object *interp, Object **args, Object **env, size_t nArgs)
