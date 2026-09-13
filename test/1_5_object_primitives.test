@@ -1,0 +1,25 @@
+#!./test.sh # -*- mode: sh -*-
+#
+# fLisp test object creation and formatting
+#
+# leg20260913, CC0 1.0
+#
+
+export FLISP=../fl
+export FLISP_PRINT=1
+unset FLISP_DEBUG
+export FLISP_INTERACTIVE=0
+PREPARE="(extension 'string)"
+#PREPARE="(interp-gc-always t)$PREPARE"
+#PREPARE="(interp-trace-read t)$PREPARE"
+#PREPARE="(interp-trace-primitives t)$PREPARE"
+
+export FLISP_DEBUG=../f.log
+export FLISP_SIZE=$((20*1024*1024))
+
+tap 20
+
+
+IN='(new type-values 0 1 2 3 )' OUT=error
+flisp_expr; ok type-values-1 requires length 0 and a list as argument
+
