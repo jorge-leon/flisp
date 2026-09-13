@@ -643,6 +643,42 @@ if false; then
     IN="(throw 'fourty-three \"answer\" 1)" ERR='answer' OBJ=1
     flisp_err; ok throw-1_2  throw with object
 fi
+
+# (error..)
+true; ok error-1 \# TODO
+
+# values
+
+IN='(new type-vector 0 (values))' OUT='#<vector 0>'
+flisp_expr; ok values-1_1 empty values alone disappears
+
+IN='(new type-vector 0 1 (values))' OUT='#<vector 1>'
+flisp_expr; ok values-1_2 empty values at end disappears
+
+IN='(new type-vector 0 (values) 1)' OUT='#<vector 1>'
+flisp_expr; ok values-1_3 empty values at start disappears
+
+IN='(new type-vector 0 1 (values) 2)' OUT='#<vector 1>'
+flisp_expr; ok values-1_4 empty values in between disappears
+
+IN='(new type-vector 0 (values 1))' OUT='#<vector 1>'
+flisp_expr; ok values-2_1 single values alone gets inserted
+
+IN='(new type-vector 0 1 (values 2))' OUT='#<vector 2>'
+flisp_expr; ok values-2_2 single values at end gets inserted
+
+IN='(new type-vector 0 (values 1) 2)' OUT='#<vector 2>'
+flisp_expr; ok values-2_3 single values at start gets inserted
+
+IN='(new type-vector 0 1 (values 2) 3)' OUT='#<vector 3>'
+flisp_expr; ok values-2_3 single values in between gets inserted
+
+IN='(new type-vector 0 1 (values 2 3 4) 5)' OUT='#<vector 5>'
+flisp_expr; ok values-3 triple values in between gets inserted
+
+IN='(elements (new type-vector 0 1 (values 2 3 4) 5))' OUT='(1 2 3 4 5)'
+flisp_expr; ok values-4 values reproduce themself
+
 ## Integer arithmetic
 
 IN='(i+ 42 7)' OUT='49' flisp_expr; ok add-1 add 42 7 is 49

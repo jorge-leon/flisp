@@ -61,6 +61,7 @@ typedef struct SimpleObject {
         int64_t value;
         double number;
         Primitive *primitive;
+        Object *values;
         Object *forward;
         size_t length;   /* (byte) length */
         /* Extensions */
@@ -142,6 +143,7 @@ struct Object {
     size_t size;
     union {
         size_t length;
+        Object *values;
         Object *forward;
         /* assure compatibilty with simple object */
         int64_t value;
@@ -194,12 +196,18 @@ extern Object *flisp_nreverse(Object *, Object *);
 extern char *flisp_symbol_string(Object *);
 extern Object *file_fopen(Object *, char *, char*);
 extern int file_fclose(Object *, Object *);
+extern int64_t flisp_list_length(Object*);
 
 extern Object *print_fmt(Object *, Object **, size_t, char *, ...);
 extern SimpleObject nil_obj;
 extern TypeObject type_primitive_obj;
 extern SimpleObject flisp_init_invalid;
 
+/* Candidates
+ * Object *flisp_find_value(interp, symbol) -> NULL if not bound
+ * Object *flisp_lookup(interp, symbol) -> error if not bound
+ * SimpleObject type_init_invalid: primitive for non initializable types
+ */
 /* Extensions */
 #define FLISP_IS_ERR(OBJECT) ((OBJECT)->type == type_error)
 #define FLISP_CHECK_ERR(OBJECT) if FLISP_IS_ERR(OBJECT) return OBJECT
