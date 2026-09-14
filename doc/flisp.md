@@ -688,13 +688,15 @@ given length.
 #### Object Operations
 
 `(null «object»)` ⇒ *p*  
-Returns `t` if *object* is `nil`, otherwise `nil`
+Returns `t` if *object* is `nil`, an error if *object* is an error,
+`nil` otherwise
 
 `(type-of «object»)` ⇒ *symbol*  
 Returns the type symbol of *object*.
 
 `(consp «object»)` ⇒ *p*  
-Returns `t` if *object* is of type `cons`, otherwise `nil`.
+Returns `t` if *object* is of type `cons`, an error if *object* is an
+error, otherwise `nil`.
 
 `(nreverse «l»)` ⇒ *l'*  
 Destructively reverses list *l* and returns it.
@@ -746,12 +748,12 @@ more then *length* *arg*'s the rest is ignored, if there are less the
 length *arg*'s the rest is if filled with `nil`. If *length* is zero,
 the length of the new object is the number of given *arg*'uments.
 
-`(store «object» «start» [«arg» ..])` ⇒` object'`  
-In the extended *object* start storing all consecutive *arg*'s, from
-index *start* onwards. If there are more *arg*'s then places available,
+`(store «object» «start» [«arg» ..])` ⇒`object'`  
+In the extended *object* start storing all consecutive *arg*'s, from
+index *start* onwards. If there are more *arg*'s then places available,
 the extra *arg*'s are discarded. If *start* is less then 0 or greater
 then the object length minus one, or if *object* is not an extended
-object an error is returned.
+object an error is returned.
 
 #### Arithmetic Operations
 

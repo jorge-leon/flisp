@@ -624,11 +624,13 @@
   <h4 id="object_ops">Object Operations</h4>
   <dl>
     <dt><code>(null <var>object</var>)</code> ⇒ <var>p</var></dt>
-    <dd>Returns <code>t</code> if <var>object</var> is <code>nil</code>, otherwise <code>nil</code></dd>
+    <dd>Returns <code>t</code> if <var>object</var> is <code>nil</code>, an error if <var>object</var> is an error,
+    <code>nil</code> otherwise</dd>
     <dt><code>(type-of <var>object</var>)</code> ⇒ <var>symbol</var></dt>
     <dd>Returns the type symbol of <var>object</var>.</dd>
     <dt><code>(consp <var>object</var>)</code> ⇒ <i>p</i></dt>
-    <dd>Returns <code>t</code> if <var>object</var> is of type <code>cons</code>, otherwise <code>nil</code>.</dd>
+    <dd>Returns <code>t</code> if <var>object</var> is of type <code>cons</code>, an error if <var>object</var> is an
+    error, otherwise <code>nil</code>.</dd>
     <dt><code>(nreverse <var>l</var>)</code> ⇒ <var>l'</var></dt>
     <dd>Destructively reverses list <var>l</var> and returns it.</dd>
     <dt><code>(intern <var>string</var>)</code> ⇒ <var>symbol</var></dt>
@@ -672,12 +674,11 @@
     <var>arg</var>'s the rest is ignored, if there are less the length <var>arg</var>'s the rest is if filled with
     <code>nil</code>. If <var>length</var> is zero, the length of the new object is the number of given
     <var>arg</var>'uments.</dd>
-    <dt><code>(store <var>object</var> <var>start</var> [<var>arg</var>&nbsp;..])</code>
-    ⇒<code>&nbsp;object'</code></dt>
-    <dd>In the extended <var>object</var>&nbsp;start storing all consecutive <var>arg</var>'s, from
-    index&nbsp;<var>start</var> onwards. If there are more <var>arg</var>'s then places available, the extra
-    <var>arg</var>'s are discarded. If <var>start</var> is less then 0 or greater then the object length minus one, or
-    if <var>object</var> is not an extended object&nbsp;an error is returned.</dd>
+    <dt><code>(store <var>object</var> <var>start</var> [<var>arg</var>&nbsp;..])</code> ⇒<code>object'</code></dt>
+    <dd>In the extended <var>object</var> start storing all consecutive <var>arg</var>'s, from index <var>start</var>
+    onwards. If there are more <var>arg</var>'s then places available, the extra <var>arg</var>'s are discarded. If
+    <var>start</var> is less then 0 or greater then the object length minus one, or if <var>object</var> is not an
+    extended object an error is returned.</dd>
   </dl>
   <h4 id="arithmetic_ops">Arithmetic Operations</h4>
   <p><i>fLisp</i> provides binary 64 bit integer arithmetic. n-ary operations with type coercion are provided in the

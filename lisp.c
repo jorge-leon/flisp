@@ -3192,22 +3192,31 @@ Object *primitiveInterpPrint(Object *interp, Object **args, Object **env, size_t
 /** (interp-gc-always [ p]]) - query or set gc stress flag */
 Object *primitiveInterpGcAlways(Object *interp, Object **args, Object **env, size_t nArgs)
 {
-    if (nArgs)
+    if (nArgs) {
+        if (FLISP_IS_ERR(FLISP_ARG1))
+            return newError(interp, invalid_value, FLISP_ARG1, "(interp-gc-always[ p]) - p");
         FLISP_INTERP.gc_always = FLISP_ARG1 != nil;
+    }
     return FLISP_INTERP.gc_always ? t : nil;
 }
 /** (interp-trace-read [ p]]) - query or set trace-read flag */
 Object *primitiveInterpTraceRead(Object *interp, Object **args, Object **env, size_t nArgs)
 {
-    if (nArgs)
+    if (nArgs) {
+        if (FLISP_IS_ERR(FLISP_ARG1))
+            return newError(interp, invalid_value, FLISP_ARG1, "(interp-gc-always[ p]) - p");
         FLISP_INTERP.trace_read = FLISP_ARG1 != nil;
+    }
     return FLISP_INTERP.trace_read ? t : nil;
 }
 /** (interp-trace-primitives [ p]]) - query or set trace-primitives flag */
 Object *primitiveInterpTracePrimitives(Object *interp, Object **args, Object **env, size_t nArgs)
 {
-    if (nArgs)
+    if (nArgs) {
+        if (FLISP_IS_ERR(FLISP_ARG1))
+            return newError(interp, invalid_value, FLISP_ARG1, "(interp-gc-always[ p]) - p");
         FLISP_INTERP.trace_primitives = FLISP_ARG1 != nil;
+    }
     return FLISP_INTERP.trace_primitives ? t : nil;
 }
 int64_t flisp_countdown(Object *interp, int64_t countdown)

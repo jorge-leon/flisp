@@ -1,7 +1,8 @@
-- all primitives: parameters which are not of specific type should be
++ all primitives: parameters which are not of specific type should be
   checked with FLISP_IS_ERR(), unless errors are explicitely allowed.
   + plain objects as parameters
-  - predicates (nil, error, any), e.g.: (interp-gc-trace[ p])
+  + null, consp
+  + interp-gc-always, interp-trace-read, interp-trace-primitives
 + (write type-* t) must print type-*, not #<type type-*>.
 + fl.c remove write_ln
 + remove flisp_w_object, primitiveW and related functions from lisp.c.

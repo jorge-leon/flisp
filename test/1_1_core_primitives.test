@@ -15,7 +15,7 @@ export FLISP_PRINT=1
 
 #export FLISP_SIZE=$((20*1024*1024))
 
-tap 214
+tap 233
 
 # reader
 IN='(' OUT='#<error read-incomplete: unexpected end of stream while reading list, nil>'
@@ -680,7 +680,6 @@ flisp_expr; ok values-c-3 triple values in between gets inserted
 IN='((lambda args args) (values 1 2 3))' OUT='(1 2 3)'
 flisp_expr; ok values-c-4 values reproduce themself
 
-exit
 ## Integer arithmetic
 
 IN='(i+ 42 7)' OUT='49' flisp_expr; ok add-1 add 42 7 is 49
@@ -720,3 +719,19 @@ IN='(string-compare "a" "a")' OUT="0" flisp_expr; ok string-compare-1 same strin
 IN='(string-compare "a" "b")' OUT="-1" flisp_expr; ok string-compare-2 a less then b
 IN='(string-compare "b" "a")' OUT="1" flisp_expr; ok string-compare-3 b greater then a
 IN='(string-compare "a" "ä")' OUT="-98" flisp_expr; ok string-compare-4 a less then umlaut a
+
+IN='(interp-gc-always nil)' OUT=nil flisp_expr; ok interp-gc-always-1 nil is nil
+IN='(interp-gc-always t)'   OUT=t   flisp_expr; ok interp-gc-always-2 t is t
+IN='(interp-gc-always (1))'  OUT="error:wrong-type-argument: is not a function: '1'"
+flisp_expr; ok interp-gc-always-3 error is error
+
+IN='(interp-trace-read nil)' OUT=nil flisp_expr; ok interp-trace-read-1 nil is nil
+IN='(interp-trace-read t)'   OUT=t   flisp_expr; ok interp-trace-read-2 t is t
+IN='(interp-trace-read (1))'  OUT="error:wrong-type-argument: is not a function: '1'"
+flisp_expr; ok interp-trace-read-3 error is error
+
+IN='(interp-trace-primitives nil)' OUT=nil flisp_expr; ok interp-trace-primitives-1 nil is nil
+IN='(interp-trace-primitives t)'   OUT=t   flisp_expr; ok interp-trace-primitives-2 t is t
+IN='(interp-trace-primitives (1))'  OUT="error:wrong-type-argument: is not a function: '1'"
+flisp_expr; ok interp-trace-primitives-3 error is error
+
