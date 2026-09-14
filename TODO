@@ -1,3 +1,8 @@
+- Documentation
+  - new functions in flisp.lsp
+  - history.html
+    - review
+    - back navigation to other doc
 + all primitives: parameters which are not of specific type should be
   checked with FLISP_IS_ERR(), unless errors are explicitely allowed.
   + plain objects as parameters
