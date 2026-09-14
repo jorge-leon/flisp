@@ -724,17 +724,25 @@ Object *checkParams(Object *interp, Object *param, Object** vals, size_t nArgs)
         } else if (val == nil) break;
         if (val->car->type == type_values) {
             if (val->cdr == nil) {
-                /* Special case, if values is at end of parameter list, destructively insert its arguments and restart checking */
+                /* Special case, if values is at end of parameter list */
+                /* Destructively insert its arguments and restart checking */
                 if (prev == nil)
                     *vals = val = val->car->values;
                 else
                     prev->cdr = val = val->car->values;
+                if (val->car->values == nil)  break;
             } else {
-                /* splice in a copy of vals */
-                if (prev == nil)
-                    *vals = val = cloneList(interp, val->car->values, val->cdr);
-                else {
-                    prev->cdr = val = cloneList(interp, val->car->values, val->cdr);
+               /* splice in a copy of vals */
+                if (prev == nil)  { /* at start of args list with more arguments*/
+                    if (val->car->values == nil)
+                        *vals = val = val->cdr;
+                    else
+                        *vals = val = cloneList(interp, val->car->values, val->cdr);
+                } else { /* values in between arguments */
+                    if (val->car->values == nil)
+                        prev->cdr = val = val->cdr;
+                    else
+                        prev->cdr = val = cloneList(interp, val->car->values, val->cdr);
                 }
                 CHECK_OOM(val);
             }
