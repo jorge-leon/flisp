@@ -2472,6 +2472,9 @@ Object *primitiveWrite(Object *interp, Object **args, Object **env, size_t nArgs
     Object *output = interp->self.output;
     Object *writer = FLISP_ARG1->type->type.write;
 
+    if (nArgs >1 && FLISP_IS_ERR(FLISP_ARG2))
+        return newError(interp, invalid_value, FLISP_ARG2, "(write o[ p[ fd]]) - p");
+
     if (nArgs > 2) output = FLISP_ARG3;
     if (output == nil) return nil;
     FLISP_ASSERT(output, type_stream, "(write o [p [fd]]) - fd");
@@ -2479,10 +2482,6 @@ Object *primitiveWrite(Object *interp, Object **args, Object **env, size_t nArgs
         return newError(interp, invalid_value, nil, "(write o[ p [fd]) - fd already closed");
     if (writer == nil)
         return print_object_fallback(interp, FLISP_ARG1, output);
-
-    /* Note: types defined in Lisp should have nil as writer, but they seem to have not.
-       As soon as they come here they segfault.
-     */
 
     /* Note: temporary only allow primitives, later we want lambda's also. */
     FLISP_ASSERT(writer, type_primitive, "(w o[ p[ s]]) - type writer of o");

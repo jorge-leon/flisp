@@ -145,7 +145,7 @@ Object *posixFgetc(Object *interp, Object** args, Object **env, size_t nArgs)
         if (FLISP_ARG1->stream.fd == NULL)
             return newError(interp, invalid_value, object, "(fgetc[ stream]) - stream already closed");
     }
-    
+
     c = fgetc(object->stream.fd);
     if (c == EOF) {
         if (ferror(object->stream.fd))
@@ -179,7 +179,7 @@ Object *posixFungetc(Object *interp, Object** args, Object **env, size_t nArgs)
 
     FLISP_ASSERT(FLISP_ARG1, type_integer, "(fungetc char[ stream] - char)");
     c = (int)FLISP_ARG2->value;
-    
+
     if (nArgs > 1) {
         FLISP_ASSERT(FLISP_ARG2, type_stream, "(fungetc char[ stream] - stream)");
         object = FLISP_ARG2;
@@ -264,11 +264,13 @@ Object *posixFstat(Object *interp, Object** args, Object **env, size_t nArgs)
 
     FLISP_ASSERT(FLISP_ARG1, type_string,  "(fstat path[ linkp]) - stream");
 
-    if (nArgs > 1 && FLISP_ARG2 != nil)
-        result = lstat(FLISP_ARG1->string, &info);
-    else
+    if (nArgs < 2 || FLISP_ARG2 == nil)
         result = stat(FLISP_ARG1->string, &info);
-
+    else {
+        if (FLISP_IS_ERR(FLISP_ARG2))
+            return newError(interp, invalid_value, FLISP_ARG2, "(fstat path[ linkp]) - linkp");
+        result = lstat(FLISP_ARG1->string, &info);
+    }
     if (result == -1) {
         switch(errno) {
         case EACCES:
@@ -507,7 +509,7 @@ Object *posixFnmatch(Object *interp, Object** args, Object **env, size_t nArgs)
 
     FLISP_ASSERT(FLISP_ARG1, type_string, "(fnmatch pattern string[ flags]) - pattern");
     FLISP_ASSERT(FLISP_ARG2, type_string, "(fnmatch pattern string[ flags]) - string");
-    
+
     if (nArgs > 2)
         flags = FLISP_ARG3->value;
     result = fnmatch(FLISP_ARG1->string, FLISP_ARG2->string, flags);
@@ -529,7 +531,7 @@ Object *flisp_posix_init(Object *interp, Object *extension)
         FLISP_UNLESS_ERR(flisp_register_constant(interp, fnm_pathname, newInteger(interp, FNM_PATHNAME)));
         FLISP_UNLESS_ERR(flisp_register_constant(interp, fnm_noescape, newInteger(interp, FNM_NOESCAPE)));
         FLISP_UNLESS_ERR(flisp_register_constant(interp, fnm_period, newInteger(interp, FNM_PERIOD)));
-    
+
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "fflush",  0, 1, type_stream, posixFflush));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "fseek",   2, 3, (TypeObject*)nil,         posixFseek));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "ftell",   0, 1, type_stream, posixFtell));
@@ -546,7 +548,7 @@ Object *flisp_posix_init(Object *interp, Object *extension)
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "getenv",  1, 1, type_string, posixGetenv));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "getcwd",  0, 0, (TypeObject*)nil,         posixGetcwd));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "fnmatch", 2, 3, (TypeObject*)nil,         posixFnmatch));
-        
+
         FLISP_UNLESS_ERR((*gcExt)->extension.version = newString(interp, FLISP_POSIX_VERSION));
     } while (0);
     GC_RELEASE;

@@ -15,7 +15,7 @@ export FLISP_PRINT=1
 
 #export FLISP_SIZE=$((20*1024*1024))
 
-tap 233
+tap 234
 
 # reader
 IN='(' OUT='#<error read-incomplete: unexpected end of stream while reading list, nil>'
@@ -603,6 +603,10 @@ T_OUT=$(echo -n '(write "ans\\wer")' | $FLISP 2>&1 | head -1 | base64);
 OUT=$(printf '"ans\\wer""ans\\\\wer"\n' | base64)
 T_OUT=$(echo -n '(write "ans\\wer" t)' | $FLISP 2>&1 | head -1 | base64)
 [ "$OUT = $T_OUT" ]; ok write-2 write string readably
+
+IN='(write nil (1))' OUT="error:wrong-type-argument: is not a function: '1'"
+flisp_expr; ok write-3 readably property is error, then err
+
 
 if false; then
     # Note: Catch/Throw temporarily withdrawn

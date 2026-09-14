@@ -13,7 +13,7 @@ PREPARE="(extension 'posix)"
 export FLISP_DEBUG=f.log
 export FLISP_SIZE=$((20*1024*1024))
 
-tap 20
+tap 21
 
 # File extension
 
@@ -29,7 +29,10 @@ RESULT=$(echo $PREPARE '(fstat "five_lines.txt")'  | $FLISP 2>&1 | grep  '(size 
 ok file-fstat-1 existing file returns data about it
 
 IN='(fstat "_unknown_")' OUT='#<error not-found: (fstat path[ linkp]): No such file or directory, _unknown_>'
-flisp_expr; ok file-fstat-1 existing file returns data
+flisp_expr; ok file-fstat-2 existing file returns data
+
+IN='(fstat "five_lines.txt" (1))' OUT="error:wrong-type-argument: is not a function: '1'"
+flisp_expr; ok file-fstat-3 linkp in error errs
 
 IN='(fttyp (open "/dev/tty"))' OUT='t'
 flisp_expr; ok file-fttyp-1 console is tty
