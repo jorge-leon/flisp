@@ -4,13 +4,17 @@
 
 ## Next
 - Make cloneList() available to Lisp as (list-append) and use e.g. in (append).
-- Make memory allocated parametrizable, allocate constants in separate mmap.
+- Make memory allocator parametrizable, allocate constants in separate mmap.
 - Add "trim" parameter to gc call: add or increase allocated memory.
 - Add "which" parameter to gc call, so we can have more then one space.
 - Add gc stat fields to interp object
 
 ## Future
 
+- ! don't! Remove argv0 and argv from flisp_interpreter(), inject them at startup <- or maybe not.
+- Clean up and document internal and exported flisp_* functions and FLISP_* macros.
+- Consider returning the element instead of the list with one element when
+  (elements o n n+1).
 - Namespace support for faster (?) symbol lookup with bigger programs
   - each namespace has its own symbols tree
   - when searching first the namespace is determined: prefix before '-', then
@@ -66,27 +70,20 @@
 
 ## fLisp 0.17
 - Allow all characters except controls and (ASCII) whitespace for symbol names
-- Implement backquote and friends.
+- Implement backquote and friends in flisp.lsp.
 - Implement multiple return values.
-- make (length list) use flisp_list_length if appropiate or make object-length
-  for conses return list length instead of 2.
-- Consider returning the element instead of the list with one element when
-  (elements o n n+1).
-- Review error behavior for all primitives.
-- Clean up and document internal and exported flisp_* functions and FLISP_* macros.
-- ! don't! Remove argv0 and argv from flisp_interpreter(), inject them at startup <- or maybe not.
+- Cleaner object types: objects are vectors of objects. Simple Objects are special cases w/o.
+  - (length object) is generalized to strings, vectors and lists.
+  - Lisp types are objects by themself. They host their init and writer function.
+  - `store` function to (destructively) set a an objects vector item.
+  - New object types can be constructed from Lisp.
+- symbol strings can either be static C-str'ings or garbage collected Lisp strings.
+- Only selected primitives do not err when they receive an error as argument.
 - More testing, stress-testing.
 - Femto integration.
-- Cleaner object types:, base object and object extension.
-- Lisp type objects host their init and writer function.
-- `store` function to (destructively) set a slot's value in an extensible
-  object.
-- type-symbol: string can be C string or stored in object.
-  flisp_symbol_string() is accessor to symbol name: can be str or inline.
-- move the following from C code to:
-  - symbol-name: core.lsp
-  - vector:  flisp.lsp
-  - values: flisp.lsp
+- Reduced primitive set:
+  - symbol-name -> core.lsp
+  - vector ->  flisp.lsp
 
 
 ## flisp 0.17α

@@ -1,3 +1,16 @@
+flisp (0.17-alpha4) trixie; urgency=medium
+
+  Flisp type system
+  Vector and user defined types
+  Multiple return values
+  Exception-less execution
+  Loadable extensions
+  Eval countdown facility
+  C embedding improvements
+  Two scriptable command line interpreters
+
+ -- Georg Lehner <jorge@magma-soft.at>  Tue, 15 Sep 2026 23:01:11 +0200
+
 flisp (0.17-alpha3) trixie; urgency=medium
 
   C embedding improvements

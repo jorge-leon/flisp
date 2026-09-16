@@ -275,8 +275,7 @@
   (cond
     ((stringp o) (i- (object-size o) 1))
     ((symbolp o)
-     (if (errorp string-length)
-	 (length (elements o))
+     (if (errorp string-length)  (length (elements o))
 	 (string-length (elements o))))
     ((consp o) (fold-left (lambda (x y) (i+ x 1)) 0 o))
     (t (object-length o))))

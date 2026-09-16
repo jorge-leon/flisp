@@ -22,8 +22,7 @@ But also:
 Lower case "f" stands for the femto metric prefix which represents
 10^-15 — a very small number.  fLisp is meant to be very small.
 
-Since "femtolisp" is already taken by a not so "femto" Lisp
-interpreter, the choice fell on "fLisp".
+Since "femtolisp" is already taken the choice fell on "fLisp".
 
 
 ## Goals of fLisp
@@ -44,6 +43,7 @@ Size by version:
 	0.16    223948  241696   3882/2547/7            371/166/5
 	0.17α    96184  111928   4787/3301/10           724/179/5
 	0.17α3  106928  129760   5019/3468/10           739/193/5
+	0.17α3  116264  142368   5262/3623/10           742/194/5
 
 Binary sizes are measured on Debian GNU/Linux amd64. The Library
 column shows the size of the `lispflisp.a` embeddable library, the
