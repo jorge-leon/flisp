@@ -15,7 +15,7 @@ export FLISP_PRINT=1
 
 #export FLISP_SIZE=$((20*1024*1024))
 
-tap 234
+tap 235
 
 # reader
 IN='(' OUT='#<error read-incomplete: unexpected end of stream while reading list, nil>'
@@ -154,6 +154,9 @@ flisp_expr; ok bind-6 local bind does not set outer variable.
 IN="(bind t var1 3) ((lambda () (bind t var1 2) t)) var1" OUT=2
 flisp_expr; ok bind-7 global bind does set outer variable.
 
+IN="(type-of (bind t var (1))) var" OUT="#<error wrong-type-argument: is not a function, 1>"
+flisp_expr; ok bind-8 bind to error still binds variable
+exit
 IN='(progn)' OUT=nil
 flisp_expr; ok progn-1 no args evaluate to nil
 

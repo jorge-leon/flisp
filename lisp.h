@@ -247,6 +247,8 @@ extern TypeObject *type_stream;
 extern TypeObject *type_ext; /* opaque object */
 extern TypeObject *type_str; /* C string / ASCII or UTF-8 */
 
+#define type_any (TypeObject*)&nil_obj
+
 /* Exceptions */
 extern Object *end_of_file;
 extern Object *range_error;

@@ -576,14 +576,13 @@ evaluates to an error no more *pred'*s are checked and `cond` evaluates
 to the error.
 
 `(bind «globalp »«symbol»[ «value»[ symbol ..]])` ⇒ *value* <u>f</u>  
-Create or update each *symbol* in turn and bind it to the
-corresponding *value* or `nil` if *value* is not present. Return the
-last *value* or nil. First *symbol* is looked up in the current
-environment, then recursively in the parent environments. If it is not
-found, it is created in the current environment when *globalp* is `nil`.
-If *globalp* is not `nil` *symbol* is created in the global (top level)
-environment. If a *value* evaluates to an error no more symbols are
-bound and bind evaluates to the error.
+Create or update each *symbol* in turn and bind it to the corresponding
+*value* or `nil` if *value* is not present. Return the last *value* or
+nil. First *symbol* is looked up in the current environment, then
+recursively in the parent environments. If it is not found, it is
+created in the current environment when *globalp* is `nil`. If *globalp*
+is not `nil` *symbol* is created in the global (top level) environment.
+Note that *symbol* are bound also to errors.
 
 `(lambda «params» «body»)` ⇒ *lambda*  
 Returns a *lambda* function described by *body*, which accepts zero or

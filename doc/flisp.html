@@ -522,13 +522,12 @@
     <dt><code>(bind <var>globalp&nbsp;</var><var>symbol</var>[&nbsp;<var>value</var>[ symbol ..]])</code> ⇒
     <var>value</var> <u>f</u></dt>
     <dd>
-      <p>Create or update each&nbsp;<var>symbol</var>&nbsp;in turn and bind it to the
-      corresponding&nbsp;<var>value</var>&nbsp;or <code>nil</code> if <var>value</var>&nbsp;is not present.&nbsp;Return
-      the last <var>value</var> or nil. First <var>symbol</var> is looked up in the current environment, then
-      recursively in the parent environments. If it is not found, it is created in the current environment
-      when&nbsp;<var>globalp</var> is <code>nil</code>. If <var>globalp</var> is not <code>nil</code> <var>symbol</var>
-      is created in the global (top level) environment. If a&nbsp;<var>value</var> evaluates to an error no more
-      symbols are bound and bind evaluates to the error.</p>
+      <p>Create or update each <var>symbol</var> in turn and bind it to the corresponding <var>value</var> or
+      <code>nil</code> if <var>value</var> is not present. Return the last <var>value</var> or nil. First
+      <var>symbol</var> is looked up in the current environment, then recursively in the parent environments. If it is
+      not found, it is created in the current environment when <var>globalp</var> is <code>nil</code>. If
+      <var>globalp</var> is not <code>nil</code> <var>symbol</var> is created in the global (top level) environment.
+      Note that <var>symbol</var> are bound also to errors.</p>
     </dd>
     <dt><code>(lambda <var>params</var> <var>body</var>)</code> ⇒ <var>lambda</var></dt>
     <dd>

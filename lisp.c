@@ -1588,7 +1588,7 @@ Object *evalBind(Object *interp, Object **args, Object **env)
             if (object->type != type_cons)
                 GC_RETURN(newError(interp, invalid_value, *args, "(bind p s[ o] ..) - o, arguments are not a proper list"));
             *gcVal = evalExpr(interp, &object->car, gcEnv);
-            GC_CHECK_ERR(*gcVal);
+            GC_CHECK_OOM(*gcVal);
         }
         GC_CHECK_ERR(envSet(interp, &(*gcArg)->car, gcVal, gcEnv, globalp));
         if (object == nil) break;
@@ -1902,7 +1902,7 @@ Object *evalExpr(Object *interp, Object ** object, Object **env)
                         continue;
                     }
 
-                    if (primitive->argsType != (TypeObject *)nil && args->car->type != primitive->argsType) {
+                    if (primitive->argsType != type_any && args->car->type != primitive->argsType) {
                         /* Note: looks very similar to FLISP_ASSERT() */
                         char *d = fmtInteger(nArgs+1, 10, flisp_integer_char_map, ' ', -1);
                         if (!d) return flisp_static_error(out_of_memory, &fmt_oom_message);
@@ -1967,7 +1967,7 @@ Object *typeInitInvalid(Object *interp, Object **args, Object **env, size_t nArg
 {
     return newError(interp, wrong_type_argument, FLISP_ARG1, "(init-invalid type length[ ..]) - type cannot be initialized");
 }
-Primitive t_ii_p = { .name = "init-invalid", .nMinArgs = 2, .nMaxArgs = -1, .argsType = (TypeObject*)&nil_obj, .eval = typeInitInvalid };
+Primitive t_ii_p = { .name = "init-invalid", .nMinArgs = 2, .nMaxArgs = -1, .argsType = type_any, .eval = typeInitInvalid };
 SimpleObject flisp_init_invalid = { .type = &type_primitive_obj, .size = 0, .primitive = &t_ii_p };
 
 /* (init-type type length name[ init[ write]]) */
@@ -2009,7 +2009,7 @@ Object *typeInitType(Object *interp, Object **args, Object **env, size_t nArgs)
 
     return flisp_new(interp, type_type, &(*args)->cdr->cdr, 3, 0);
 }
-Primitive t_it_p = { .name = "init-type", .nMinArgs = 3, .nMaxArgs = 5, .argsType = (TypeObject*)&nil_obj, .eval = typeInitType };
+Primitive t_it_p = { .name = "init-type", .nMinArgs = 3, .nMaxArgs = 5, .argsType = type_any, .eval = typeInitType };
 SimpleObject type_init_type = { .type = &type_primitive_obj, .size = 0, .primitive = &t_it_p };
 
 /* (init-cons type length car cdr) */
@@ -2019,7 +2019,7 @@ Object *typeInitCons(Object *interp, Object **args, Object **env, size_t nArgs)
         return newError(interp, invalid_value, FLISP_ARG2, "(init-cons type length[ ..]) - length expected: 2");
     return newCons(interp, nArgs < 3 ? &nil : &FLISP_ARG3, nArgs < 4 ? &nil : &FLISP_ARG4);
 }
-Primitive t_ic_p = { .name = "init-cons", .nMinArgs = 2, .nMaxArgs = 4, .argsType = (TypeObject*)&nil_obj, .eval = typeInitCons };
+Primitive t_ic_p = { .name = "init-cons", .nMinArgs = 2, .nMaxArgs = 4, .argsType = type_any, .eval = typeInitCons };
 SimpleObject type_init_cons = { .type = &type_primitive_obj, .size = 0, .primitive = &t_ic_p };
 
 /* (init-error type length error-type message[ culprit]) */
@@ -2035,7 +2035,7 @@ Object *typeInitError(Object *interp, Object **args, Object **env, size_t nArgs)
 
     return newError(interp, FLISP_ARG3, nArgs == 4 ? nil : FLISP_ARG5, FLISP_ARG4->string);
 }
-Primitive t_ie_p = { .name = "init-error", .nMinArgs = 4, .nMaxArgs = 5, .argsType = (TypeObject*)&nil_obj, .eval = typeInitError };
+Primitive t_ie_p = { .name = "init-error", .nMinArgs = 4, .nMaxArgs = 5, .argsType = type_any, .eval = typeInitError };
 SimpleObject type_init_error = { .type = &type_primitive_obj, .size = 0, .primitive = &t_ie_p };
 
 
@@ -2189,7 +2189,7 @@ Object *primitiveWInteger(Object *interp, Object **args, Object **env, size_t nA
     FLISP_CHECK_ERR(print_fmt(interp, args, nArgs, "%"PRId64, FLISP_ARG1->value));
     return FLISP_ARG1;
 }
-Primitive w_i_p = { .name = "write-integer", .nMinArgs = 2, .nMaxArgs = 3, .argsType = (TypeObject*)&nil_obj, .eval = primitiveWInteger };
+Primitive w_i_p = { .name = "write-integer", .nMinArgs = 2, .nMaxArgs = 3, .argsType = type_any, .eval = primitiveWInteger };
 SimpleObject write_integer = { .type = &type_primitive_obj, .size = 0, .primitive = &w_i_p };
 
 
@@ -2213,7 +2213,7 @@ Object *primitiveWString(Object *interp, Object **args, Object **env, size_t nAr
     FLISP_CHECK_ERR(print_strp(interp, args, nArgs, FLISP_ARG1->string));
     return FLISP_ARG1;
 }
-Primitive w_string_p = { .name = "write-string", .nMinArgs = 2, .nMaxArgs = 3, .argsType = (TypeObject*)&nil_obj, .eval = primitiveWString };
+Primitive w_string_p = { .name = "write-string", .nMinArgs = 2, .nMaxArgs = 3, .argsType = type_any, .eval = primitiveWString };
 static SimpleObject write_string = { .type = &type_primitive_obj, .size = 0, .primitive = &w_string_p };
 
 Object *primitiveWStr(Object *interp, Object **args, Object **env, size_t nArgs)
@@ -2222,7 +2222,7 @@ Object *primitiveWStr(Object *interp, Object **args, Object **env, size_t nArgs)
     FLISP_CHECK_ERR(print_strp(interp, args, nArgs, ((SimpleObject*)FLISP_ARG1)->str));
     return FLISP_ARG1;
 }
-Primitive w_str_p = { .name = "write-str", .nMinArgs = 2, .nMaxArgs = 3, .argsType = (TypeObject*)&nil_obj, .eval = primitiveWStr };
+Primitive w_str_p = { .name = "write-str", .nMinArgs = 2, .nMaxArgs = 3, .argsType = type_any, .eval = primitiveWStr };
 static SimpleObject write_str = { .type = &type_primitive_obj, .size = 0, .primitive = &w_str_p };
 
 char *flisp_symbol_string(Object *symbol)
@@ -2237,7 +2237,7 @@ Object *primitiveWSymbol(Object *interp, Object **args, Object **env, size_t nAr
     FLISP_CHECK_ERR(print_string(interp, args, nArgs, flisp_symbol_string(FLISP_ARG1)));
     return FLISP_ARG1;
 }
-Primitive w_symbol_p = { .name = "write-symbol", .nMinArgs = 2, .nMaxArgs = 3, .argsType = (TypeObject*)&nil_obj, .eval = primitiveWSymbol };
+Primitive w_symbol_p = { .name = "write-symbol", .nMinArgs = 2, .nMaxArgs = 3, .argsType = type_any, .eval = primitiveWSymbol };
 static SimpleObject write_symbol = { .type = &type_primitive_obj, .size = 0, .primitive = &w_symbol_p };
 
 /* (write-primitive o[ p[ s]])*/
@@ -2252,7 +2252,7 @@ Object *primitiveWPrimitive(Object *interp, Object **args, Object **env, size_t 
                         ));
     return FLISP_ARG1;
 }
-Primitive w_primitive_p = { .name = "write-primitive", .nMinArgs = 2, .nMaxArgs = 3, .argsType = (TypeObject*)&nil_obj, .eval = primitiveWPrimitive };
+Primitive w_primitive_p = { .name = "write-primitive", .nMinArgs = 2, .nMaxArgs = 3, .argsType = type_any, .eval = primitiveWPrimitive };
 static SimpleObject write_primitive = { .type = &type_primitive_obj, .size = 0, .primitive = &w_primitive_p };
 
 Object *primitiveWVector(Object *interp, Object **args, Object **env, size_t nArgs)
@@ -2261,7 +2261,7 @@ Object *primitiveWVector(Object *interp, Object **args, Object **env, size_t nAr
     FLISP_CHECK_ERR(print_fmt(interp, args, nArgs, "#<vector %zu>", FLISP_ARG1->length));
     return FLISP_ARG1;
 }
-Primitive w_vector_p = { .name = "write-vector", .nMinArgs = 1, .nMaxArgs = 3, .argsType = (TypeObject*)&nil_obj, .eval = primitiveWVector };
+Primitive w_vector_p = { .name = "write-vector", .nMinArgs = 1, .nMaxArgs = 3, .argsType = type_any, .eval = primitiveWVector };
 static SimpleObject write_vector = { .type = &type_primitive_obj, .size = 0, .primitive = &w_vector_p };
 
 Object *primitiveWValues(Object *interp, Object **args, Object **env, size_t nArgs)
@@ -2270,7 +2270,7 @@ Object *primitiveWValues(Object *interp, Object **args, Object **env, size_t nAr
     FLISP_CHECK_ERR(print_fmt(interp, args, nArgs, "#<values %zu>", flisp_list_length(FLISP_ARG1->values)));
     return FLISP_ARG1;
 }
-Primitive w_values_p = { .name = "write-values", .nMinArgs = 1, .nMaxArgs = 3, .argsType = (TypeObject*)&nil_obj, .eval = primitiveWValues };
+Primitive w_values_p = { .name = "write-values", .nMinArgs = 1, .nMaxArgs = 3, .argsType = type_any, .eval = primitiveWValues };
 static SimpleObject write_values = { .type = &type_primitive_obj, .size = 0, .primitive = &w_values_p };
 
 Object *primitiveWType(Object *interp, Object **args, Object **env, size_t nArgs)
@@ -2283,7 +2283,7 @@ Object *primitiveWType(Object *interp, Object **args, Object **env, size_t nArgs
     FLISP_CHECK_ERR(print_fmt(interp, args, nArgs, "#<type %s>", name+(sizeof("type-"))-1));
     return FLISP_ARG1;
 }
-Primitive w_type_p = { .name = "write-type", .nMinArgs = 1, .nMaxArgs = 3, .argsType = (TypeObject*)&nil_obj, .eval = primitiveWType };
+Primitive w_type_p = { .name = "write-type", .nMinArgs = 1, .nMaxArgs = 3, .argsType = type_any, .eval = primitiveWType };
 static SimpleObject write_type = { .type = &type_primitive_obj, .size = 0, .primitive = &w_type_p };
 
 Object *primitiveWInterp(Object *interp, Object **args, Object **env, size_t nArgs)
@@ -2292,7 +2292,7 @@ Object *primitiveWInterp(Object *interp, Object **args, Object **env, size_t nAr
     FLISP_CHECK_ERR(print_fmt(interp, args, nArgs, "#<interpreter 0X%"PRIXPTR ">", (uintptr_t)interp));
     return FLISP_ARG1;
 }
-Primitive w_interp_p = { .name = "write-interpreter", .nMinArgs = 1, .nMaxArgs = 3, .argsType = (TypeObject*)&nil_obj, .eval = primitiveWInterp };
+Primitive w_interp_p = { .name = "write-interpreter", .nMinArgs = 1, .nMaxArgs = 3, .argsType = type_any, .eval = primitiveWInterp };
 static SimpleObject write_interpreter = { .type = &type_primitive_obj, .size = 0, .primitive = &w_interp_p };
 
 Object *print_object(Object *, Object **, size_t, Object *);
@@ -2308,7 +2308,7 @@ Object *primitiveWStream(Object *interp, Object **args, Object **env, size_t nAr
     GC_CHECK_ERR(print_string(interp, gcArgs, nArgs, ">"));
     GC_RETURN((*gcArgs)->car);
 }
-Primitive w_stream_p = { .name = "write-stream", .nMinArgs = 1, .nMaxArgs = 3, .argsType = (TypeObject*)&nil_obj, .eval = primitiveWStream };
+Primitive w_stream_p = { .name = "write-stream", .nMinArgs = 1, .nMaxArgs = 3, .argsType = type_any, .eval = primitiveWStream };
 static SimpleObject write_stream = { .type = &type_primitive_obj, .size = 0, .primitive = &w_stream_p };
 
 /* (write-extension o[ p[ s]])*/
@@ -2324,7 +2324,7 @@ Object *primitiveWExtension(Object *interp, Object **args, Object **env, size_t 
     GC_CHECK_ERR(print_string(interp, gcArgs, nArgs, ">"));
     GC_RETURN((*gcArgs)->car);
 }
-Primitive w_extension_p = { .name = "write-extension", .nMinArgs = 1, .nMaxArgs = 3, .argsType = (TypeObject*)&nil_obj, .eval = primitiveWExtension };
+Primitive w_extension_p = { .name = "write-extension", .nMinArgs = 1, .nMaxArgs = 3, .argsType = type_any, .eval = primitiveWExtension };
 static SimpleObject write_extension = { .type = &type_primitive_obj, .size = 0, .primitive = &w_extension_p };
 
 /* (write-cons o[ p[ s]])*/
@@ -2350,7 +2350,7 @@ Object *primitiveWCons(Object *interp, Object **args, Object **env, size_t nArgs
     GC_CHECK_ERR(print_string(interp, gcArgs, nArgs, ")"));
     GC_RETURN((*gcArgs)->car);
 }
-Primitive w_cons_p = { .name = "write-cons", .nMinArgs = 1, .nMaxArgs = 3, .argsType = (TypeObject*)&nil_obj, .eval = primitiveWCons };
+Primitive w_cons_p = { .name = "write-cons", .nMinArgs = 1, .nMaxArgs = 3, .argsType = type_any, .eval = primitiveWCons };
 static SimpleObject write_cons = { .type = &type_primitive_obj, .size = 0, .primitive = &w_cons_p };
 
 /* (write-closure o[ p[ s]])*/
@@ -2369,7 +2369,7 @@ Object *primitiveWClosure(Object *interp, Object **args, Object **env, size_t nA
     GC_CHECK_ERR(print_string(interp, gcArgs, nArgs, ">"));
     GC_RETURN((*gcArgs)->car);
 }
-Primitive w_closure_p = { .name = "write-closure", .nMinArgs = 1, .nMaxArgs = 3, .argsType = (TypeObject*)&nil_obj, .eval = primitiveWClosure };
+Primitive w_closure_p = { .name = "write-closure", .nMinArgs = 1, .nMaxArgs = 3, .argsType = type_any, .eval = primitiveWClosure };
 static SimpleObject write_closure = { .type = &type_primitive_obj, .size = 0, .primitive = &w_closure_p };
 
 /* (write-env o[ p[ s]])*/
@@ -2393,7 +2393,7 @@ Object *primitiveWEnv(Object *interp, Object **args, Object **env, size_t nArgs)
     GC_CHECK_ERR(print_string(interp, gcArgs, nArgs, ">"));
     GC_RETURN((*gcArgs)->car);
 }
-Primitive w_env_p = { .name = "write-env", .nMinArgs = 1, .nMaxArgs = 3, .argsType = (TypeObject*)&nil_obj, .eval = primitiveWEnv };
+Primitive w_env_p = { .name = "write-env", .nMinArgs = 1, .nMaxArgs = 3, .argsType = type_any, .eval = primitiveWEnv };
 static SimpleObject write_env = { .type = &type_primitive_obj, .size = 0, .primitive = &w_env_p };
 
 /* (write-error o[ p[ s]])*/
@@ -2437,7 +2437,7 @@ Object *primitiveWError(Object *interp, Object **args, Object **env, size_t nArg
     //GC_RETURN(*gcError);
     return nil;
 }
-Primitive w_error_p = { .name = "write-error", .nMinArgs = 1, .nMaxArgs = 3, .argsType = (TypeObject*)&nil_obj, .eval = primitiveWError };
+Primitive w_error_p = { .name = "write-error", .nMinArgs = 1, .nMaxArgs = 3, .argsType = type_any, .eval = primitiveWError };
 static SimpleObject write_error = { .type = &type_primitive_obj, .size = 0, .primitive = &w_error_p };
 
 /** (write o[ p[ fd]]) - write object
@@ -3300,74 +3300,74 @@ Object *flisp_core_init(Object *interp, Object *extension)
     GC_TRACE(gcExt, extension);
     Object *e = nil;
     do {
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "quote",                  1,  1, (TypeObject *)nil, (LispEval) PRIMITIVE_QUOTE));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "bind",                   0, -1, (TypeObject *)nil, (LispEval) PRIMITIVE_BIND  /* special form */ ));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "progn",                  0, -1, (TypeObject*)nil, (LispEval) PRIMITIVE_PROGN /* special form */ ));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "cond",                   0, -1, (TypeObject*)nil, (LispEval) PRIMITIVE_COND  /* special form */ ));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "lambda",                 1, -1, (TypeObject*)nil, (LispEval) PRIMITIVE_LAMBDA /* special form */ ));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "macro",                  1, -1, (TypeObject*)nil, (LispEval) PRIMITIVE_MACRO  /* special form */ ));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "macroexpand-1",          1,  2, (TypeObject*)nil, (LispEval) PRIMITIVE_MACROEXPAND /* special form */ ));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "quote",                  1,  1, type_any, (LispEval) PRIMITIVE_QUOTE));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "bind",                   0, -1, type_any, (LispEval) PRIMITIVE_BIND  /* special form */ ));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "progn",                  0, -1, type_any, (LispEval) PRIMITIVE_PROGN /* special form */ ));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "cond",                   0, -1, type_any, (LispEval) PRIMITIVE_COND  /* special form */ ));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "lambda",                 1, -1, type_any, (LispEval) PRIMITIVE_LAMBDA /* special form */ ));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "macro",                  1, -1, type_any, (LispEval) PRIMITIVE_MACRO  /* special form */ ));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "macroexpand-1",          1,  2, type_any, (LispEval) PRIMITIVE_MACROEXPAND /* special form */ ));
 #if 0
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "catch",                  2,  2, (TypeObject*)nil, (LispEval) PRIMITIVE_CATCH  /*special form */ ));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "catch",                  2,  2, type_any, (LispEval) PRIMITIVE_CATCH  /*special form */ ));
 #endif
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "null",                   1,  1, (TypeObject*)nil,            primitiveNullP));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "type-of",                1,  1, (TypeObject*)nil,            primitiveTypeOf));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "consp",                  1,  1, (TypeObject*)nil,            primitiveConsP));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "nreverse",               1,  1, (TypeObject*)nil,            primitiveNreverse));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "intern",                 1,  1, type_string,    primitiveIntern));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "same",                   2,  2, (TypeObject*)nil,            primitiveSame));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "car",                    1,  1, (TypeObject*)nil,            primitiveCar  /* Note: nil|cons */ ));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "cdr",                    1,  1, (TypeObject*)nil,            primitiveCdr  /* Note: nil|cons */ ));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "cons",                   2,  2, (TypeObject*)nil,            primitiveCons));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "object-size",            1,  1, (TypeObject*)nil,            primitiveObjectSize));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "object-length",          1,  1, (TypeObject*)nil,            primitiveObjectLength));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "new",                    1, -1, (TypeObject*)nil,            primitiveNew));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "store",                  2, -1, (TypeObject*)nil,            primitiveStore));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "elements",               1,  3, (TypeObject*)nil,            primitiveElements));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "open",                   1,  2, type_string,    primitiveFopen));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "close",                  1,  1, type_stream,    primitiveFclose));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "file-info",              1,  1, type_stream,    primitiveFinfo));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "read",                   0,  2, (TypeObject*)nil,            primitiveRead));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "eval",                   1,  1, (TypeObject*)nil,            primitiveEval));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "write",                  1,  3, (TypeObject*)nil,            primitiveWrite));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "error",                  2,  3, (TypeObject*)nil,            primitiveError));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "values",                 0, -1, (TypeObject*)nil,            primitiveValues));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "null",                   1,  1, type_any,      primitiveNullP));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "type-of",                1,  1, type_any,      primitiveTypeOf));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "consp",                  1,  1, type_any,      primitiveConsP));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "nreverse",               1,  1, type_any,      primitiveNreverse));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "intern",                 1,  1, type_string,   primitiveIntern));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "same",                   2,  2, type_any,      primitiveSame));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "car",                    1,  1, type_any,      primitiveCar  /* Note: nil|cons */ ));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "cdr",                    1,  1, type_any,      primitiveCdr  /* Note: nil|cons */ ));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "cons",                   2,  2, type_any,      primitiveCons));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "object-size",            1,  1, type_any,      primitiveObjectSize));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "object-length",          1,  1, type_any,      primitiveObjectLength));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "new",                    1, -1, type_any,      primitiveNew));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "store",                  2, -1, type_any,      primitiveStore));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "elements",               1,  3, type_any,      primitiveElements));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "open",                   1,  2, type_string,   primitiveFopen));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "close",                  1,  1, type_stream,   primitiveFclose));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "file-info",              1,  1, type_stream,   primitiveFinfo));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "read",                   0,  2, type_any,      primitiveRead));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "eval",                   1,  1, type_any,      primitiveEval));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "write",                  1,  3, type_any,      primitiveWrite));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "error",                  2,  3, type_any,      primitiveError));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "values",                 0, -1, type_any,      primitiveValues));
 #if 0
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "throw",                  1,  2, (TypeObject*)nil,            primitiveThrow));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "throw",                  1,  2, type_any,      primitiveThrow));
 #endif
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "i+",                     2,  2, type_integer,   integerAdd));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "i-",                     2,  2, type_integer,   integerSubtract));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "i*",                     2,  2, type_integer,   integerMultiply));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "i/",                     2,  2, type_integer,   integerDivide));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "i%",                     2,  2, type_integer,   integerMod));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "i=0",                    1,  1, type_integer,   integerZerop));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "i=",                     2,  2, type_integer,   integerEqual));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "i<",                     2,  2, type_integer,   integerLess));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "i<=",                    2,  2, type_integer,   integerLessEqual));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "i>",                     2,  2, type_integer,   integerGreater));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "i>=",                    2,  2, type_integer,   integerGreaterEqual));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "&",                      2,  2, type_integer,   integerAnd));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "|",                      2,  2, type_integer,   integerOr));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "^",                      2,  2, type_integer,   integerXor));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "<<",                     2,  2, type_integer,   integerShiftLeft));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, ">>",                     2,  2, type_integer,   integerShiftRight));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "~",                      1,  1, type_integer,   integerNot));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "ifmt",                   1,  5, (TypeObject*)nil,            integerFmt));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "string-append",          2,  2, type_string,    stringAppend));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "string-compare",         2,  2, type_string,    stringCompare));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "extension",              1,  1, type_symbol,    primitiveLoadExtension));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-version",         0,  0, (TypeObject*)nil,            primitiveInterpVersion));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp",                 0,  0, (TypeObject*)nil,            primitiveInterp));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "env",                    0,  0, (TypeObject*)nil,            primitiveEnv));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-input",           0,  1, type_stream,    primitiveInterpInput));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-output",          0,  1, type_stream,    primitiveInterpOutput));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-debug",           0,  1, type_stream,    primitiveInterpDebug));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-print",           0,  1, (TypeObject*)nil,            primitiveInterpPrint));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-gc-always",       0,  1, (TypeObject*)nil,            primitiveInterpGcAlways));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-trace-read",      0,  1, (TypeObject*)nil,            primitiveInterpTraceRead));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-trace-primitives",0,  1, (TypeObject*)nil,            primitiveInterpTracePrimitives));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-gc",              0,  0, (TypeObject*)nil,            primitiveInterpGc));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-countdown",       0,  1, type_integer,   primitiveInterpCountdown));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "i+",                     2,  2, type_integer,  integerAdd));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "i-",                     2,  2, type_integer,  integerSubtract));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "i*",                     2,  2, type_integer,  integerMultiply));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "i/",                     2,  2, type_integer,  integerDivide));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "i%",                     2,  2, type_integer,  integerMod));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "i=0",                    1,  1, type_integer,  integerZerop));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "i=",                     2,  2, type_integer,  integerEqual));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "i<",                     2,  2, type_integer,  integerLess));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "i<=",                    2,  2, type_integer,  integerLessEqual));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "i>",                     2,  2, type_integer,  integerGreater));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "i>=",                    2,  2, type_integer,  integerGreaterEqual));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "&",                      2,  2, type_integer,  integerAnd));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "|",                      2,  2, type_integer,  integerOr));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "^",                      2,  2, type_integer,  integerXor));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "<<",                     2,  2, type_integer,  integerShiftLeft));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, ">>",                     2,  2, type_integer,  integerShiftRight));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "~",                      1,  1, type_integer,  integerNot));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "ifmt",                   1,  5, type_any,      integerFmt));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "string-append",          2,  2, type_string,   stringAppend));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "string-compare",         2,  2, type_string,   stringCompare));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "extension",              1,  1, type_symbol,   primitiveLoadExtension));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-version",         0,  0, type_any,      primitiveInterpVersion));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp",                 0,  0, type_any,      primitiveInterp));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "env",                    0,  0, type_any,      primitiveEnv));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-input",           0,  1, type_stream,   primitiveInterpInput));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-output",          0,  1, type_stream,   primitiveInterpOutput));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-debug",           0,  1, type_stream,   primitiveInterpDebug));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-print",           0,  1, type_any,      primitiveInterpPrint));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-gc-always",       0,  1, type_any,      primitiveInterpGcAlways));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-trace-read",      0,  1, type_any,      primitiveInterpTraceRead));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-trace-primitives",0,  1, type_any,      primitiveInterpTracePrimitives));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-gc",              0,  0, type_any,      primitiveInterpGc));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-countdown",       0,  1, type_integer,  primitiveInterpCountdown));
 
         (*gcExt)->extension.version = newString(interp, FL_VERSION);
     } while (0);
