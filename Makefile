@@ -162,6 +162,7 @@ clean: FORCE
 	-$(RM) -f f.log
 	-$(RM) -f test/test.lsp  test/f.log
 	-$(RM) -rf debian/flisp debian/flisp-dev debian/flisp-common debian/flisp-doc
+	-$(RM) -f debian/files debian/*.substvars
 
 deb: FORCE
 	dpkg-buildpackage -b -us -uc
