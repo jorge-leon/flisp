@@ -152,6 +152,9 @@ Create a stream object.
 `file_fclose()`  
 Close a stream object.
 
+`flisp_store_object()`  
+Store 0 or more objects in vector.
+
 All type and error symbols are exported with dashes “`-`” replaced by
 underscores “`_`”. Example: the `type-string` Lisp symbol is exported as
 `TypeObject *type_string`
