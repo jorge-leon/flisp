@@ -31,24 +31,24 @@
 	  ;;        empty | /(cadr parts)  |  x  |
 	  ;;            a |       a        | x/a |
 	  ;;
-	  (cond ((null parts)  (not (car result)))
-		;; Note: we could check if we have "" after the first path segment and skip over it a//b/c => a "" b c
-		(t
-		 (cond ((string-empty-p prefix)
-			(cond ((string-empty-p (car parts))
-			       (setq parts (cdr parts)  prefix (concat "/" (car parts))) )
-			      (t (setq prefix (car parts))) ))
-		       (t
-			(cond ((string-empty-p (car parts)) ; skip empty path segments
-			       (loop (cdr parts) prefix result))
-			      (t (setq prefix (concat prefix "/" (car parts)))) )))
-		 (setq result (catch (fstat prefix)))
-		 (log-debug (concat "prefix "prefix" result "result"\n"))
-		 (cond ((car result)
-			(log-debug (concat"creating directory "prefix"\n"))
-			(log-debug (concat "code "(car result)" message '"(cadr result)"' object"(caddr result)"\n"))
-			(fmkdir prefix)	)) ; bail out on error
-		 (loop (cdr parts) prefix result) ))))))
+	  (if (null parts)  (not (car result))
+	      ;; Note: we could check if we have "" after the first path segment and skip over it a//b/c => a "" b c
+	      (cond ((string-empty-p prefix)
+		     (cond ((string-empty-p (car parts))
+			    (setq parts (cdr parts)  prefix (concat "/" (car parts))) )
+			   (t (setq prefix (car parts))) ))
+		    (t
+		     (cond ((string-empty-p (car parts)) ; skip empty path segments
+			    (loop (cdr parts) prefix result))
+			   (t (setq prefix (concat prefix "/" (car parts)))) )))
+	      (let* ((result (fstat prefix))
+		     (ep (errorp result))
+		     (msg (if ep (elements result 1 2) result)) )
+		(log-debug (concat "prefix "prefix" result "msg"\n"))
+		(when ep
+		  (log-debug (concat"creating directory "prefix"\n"))
+		  (fmkdir prefix) )) ; bail out on error
+	      (loop (cdr parts) prefix result) )))))
 
 (defun file-name-directory (s)
   (cond ((memq s '("" "." ".."))  nil)
