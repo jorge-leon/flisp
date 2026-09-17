@@ -4,6 +4,7 @@
 
 ## Next
 - Make cloneList() available to Lisp as (list-append) and use e.g. in (append).
+  - or implement append already in C.
 - Make memory allocator parametrizable, allocate constants in separate mmap.
 - Add "trim" parameter to gc call: add or increase allocated memory.
 - Add "which" parameter to gc call, so we can have more then one space.
@@ -11,6 +12,7 @@
 
 ## Future
 
+- Implement addIntegerToPad() and use it for object formatting, et. al.
 - ! don't! Remove argv0 and argv from flisp_interpreter(), inject them at startup <- or maybe not.
 - Clean up and document internal and exported flisp_* functions and FLISP_* macros.
 - Consider returning the element instead of the list with one element when

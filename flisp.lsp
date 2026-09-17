@@ -6,21 +6,17 @@
 
 (defun listp (o) (cond ((null o)) ((consp o))))
 
-;; Note: use (elements l i) instead
 (defun nthcdr (i l)
   (cond
     ((not (integerp i))
      (error wrong-type-argument
-       (concat "(nthcdr i l) - i expected type-integer, got: " (type-of i))
-       i))
+	    (concat "(nthcdr i l) - i expected type-integer, got: " (type-of i)) i )) 
     ((< i 0) (error range-error "negative index" i))
-    ((null l) nil)
-    ((= 0 i) l)
-   ((not (consp l))
-    (error wrong-type-argument
-      (concat "(nthcdr i l) - l expected type-cons, got: " (type-of l))
-      l ))
-    (t (nthcdr (- i 1) (cdr l)))))
+    ((not (listp l))
+     (error wrong-type-argument
+	    (concat "(nthcdr i l) - l expected type-cons, got: " (type-of l)) l ))
+    ((i=0 i) l)
+    (l (elements l i)) ))
 
 (defun nth (n list)
   (car (nthcdr n list)))
@@ -57,7 +53,7 @@
 	     (cond ((consp (cddr l)) (prop-get (cddr l) k))) )) )) )
 
 ;;
-;; Commonly used Lisp functions which are not other wise used in the Femto libraries
+;; Commonly used Lisp functions which are not otherwise used in the Femto libraries
 ;;
 (defun atom (o) (null (consp o)))
 (defun zerop (n) (= n 0))

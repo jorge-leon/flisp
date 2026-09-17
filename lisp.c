@@ -384,8 +384,7 @@ void gc(Object *interp)
     flisp_debug(interp, "moving %lu root objects\n", FLISP_INTERP.length);
 #endif
     for (i = 0; i < interp->length; i++)
-        /* Note: pending interp = Object */
-        ((Object *)interp)->objects[i] = gcMoveObject(interp, ((Object *)interp)->objects[i], &stats);
+        interp->objects[i] = gcMoveObject(interp, interp->objects[i], &stats);
 
 #if DEBUG_GC
     flisp_debug(interp, "root objects: %lu, skipped %lu, constant %lu\n",
@@ -511,7 +510,7 @@ allocateObject:
 }
 
 #define GC_CHECK_ERR(OBJECT) if FLISP_IS_ERR(OBJECT) GC_RETURN(OBJECT)
-/* Note: Do we have to distinguish? */
+/* Note: Do we have to distinguish? Most probably not. But remove GC_CHECK_OOM when you have time to test with (interp gc-always t) */
 #define CHECK_OOM(OBJECT) if FLISP_IS_OOM(OBJECT) return OBJECT
 #define GC_CHECK_OOM(OBJECT) if FLISP_IS_OOM(OBJECT) GC_RETURN(OBJECT)
 
@@ -563,6 +562,20 @@ Object *newPrimitive(Object *interp, Primitive* primitive)
     return object;
 }
 // Extended objects //
+
+Object *newCons(Object *interp, Object ** car, Object ** cdr)
+{
+    GC_CHECKPOINT;
+    GC_TRACE(gcCar, *car);
+    GC_TRACE(gcCdr, *cdr);
+    Object *cons = newObject(interp, type_cons, sizeof(Object *[2]));
+    GC_RELEASE;
+    CHECK_OOM(cons);
+    cons->length = 2;
+    cons->car = *gcCar;
+    cons->cdr = *gcCdr;
+    return cons;
+}
 
 /** flisp_store_object(interp, object, list, index, all)
  *
@@ -619,19 +632,7 @@ Object *flisp_new(Object *interp, TypeObject *type, Object **list, size_t length
 
     return flisp_store_object(interp, object, *gcObjs, 0, true);
 }
-Object *newCons(Object *interp, Object ** car, Object ** cdr)
-{
-    GC_CHECKPOINT;
-    GC_TRACE(gcCar, *car);
-    GC_TRACE(gcCdr, *cdr);
-    Object *cons = newObject(interp, type_cons, sizeof(Object *[2]));
-    GC_RELEASE;
-    CHECK_OOM(cons);
-    cons->length = 2;
-    cons->car = *gcCar;
-    cons->cdr = *gcCdr;
-    return cons;
-}
+/* Both lambdas and macros are closures*/
 Object *newClosure(Object *interp, TypeObject *type, Object ** args, Object **env)
 {
     Object *o;
@@ -671,13 +672,20 @@ int64_t flisp_list_length(Object *list)
     return 0;
 }
 
-/* Clone List, if end is cons use it instead of the nil terminator
+/* cloneList(interp, list, end)
+ *
+ * @param interp .. Interpreter
+ * @param list .. List to be cloned.
+ * @param end .. Either nil (simple clone) or list to append.
+ *
+ * Clone *list*, if *end* is cons use it instead of the nil terminator.
  * If end is not nil or cons err
+ *
  */
 Object *cloneList(Object *interp, Object *list, Object *end)
 {
     FLISP_ASSERT(list, type_cons, "(cloneList list end) - list");
-    if (end != nil) FLISP_ASSERT(end, type_cons, "(cloneList list end) - end");
+    //if (end != nil) FLISP_ASSERT(end, type_cons, "(cloneList list end) - end");
 
     GC_CHECKPOINT;
     GC_TRACE(gcList, list);
@@ -2548,6 +2556,14 @@ Object *primitiveConsP(Object *interp, Object **args, Object **env, size_t nArgs
         return newError(interp, invalid_value, FLISP_ARG1, "(consp o) - o");
     return (FLISP_ARG1->type == type_cons) ? t : nil;
 }
+Object *primitiveAppend(Object *interp, Object **args, Object **env, size_t nArgs)
+{
+    Object *l1 = nil;
+    FLISP_ASSERT(FLISP_ARG1, type_cons, "(append list[ l) - list");
+    if (nArgs > 1)
+        l1 = FLISP_ARG2;
+    return cloneList(interp, FLISP_ARG1, l1);
+}
 Object *primitiveIntern(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     return newSymbol(interp, FLISP_ARG1->string);
@@ -3313,6 +3329,7 @@ Object *flisp_core_init(Object *interp, Object *extension)
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "null",                   1,  1, type_any,      primitiveNullP));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "type-of",                1,  1, type_any,      primitiveTypeOf));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "consp",                  1,  1, type_any,      primitiveConsP));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "list-append",            1,  2, type_any,      primitiveAppend));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "nreverse",               1,  1, type_any,      primitiveNreverse));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "intern",                 1,  1, type_string,   primitiveIntern));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "same",                   2,  2, type_any,      primitiveSame));

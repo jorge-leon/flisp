@@ -29,12 +29,11 @@
   (list 'bind t name (list (quote lambda) params . body)) )
 
 ;;; Accessors
-;; Note: replace c*ddr with (elements n) where n = number of 'd's
 (defun cadr (l) (car (cdr l)))
-(defun cddr (l) (cdr (cdr l)))
+(defun cddr (l) (elements l 2))
 (defun caar (l)  (car (car l)))
 (defun cdar (l)  (cdr (car l)))
-(defun caddr (l) (car (cdr (cdr l))))
+(defun caddr (l) (car (elements l 2)))
 (defun caaar (l) (car (car (car l))))
 (defun cdaar (l) (cdr (car (car l))))
 (defun cadar (l) (car (cdr (car l))))
