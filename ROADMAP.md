@@ -74,7 +74,7 @@
 - Allow all characters except controls and (ASCII) whitespace for symbol names
 - Implement backquote and friends in flisp.lsp.
 - Implement multiple return values.
-- Cleaner object types: objects are vectors of objects. Simple Objects are special cases w/o.
+- Cleaner object types: objects are vectors of objects. Simple Objects are special cases w/o vector elements.
   - (length object) is generalized to strings, vectors and lists.
   - Lisp types are objects by themself. They host their init and writer function.
   - `store` function to (destructively) set a an objects vector item.
@@ -82,10 +82,10 @@
 - symbol strings can either be static C-str'ings or garbage collected Lisp strings.
 - Only selected primitives do not err when they receive an error as argument.
 - More testing, stress-testing.
-- Femto integration.
 - Reduced primitive set:
   - symbol-name -> core.lsp
   - vector ->  flisp.lsp
+- double numbers are moved into an extension.
 
 
 ## flisp 0.17α

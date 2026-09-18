@@ -41,9 +41,7 @@ Size by version:
 	0.14     ?		 82984   3.7k/2.4k/7			610/355/5
 	0.15     67096	 87336   3.8k/2.5k/7            358/166/5
 	0.16    223948  241696   3882/2547/7            371/166/5
-	0.17α    96184  111928   4787/3301/10           724/179/5
-	0.17α3  106928  129760   5019/3468/10           739/193/5
-	0.17α3  116264  142368   5262/3623/10           742/194/5
+	0.17    116376  142368   5280/3632/10           736/191/5
 
 Binary sizes are measured on Debian GNU/Linux amd64. The Library
 column shows the size of the `lispflisp.a` embeddable library, the

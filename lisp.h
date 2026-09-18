@@ -16,7 +16,7 @@
 #include <limits.h>
 
 #define FL_NAME     "fLisp"
-#define FL_VERSION  "0.17α3"
+#define FL_VERSION  "0.17"
 
 #ifndef FLISP_MEMORY_INC_SIZE
 #define FLISP_MEMORY_INC_SIZE 16384UL  /* Increase memory by this amount if not enough */

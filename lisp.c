@@ -1726,7 +1726,6 @@ Object *evalMacroExpand(Object *interp, Object **args, Object **env)
 /* Used to evaluate each argument of an argument list */
 Object *evalList(Object *interp, Object **args, Object **env)
 {
-    /* Note: expand values here */
     if (*args == nil)  return nil;
     if ((*args)->type != type_cons)  return evalExpr(interp, args, env);
 
@@ -1735,7 +1734,7 @@ Object *evalList(Object *interp, Object **args, Object **env)
     GC_TRACE(gcCdr, (*args)->cdr);
     GC_TRACE(gcObject, evalExpr(interp, &(*args)->car, gcEnv));
     GC_CHECK_OOM(*gcObject);
-    *gcCdr = evalList(interp, gcCdr, gcEnv);  /* Note: only CHECK_OOM? shouldn't it be GC_CHECK_ERR? */
+    *gcCdr = evalList(interp, gcCdr, gcEnv);
     GC_CHECK_OOM(*gcCdr);
     GC_RETURN(newCons(interp, gcObject, gcCdr));
 }
