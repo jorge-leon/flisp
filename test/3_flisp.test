@@ -1,11 +1,18 @@
-#!./test# -*- mode: sh -*-
-# test the fLisp library
-# leg20231129: Femto
+#!./test.sh # -*- mode: sh -*-
+#
+# fLisp test flisp library
+#
+# leg20231129, CC 1.0
+#
 
-tap 31
+tap 35
 
-export FLISPRC=../init.lsp
-export PREPARE="(require 'flisp)"
+export FLISP_SIZE=$((200*1024*1024))
+flisp () {
+    { cat ../core.lsp ../flisp.lsp ; echo '(interp-output (open ">1"))'; cat -; } | FLISP_QUIET=1 ../fl
+}
+FLISP=flisp
+export FLISP_PRINT=1
 
 # listp
 IN='(listp nil)' OUT=t
@@ -23,10 +30,8 @@ flisp_expr; ok listp-4 two element list is list
 
 # Math
 
-IN='(nthcdr -1 nil)'
-ERR="negative index"
-OBJ='-1'
-flisp_err; ok nthcdr-1 negativ index fails
+IN='(nthcdr -1 nil)' OUT='#<error range-error: negative index, -1>'
+flisp_expr; ok nthcdr-1 negativ index fails
 
 IN="(nthcdr 0 '(a b c))" OUT='(a b c)'
 flisp_expr; ok nthcdr-2 0 index is list
@@ -44,14 +49,12 @@ IN="(nthcdr 1 '(2 . 3))" OUT=3
 flisp_expr; ok nthcdr-6 of 1 of cons is cdr
 
 IN="(nthcdr null nil)"
-ERR="(nthcdr i l) - i expected type-integer, got: type-primitive"
-OBJ='#<Primitive null>'
-flisp_err; ok nthcdr-7 wrong index type fails
+OUT='#<error wrong-type-argument: (nthcdr i l) - i expected type-integer, got: #<type primitive>, #<primitive null [1, 1] nil>>'
+flisp_expr; ok nthcdr-7 wrong index type fails
 
 IN="(nthcdr 1 null)"
-ERR="(nthcdr i l) - l expected type-cons, got: type-primitive"
-OBJ='#<Primitive null>'
-flisp_err; ok nthcdr-8 wrong list type fails
+OUT='#<error wrong-type-argument: (nthcdr i l) - l expected type-cons, got: #<type primitive>, #<primitive null [1, 1] nil>>'
+flisp_expr; ok nthcdr-8 wrong list type fails
 
 IN="(nth 1 '(a b c))" OUT=b
 flisp_expr; ok nth-1 yields element
@@ -106,7 +109,20 @@ IN='(zerop 0)' OUT=t
 flisp_expr; ok zerop-1 0 is zero
 
 IN='(zerop 1)' OUT=nil
-flisp_expr 1; ok zerop-2 1 is not zero
+flisp_expr; ok zerop-2 1 is not zero
 
 # equal
 true; ok equal \# TODO
+
+# vector
+IN="(vector 1 2 3)" OUT="#<vector 3>"
+flisp_expr; ok vector-1 vector of 3
+
+# quasiquote-splice
+true; ok quasiquote-splice \# TODO
+
+# quasiquote-unquote
+true; ok quasiquote-unquote \# TODO
+
+# quasiquote
+true; ok quasiquote \# TODO

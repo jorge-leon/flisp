@@ -1,5 +1,8 @@
 #!/bin/sh
-# leg20231128
+#
+# fLisp test suite runner
+#
+# leg20231128, CC 1.0
 #
 # Poor mans unit test framework
 #
@@ -31,7 +34,7 @@
 : ${SUMMARY:=}
 : ${TEST_ALL=}
 
-: ${FLISP:=../flispd}
+: ${FLISP:=../fl}
 FLISP_DEBUG=
 FEMTO_DEBUG=
 
@@ -73,21 +76,22 @@ EOF
     exit
 }
 
-while getopts adsv? OPT; do
+while getopts adsvxb:? OPT; do
     case $OPT in
 	a) TEST_ALL=1;;
 	d)
 	  export FLISP_DEBUG=debug.out
-	  export FEMTO_DEBUG=debug.out
 	  ;;
 	s) export SUMMARY=1;;
 	v) export VERBOSE=1;;
+	x) export DEBUG=1;;
+	b) export BREAK="$OPTARG";;
 	?) usage;;
     esac
 done
 shift $((OPTIND-1))	
 
-[ "$VERBOSE" -a "$SUMMARY" ] && usage
+[ "$DEBUG" -o "$VERBOSE" ] && [ "$SUMMARY" ] && usage
 
 # print tap header line
 tap() {
@@ -101,36 +105,66 @@ tap() {
 
 # create tap output line. Check $? for success
 ok () {
-    [ $? != 0 ] && printf "not " && OK=1 || OK=0
-    TEST=$((TEST+1)); echo ok $TEST - $@; return $OK
+    if [ $? != 0 ]; then
+	printf "not "
+	OK=1
+    else 
+	OK=0
+    fi
+    TEST=$((TEST+1))
+    echo ok $TEST - $@
+
+    if [ "$OK" = 1 -a "$VERBOSE" ]; then
+	echo "input   : " "$IN"
+	echo "expected: " "$OUT"
+	echo "got     : " "$F_OUT"
+	printf "raw: %s\n" "$T_OUT" 
+    fi
+    
+    [ "$TEST" = "$BREAK" ] && {
+	exit
+    }
+    return $OK
 }
 
 # - - -
 
+# Filter line range: last-n count
+range () {
+    local LAST=${1:-1}
+    local COUNT=${2:-1}
+    tail -$LAST | head -$COUNT
+}
 
 # pipe expr $PREPARE, then $IN to fLisp, extract $1 last values of
 # output, default 1. Filters trailing 't.  Compare output with $OUT
 flisp_expr () {
-    [ "$(echo -n "$PREPARE $IN" | $FLISP | tail -n ${1:-1})" = "$OUT" ]
+    local T_RC
+    T_OUT="$(echo -n "$PREPARE $IN" | $FLISP 2>&1)"
+    T_RC=$?
+    F_OUT="$(echo "$T_OUT" | range $1 $2)"
+    [ "$F_OUT" = "$OUT" ]
 }
 flisp_err () {
-    echo -n "$PREPARE $IN" | $FLISP 2>&1 >/dev/null | tail -n ${1:-1} |{
-	read PRE REST
+    echo replace flisp_err with flisp_expr >&2; exit 1
+    local T_RC
+    T_OUT=$(echo -n "$PREPARE $IN" | $FLISP 2>&1)
+    T_RC=$?
+    F_OUT=$(echo "$T_OUT" | range ${1:-1} ${2:-1})
+    echo -n "$F_OUT" | {
+	IFS=: read PRE ECODE MSG EOBJ
 	: $PRE
-	: $REST
-	MSG=${REST#*, }
-	[ "$OBJ" ] && {
-	    EOBJ=${REST%%\',*}
-	    EOBJ=${EOBJ#*\'}
-	    [ "$PRE" = "error:" -a "$MSG" = "$ERR" -a "$OBJ" = "$EOBJ" ]
-	    RC=$? ERR= OBJ=
-	    return $RC
-	}
-	[ "$PRE" = "error:" -a "$MSG" = "$ERR" ]
-	RC=$? PRE= OBJ=
-	return $RC
+	: $ECODE
+	: $MSG
+	: $EOBJ
+	[ "$PRE" = error ] || return 1
+	[ "$CODE" = "$ECODE" ]  || return 2
+	[ "$ERR" ] && { [ " $ERR" = "$MSG" ] || return 3; }
+	[ "$OBJ" ] && { [ " $OBJ" = "$EOBJ" ] || return 4; }
+	return 0
     }
 }
+
 
 if [ "$SUMMARY" ]; then SUMMARY=./tapview; else SUMMARY=cat; fi
 
@@ -153,12 +187,12 @@ for test; do  (
     TEST_TYPE=${TEST_TYPE% -\*-*}
     case  "$TEST_TYPE" in
 	lisp)
-	    [ "$VERBOSE" ] && set -x
+	    [ "$DEBUG" ] && set -x
 	    FLISPLIB=.. FLISPRC=test.lsp ../flispd $test 3>&1 | $SUMMARY
 	    ;;
 	sh)
 	    export FLISPLIB=..
-	    [ "$VERBOSE" ] && set -x
+	    [ "$DEBUG" ] && set -x
 	    . ./${test} | $SUMMARY
 	    ;;
 	*)

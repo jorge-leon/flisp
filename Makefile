@@ -10,6 +10,7 @@ CPPFLAGS += -D_DEFAULT_SOURCE -D_BSD_SOURCE
 #CFLAGS += -O2 -std=c11 -Wall -pedantic -pedantic-errors
 CFLAGS += -O0 -std=c11 -Wall -pedantic -pedantic-errors -Werror=format-security -Wformat -g
 LD      = cc
+#LDFLAGS = --static
 LDFLAGS =
 LIBS    =
 CP      = cp
@@ -24,18 +25,15 @@ DATADIR = $(PREFIX)/share
 DOCDIR  = $(DATADIR)/doc
 PACKAGE = flisp
 
-# Defaults in C-source
-CFLAGS += -D FLISPLIB=$(DATADIR)/$(PACKAGE) -D FLISPRC=$(DATADIR)/$(PACKAGE)/init.lsp
-
-OBJ = posix.o string.o lisp.o
-OBJD = double.o posix.o string.o lispd.o
-BINARIES = flisp flispd
-LIBRARIES = libflisp.a libflispd.a
+OBJ = double.o lisp.o posix.o string.o
+BINARIES = fl
+SCRIPTS = flisp
+LIBRARIES = libflisp.a
 RC_FILES = init.lsp
 HEADER = lisp.h string.h posix.h double.h
 
 LISPLIB = flisp.lsp string.lsp file.lsp cl.lsp
-SOURCES = flisp.c lisp.c lisp.h double.c double.h posix.c posix.h
+SOURCES = fl.c flisp.sht lisp.c lisp.h double.c double.h posix.c posix.h string.c string.h
 
 DOCFILES = README.md doc/flisp.html doc/develop.html doc/history.html doc/implementation.html
 MOREDOCS = README.html doc/flisp.md doc/develop.md doc/history.md doc/implementation.md
@@ -44,44 +42,33 @@ MOREDOCS = README.html doc/flisp.md doc/develop.md doc/history.md doc/implementa
 .sht.lsp:
 	./sht $*.sht >$@
 
-all: $(BINARIES) $(LIBRARIES) flisp.pc flispd.pc
+all: $(BINARIES) $(SCRIPTS) $(LIBRARIES) flisp.pc
 
 debug: CPPFLAGS += -UNDEBUG -g
 debug: $(BINARIES) $(LIBRARIES)
 
 double.o: double.c double.h lisp.h
-	$(CC) $(CPPFLAGS) $(CFLAGS) -D FLISP_DOUBLE_EXTENSION -c $<
-
-flisp: flisp.o $(OBJ) init.lsp
-	$(LD) $(LDFLAGS) -o $@ $< $(OBJ)
-
-flisp.o: flisp.c lisp.h posix.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
 
-flispd: flispd.o $(OBJD) init.lsp
-	$(LD) $(LDFLAGS) -o $@ $< $(OBJD) -lm
+fl: fl.o lisp.o $(OBJ)
+	$(LD) $(LDFLAGS) -o $@ $^ -lm
 
-flispd.o: flisp.c lisp.h double.h posix.h
-	$(CC) $(CPPFLAGS) $(CFLAGS) -D FLISP_DOUBLE_EXTENSION -c $< -o $@
+flisp: flisp.sht fl core.lsp
+	BINDIR=$(BINDIR) FLISPLIB=$(DATADIR)/$(PACKAGE) ./sht $< > $@
+	chmod +x $@
+
+fl.o: fl.c lisp.h posix.h double.h string.h
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
 
 flisp.pc: flisp.pc.sht
-	PREFIX=$(PREFIX) ./sht $< > $@
-
-flispd.pc: flispd.pc.sht
 	PREFIX=$(PREFIX) ./sht $< > $@
 
 init.lsp: init.sht core.lsp
 
 lisp.o: lisp.c lisp.h
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@ -lc
-
-lispd.o: lisp.c lisp.h
-	$(CC) $(CPPFLAGS) $(CFLAGS) -D FLISP_DOUBLE_EXTENSION -c $< -o $@ -lc
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 libflisp.a: $(OBJ)
-	$(AR) rcs $@ $^
-
-libflispd.a: $(OBJD)
 	$(AR) rcs $@ $^
 
 posix.o: posix.c posix.h lisp.h
@@ -118,26 +105,24 @@ doxygen: FORCE
 	doxygen
 
 # Development
-fl: flisp FORCE
-	FLISPRC=init.lsp FLISPLIB=. FLISP_DEBUG=f.log $$(which rlwrap) ./flisp
-dfl: flispd FORCE
-	FLISPRC=init.lsp FLISPLIB=. FLISP_DEBUG=f.log $$(which rlwrap) ./flispd
-fld: flisp FORCE
-	FLISPRC=init.lsp FLISPLIB=. FLISP_DEBUG=f.log gdb ./flisp
-flv: flisp FORCE
-	FLISPRC=init.lsp FLISPLIB=. FLISP_DEBUG=f.log valgrind ./flisp
+fli: fl flisp FORCE
+	FLISP_DEBUG=f.log FLISPLIB=. $$(which rlwrap) ./fl flisp
+fld: fl FORCE
+	FLISP_DEBUG=f.log FLISPLIB=. gdb ./fl
+flv: fl FORCE
+	FLISP_DEBUG=f.log FLISPLIB=. valgrind ./fl
 frama-c: FORCE
 	frama-c -c11 -cpp-extra-args="-I$(frama-c -print-path)/libc -I/usr/include -I." -kernel-msg-key pp -metrics *.c
 
-LISPSRC = init.sht $(LISPLIB)
+LISPSRC = $(SCRIPTS) $(LISPLIB)
 ALLSRC = $(SOURCES) $(LISPSRC)
 # Requires sloccount
-measure: $(RC_FILES) $(BINARIES) strip FORCE
+measure: $(RC_FILES) $(BINARIES) $(SCRIPTS) strip FORCE
 	@echo
 	@echo fLisp Code Stats
 	@echo
 	@echo "libsize: " $$(set -- $$(ls -l libflisp.a); echo $$5)
-	@echo "binsize: " $$(set -- $$(ls -l flisp); echo $$5)
+	@echo "binsize: " $$(set -- $$(ls -l fl); echo $$5)
 	@echo "              C  Lisp  Total"
 	@echo "lines:     $$(cat $(SOURCES) | wc -l)   $$(cat $(LISPSRC) | wc -l)   $$(cat $(ALLSRC) | wc -l)"
 	@echo "files:        $$(echo $(SOURCES) | wc -w)     $$(echo $(LISPSRC) | wc -w)     $$(echo $(ALLSRC) | wc -w)"
@@ -152,12 +137,12 @@ splint: FORCE
 TAGS: FORCE
 	ctags -e *.c *.h *.lsp
 
-test: flispd test/test.lsp FORCE
-	@(cd test && ./test -as)
+test: fl test/test.lsp FORCE
+	@(cd test && ./test.sh -as)
 
 # Exit 1 if any testsuite fails
-check: flispd test/test.lsp FORCE
-	@(cd test && ./test -sa | grep tests, | \
+check: fl test/test.lsp FORCE
+	@(cd test && ./test.sh -sa | grep tests, | \
 	while read RESULT; do \
 	   RESULT=$${RESULT#* tests, }; \
 	   RESULT=$${RESULT% failures*}; \
@@ -171,12 +156,13 @@ strip: $(BINARIES) $(LIBRARIES) FORCE
 	strip $(BINARIES) $(LIBRARIES)
 
 clean: FORCE
-	-$(RM) -f $(OBJ) $(OBJD) $(BINARIES) $(LIBRARIES) $(RC_FILES) flisp.o flispd.o flisp.pc flispd.pc
+	-$(RM) -f $(OBJ) $(BINARIES) $(SCRIPTS) $(LIBRARIES) $(RC_FILES) fl.o flisp.pc
 	-$(RM) -rf doxygen
 	-$(RM) -f $(MOREDOCS)
 	-$(RM) -f f.log
 	-$(RM) -f test/test.lsp  test/f.log
 	-$(RM) -rf debian/flisp debian/flisp-dev debian/flisp-common debian/flisp-doc
+	-$(RM) -f debian/files debian/*.substvars
 
 deb: FORCE
 	dpkg-buildpackage -b -us -uc
@@ -184,9 +170,9 @@ deb: FORCE
 # fLisp standalone
 install: install-bin install-lib install-doc
 
-install-bin: $(BINARIES) FORCE
+install-bin: $(BINARIES) $(SCRIPTS) FORCE
 	-$(MKDIR) -p $(DESTDIR)$(BINDIR)
-	-$(CP) $(BINARIES) $(DESTDIR)$(BINDIR)
+	-$(CP) $(BINARIES) $(SCRIPTS) $(DESTDIR)$(BINDIR)
 
 install-doc: $(DOCFILES) FORCE
 	-$(MKDIR) -p $(DESTDIR)$(DOCDIR)/$(PACKAGE)
@@ -200,7 +186,7 @@ install-lib: $(RC_FILES) $(LISPLIB) FORCE
 	-$(MKDIR) -p $(DESTDIR)$(DATADIR)/$(PACKAGE)
 	-$(CP) $(RC_FILES) $(LISPLIB) $(DESTDIR)$(DATADIR)/$(PACKAGE)
 
-install-dev: $(LIBRARIES) $(HEADER) core.lsp flisp.pc flispd.pc FORCE
+install-dev: $(LIBRARIES) $(HEADER) core.lsp flisp.pc FORCE
 	-$(MKDIR) -p $(DESTDIR)$(LIBDIR)
 	-$(CP) $(LIBRARIES) $(DESTDIR)$(LIBDIR)
 	-$(MKDIR) -p $(DESTDIR)$(INCDIR)/$(PACKAGE)
@@ -208,10 +194,10 @@ install-dev: $(LIBRARIES) $(HEADER) core.lsp flisp.pc flispd.pc FORCE
 	-$(MKDIR) -p $(DESTDIR)$(DATADIR)/$(PACKAGE)
 	-$(CP) core.lsp $(DESTDIR)$(DATADIR)/$(PACKAGE)
 	-$(MKDIR) -p $(DESTDIR)$(LIBDIR)/pkgconfig
-	-$(CP) flisp.pc flispd.pc $(DESTDIR)$(LIBDIR)/pkgconfig
+	-$(CP) flisp.pc $(DESTDIR)$(LIBDIR)/pkgconfig
 
 uninstall: FORCE
-	-(cd  $(DESTDIR)$(BINDIR) && $(RM) -f $(BINARIES))
+	-(cd  $(DESTDIR)$(BINDIR) && $(RM) -f $(BINARIES) $(SCRIPTS))
 	-(cd  $(DESTDIR)$(LIBDIR) && $(RM) -f $(LIBRARIES))
 	-(cd  $(DESTDIR)$(LIBDIR)/pkgconfig && $(RM) -f $(PACKAGE).pc)
 	-$(RM) -rf $(DESTDIR)$(INCDIR)/$(PACKAGE)

@@ -3,22 +3,43 @@
 # ROADMAP
 
 ## Next
-
-- Cleanup cerf: not so easy to do, but now easier with dynamic primitive loading.
-  - create evalApply and readCons on startup after registering readPrimitve and evalPrimitive
-    then use it in cerf().
-- Make logging mask, and suppress catch messages by default
-- Implement more `(interp subcommand[arg..])` introspection and configuration commands.
-  - (interp error[ fd])
-  - (interp types[ type..]) => list of types
-  - (interp body lambda|macro)
-- Add read and eval tracing.
+- Make cloneList() available to Lisp as (list-append) and use e.g. in (append).
+  - or implement append already in C.
+- Make memory allocator parametrizable, allocate constants in separate mmap.
+- Add "trim" parameter to gc call: add or increase allocated memory.
+- Add "which" parameter to gc call, so we can have more then one space.
+- Add gc stat fields to interp object
 
 ## Future
 
-- Implement backquote and friends.
-  - The reader already implements '`', ',' and ',@' as `quasiquote`, `unquote`
-    and `splice-unquote`.
+- Implement addIntegerToPad() and use it for object formatting, et. al.
+- ! don't! Remove argv0 and argv from flisp_interpreter(), inject them at startup <- or maybe not.
+- Clean up and document internal and exported flisp_* functions and FLISP_* macros.
+- Consider returning the element instead of the list with one element when
+  (elements o n n+1).
+- Namespace support for faster (?) symbol lookup with bigger programs
+  - each namespace has its own symbols tree
+  - when searching first the namespace is determined: prefix before '-', then
+	the namespace is looked up, if found the symbols w/o prefix and '-' is
+	looked up. If the namespace is not found, search the global namespace.
+- consider StreamObject and use it for interpreter streams.
+- Remove stdio.h from core:
+  - read(0,1,&inbuf) ~= getc, need a single char ungetc only.
+  - object fmt should not use printf anymore
+  - debug output: remoe printf also
+- expose the write(fmt)_* functions in lisp.h, so extensions writes can use them
+- Make symbol names huffman or algorithmic compressed int64_6 arrays for
+  speedier lookups.
+- Add line , character and column counter to input stream
+- Expose reader primitives and write reader in Lisp, utf-8!
+- Allow to extend the reader macros, property list?
+- Add "weight" field to objects and increment them on use. When over threshold
+  move to "sink" space and set weight negative. -1 is resevered for constants.
+- Re-order symbols on the fly so that heavier ones float to the bottom.
+- Objects host their reader (?) and are pluggable.
+- RPN micro reader
+- Remove all printf, make own buffering and remove stdio <- not a goal anymore:
+  simplify to standard.
 - Size reduction:
   - Reduce binary operators to 'and' and 'xor' and write needed rest in Lisp.
 - Tap the potential of the in code documentation via Doxygen.
@@ -30,9 +51,61 @@
 - posit's: https://en.wikipedia.org/wiki/Unum_(number_format)
 - Event based I/O
   - Buffered I/O operations throw yield exception if buffers are full (w) /empty
-    (r).
+	(r).
 - Test more then one interpreter.
 - ? CSP between interpreters?
+
+
+## fLisp 0.18
+- object: move write out of core, replace with fmt.
+  - instead of writer slot have a fmt slot in the type object.
+  - consider eliminating readably formatting from core.
+  - fl: read, eval, fmt, puts()
+  - rationale: embedded operation most likely doesn't want to print neither fmt.
+- object: new and fmt slot contain either:
+  + nil -> fallback operation
+  + primitive -> execute
+  - cons -> eval *new: this allows to override
+- CAR() CDR() Macro: use it consistently
+- Remove global variables (except argv, argv0) - they are covered by (interp-[input|output|debug).
+
+
+## fLisp 0.17
+- Allow all characters except controls and (ASCII) whitespace for symbol names
+- Implement backquote and friends in flisp.lsp.
+- Implement multiple return values.
+- Cleaner object types: objects are vectors of objects. Simple Objects are special cases w/o vector elements.
+  - (length object) is generalized to strings, vectors and lists.
+  - Lisp types are objects by themself. They host their init and writer function.
+  - `store` function to (destructively) set a an objects vector item.
+  - New object types can be constructed from Lisp.
+- symbol strings can either be static C-str'ings or garbage collected Lisp strings.
+- Only selected primitives do not err when they receive an error as argument.
+- More testing, stress-testing.
+- Reduced primitive set:
+  - symbol-name -> core.lsp
+  - vector ->  flisp.lsp
+- double numbers are moved into an extension.
+
+
+## flisp 0.17α
+- Make workable flisp command line utility as shell script and rework repl.
+- No exceptions/throw/catch, errors are signalled by returning an error object.
+- `flisp_eval_input()` replaces `flisp_eval`, no direct string evaluation.
+  anymore, return value is result, can be error object.
+- Built-in extended objects: interpreter, extension, values (experimental).
+- evalExpr() cycles countdown counter.
+- gc, gc-always, read trace, primitive trace accessible from Lisp.
+- Builtin integer to text converter, also exposed as (ifmt)
+- Writer doesn't use printf anymore
+- Error handling almost w/o printf
+- Reader partially rewritten.
+- Reader macros, aka #, some basic macros.
+- UTF-8 moved to string extension.
+- More flisp_* C-macros and exported functions
+- (elements), (object-length) and (object-size) primitives as foundation for
+  several higher level functions.
+- Fixes in memory allocator and stream code.
 
 ## flisp 0.16
 - Extensible Lisp Object structure.
@@ -121,4 +194,3 @@
 ## fLisp 0.8
 
 - error and object types are Lisp symbols instead of C-enums.
-

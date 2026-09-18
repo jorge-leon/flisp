@@ -1,10 +1,14 @@
 #ifndef LISP_H
 #define LISP_H
 /*
- * lisp.h, femto, Georg Lehner, 2024
- * fLisp header file
+ * fLisp - a tiny yet practical Lisp interpreter.
+ *
+ * Based on Tiny-Lisp: https://github.com/matp/tiny-lisp, public domain
+ *
+ * Georg Lehner <jorge@magma-soft.at> 2024, CC0 1.0
  *
  */
+
 #include <setjmp.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -12,21 +16,10 @@
 #include <limits.h>
 
 #define FL_NAME     "fLisp"
-#define FL_VERSION  "0.16"
-
-#ifndef FLISPLIB
-#define FLISPLIB /usr/local/share/flisp
-#endif
-#ifndef FLISPRC
-#define FLISPRC  FLISPRC/init.lsp
-#endif
-
-/* For inserting FLISPLIP, FLISPRC */
-#define CPP_XSTR(s) CPP_STR(s)
-#define CPP_STR(s) #s
+#define FL_VERSION  "0.17"
 
 #ifndef FLISP_MEMORY_INC_SIZE
-#define FLISP_MEMORY_INC_SIZE 8192UL  /* Increase memory by this amount if not enough */
+#define FLISP_MEMORY_INC_SIZE 16384UL  /* Increase memory by this amount if not enough */
 #endif
 
 /* buffersize for Lisp eval input */
@@ -34,63 +27,86 @@
 /* buffersize for Lisp result output */
 #define WRITE_FMT_BUFSIZ 2048
 
-/* Debugging */
-#define DEBUG_GC 0
-#define DEBUG_GC_ALWAYS 0
-#define FLISP_TRACE 0
-
 /* Lisp objects */
 
 typedef struct Object Object;
-typedef struct Interpreter Interpreter;
-typedef Object *(*LispEval) (Interpreter *, Object **, Object **);
+typedef struct TypeObject TypeObject;
+typedef Object *(*LispEval) (Object *, Object **, Object **, size_t);
+typedef Object *(*ExtensionInit) (Object *, Object *);
 
 typedef struct Primitive {
     char *name;
     int nMinArgs, nMaxArgs;
-    Object * argsType;
+    TypeObject *argsType;
     LispEval eval;
 } Primitive;
 
 /** Object - Lisp object data structure
  *
- * Simple: object.size=0, value in union
+ * Simple:
+ * - object.type
+ * - object.size=0,
+ * - value stored in union
  * Extended:
- * - objects.size .. number of additional bytes to allocation
- * - objects.count .. number of Object * pointers at start of extension
- * - value(s) in extension union
+ * - object.type
+ * - object.size .. number of additional bytes to allocation
+ * - object.length .. number of Object * pointers at start of extension
+ * - value(s) stored in extension union
  */
 typedef struct SimpleObject {
-    Object *type;
-    size_t size; /*0*/
-    union {                   // Simple Objects, or helpers
-        int64_t integer;      // integer
-        double number;        // double
-        Primitive *primitive; // primitive
-        size_t count;
-        Object *forward;      // GC forwarding pointer to collected object in to-space
+    TypeObject *type;
+    size_t size;
+    union {
+        /* Flisp */
+        int64_t value;
+        double number;
+        Primitive *primitive;
+        Object *values;
+        Object *forward;
+        size_t length;   /* (byte) length */
+        /* Extensions */
+        void *ptr;       /* generic pointer */
+        char *str;       /* pointer to byte array */
+        size_t index;    /* index into (byte) array */
+        uint64_t flags;  /* bit array */
     };
 } SimpleObject;
-struct Object {
+
+typedef struct TypeExt {
+    Object *name;       /* symbol or str object */
+    Object *new;        /* primitive or function to create the object */
+    Object *write;      /* primitive or function, (write stream object) */
+} TypeExt;
+
+typedef struct ConsExt {
+    Object *car;
+    Object *cdr;
+} ConsExt;
+
+typedef struct EnvExt {
+    Object *parent;
+    Object *vars;
+    Object *vals;
+} EnvExt;
+
+typedef struct ClosureExt {
+    Object *params;
+    Object *body;
+    Object *env;
+} ClosureExt;
+
+typedef struct ErrorExt {
     Object *type;
-    size_t size;
-    union {                   // Simple Objects, or helpers
-        int64_t value;      // integer
-        double number;        // double
-        Primitive *primitive; // primitive
-        size_t count;
-        Object *forward;      // GC forwarding pointer to collected object in to-space
-    };
-    union {
-        struct { Object *car;    Object *cdr; };
-        struct { Object *params; Object *body; Object *env; };
-        struct { Object *parent; Object *vars; Object *vals; };
-        char string[PATH_MAX];
-        struct { Object *path; FILE *fd; char *buf; size_t len; };
-        struct { Object *error_type; Object *message; Object *culprit; };
-        Object *objects[1];
-    };
-};
+    Object *message;
+    Object *culprit;
+} ErrorExt;
+
+typedef struct StreamExt {
+    Object *path;
+    FILE *fd;
+    char *buf;
+    size_t len;
+} StreamExt;
 
 /* Internal */
 typedef struct Memory {
@@ -98,68 +114,150 @@ typedef struct Memory {
     void *fromSpace, *toSpace;
 } Memory;
 
-typedef struct Interpreter {
+typedef struct InterpreterExt {
+    Object *input;
+    Object *output;
+    Object *stderr;
+    Object *debug;
+    Object *extensions;
+    Object *symbols;
+    Object *global;
+    /* vector ends here */
+    Object *gcTop;
+    Memory *memory;
+    int64_t countdown;
+    bool print : 1;
+    bool trace_read : 1;
+    bool trace_primitives : 1;
+    bool gc_always : 1;
+} InterpreterExt;
 
-    /* private */
-    Object *error;                   /* error code */
-    struct {
-        Object * type;
-        size_t size;
-        union { int64_t i; double n; size_t s; void *p;};
-        char string[WRITE_FMT_BUFSIZ]; /* Error message string object */
-    } message;
-    Object *result;                  /* result or error object */
+typedef struct ExtensionExt {
+    Object *name;
+    Object *version;
+    ExtensionInit init;
+} ExtensionExt;
 
-    Object input;                    /* default input stream object */
-    Object output;                   /* default output stream object */
-    Object debug;                    /* default debug output stream object */
+struct Object {
+    TypeObject *type;
+    size_t size;
+    union {
+        size_t length;
+        Object *values;
+        Object *forward;
+        /* assure compatibilty with simple object */
+        int64_t value;
+        double number;
+        /* convenience */
+        Primitive * primitive;
+    };
+    union {
+        Object *objects[1];                      // Vector
+        struct { Object *car;    Object *cdr; }; // Cons
+        char string[sizeof(InterpreterExt)];     // String, Symbol
+        ConsExt cons;
+        EnvExt env;
+        ClosureExt closure; /* Lambda, Macro */
+        ErrorExt error;
+        StreamExt stream;
+        ExtensionExt extension;
+        InterpreterExt self;
+    };
+};
 
-    /* globals */
-    Object *symbols;                 /* symbols list */
-    Object *global;                  /* global environment */
-    /* GC */
-    Object *gcTop;                   /* dynamic gc trace stack */
-    Memory *memory;                  /* memory available for object
-                                      * allocation, cleaned up by
-                                      * garbage collector */
-    /* exeptions */
-    jmp_buf exceptionEnv;  /* exception handling */
-    jmp_buf *catch;
-    /* reader */
-    struct { char *buf; size_t len; size_t capacity; };  /* read buffer */
-    /* interpreters */
-    struct Interpreter *next;    /* linked list of interpreters */
-} Interpreter;
+typedef struct TypeObject {
+    SimpleObject self;
+    TypeExt type;
+} TypeObject;
 
-/*@null@*/extern Interpreter *flisp_interpreters;
+typedef struct ConsObject {
+    SimpleObject self;
+    ConsExt cons;
+} ConsObject;
+
+typedef struct Scratchpad {
+    char *string;
+    size_t size;
+    size_t capacity;
+} Scratchpad;
+
+// PUBLIC INTERFACE ///////////////////////////////////////////////////////
+extern Object *flisp_interpreter(size_t size, char **, FILE*, FILE*, FILE*, FILE*);
+extern void flisp_destroy(Object *);
+extern Object *flisp_eval_object(Object *, Object *);
+extern Object *flisp_read_expr(Object *);
+extern Object *flisp_eval_expr(Object *, Object *);
+extern Object *flisp_eval_input(Object *, Object *);
+extern Object *flisp_write_object(Object *, Object *, Object *, Object *);
+extern Object *flisp_lookup(Object *, Object *);
+/* Note: to be documented */
+extern Object *flisp_find_symbol(Object *, char*, size_t);
+extern Object *flisp_nreverse(Object *, Object *);
+extern char *flisp_symbol_string(Object *);
+extern Object *file_fopen(Object *, char *, char*);
+extern int file_fclose(Object *, Object *);
+extern int64_t flisp_list_length(Object*);
+
+extern Object *print_fmt(Object *, Object **, size_t, char *, ...);
+extern SimpleObject nil_obj;
+extern TypeObject type_primitive_obj;
+extern SimpleObject flisp_init_invalid;
+
+/* Candidates
+ * Object *flisp_find_value(interp, symbol) -> NULL if not bound
+ * Object *flisp_lookup(interp, symbol) -> error if not bound
+ * SimpleObject type_init_invalid: primitive for non initializable types
+ */
+/* Extensions */
+#define FLISP_IS_ERR(OBJECT) ((OBJECT)->type == type_error)
+#define FLISP_CHECK_ERR(OBJECT) if FLISP_IS_ERR(OBJECT) return OBJECT
+
+#define FLISP_IS_EOF(OBJECT) (FLISP_IS_ERR(OBJECT) && (OBJECT)->error.type == end_of_file)
+/* Note: for speed reasons we could use a single static error object and compare pointers */
+#define FLISP_IS_OOM(OBJECT) (FLISP_IS_ERR(OBJECT) && (OBJECT)->error.type == gc_error)
+
+extern Object *flisp_register_extension(Object *, char *, ExtensionInit);
+
+extern Object *flisp_register_constant(Object *, Object *, Object *);
+extern Object *flisp_register_primitive(Object *, char *, int, int, TypeObject *, LispEval);
+extern Object *flisp_register_type(Object *, char *, TypeObject *, Object *, Object *);
+
 
 // PROGRAMMING INTERFACE ////////////////////////////////////////////////
+
 /* Constants */
 /* Fundamentals */
 extern Object *nil;
 extern Object *t;
 /* Types */
-extern Object *type_integer;
-extern Object *type_double;
-extern Object *type_string;
-extern Object *type_symbol;
-extern Object *type_cons;
-extern Object *type_lambda;
-extern Object *type_macro;
-extern Object *type_error;
-extern Object *type_primitive;
-extern Object *type_stream;
-/* internal */
-extern Object *type_env;
-extern Object *type_moved;
+extern TypeObject *type_integer;
+extern TypeObject *type_primitive;
+/* extensible */
+extern TypeObject *type_vector;
+extern TypeObject *type_cons;
+extern TypeObject *type_lambda;
+extern TypeObject *type_macro;
+extern TypeObject *type_env;
+extern TypeObject *type_type;
+extern TypeObject *type_string;
+extern TypeObject *type_symbol;
+extern TypeObject *type_error;
+extern TypeObject *type_stream;
+/* embedding */
+extern TypeObject *type_ext; /* opaque object */
+extern TypeObject *type_str; /* C string / ASCII or UTF-8 */
+
+#define type_any (TypeObject*)&nil_obj
+
 /* Exceptions */
 extern Object *end_of_file;
 extern Object *range_error;
 extern Object *wrong_type_argument;
 extern Object *invalid_value;
-extern Object *wrong_num_of_arguments;
+extern Object *wrong_number_of_arguments;
 extern Object *io_error;
 extern Object *out_of_memory;
+extern Object *gc_error;
 /* I/O */
 extern Object *permission_denied;
 extern Object *not_found;
@@ -168,80 +266,93 @@ extern Object *read_only;
 extern Object *is_directory;
 /* utility */
 extern Object *flisp_empty_string;
+extern Object *flisp_integer_zero;
+extern Object *flisp_empty_vector;
 
-extern Object *newObject(Interpreter *, Object *, size_t);
-extern Object *newInteger(Interpreter *, int64_t);
-extern Object *newStringWithLength(Interpreter *, char *, size_t);
-extern Object *newString(Interpreter *, char *);
-extern Object *newCons(Interpreter *, Object **, Object **);
-extern Object *newSymbol(Interpreter *, char *);
-extern Object *newStreamObject(Interpreter *, FILE *, char *);
+extern Object *flisp_new(Object *, TypeObject *, Object **, size_t, size_t);
+/* Note: flisp_' ify these names */
+extern Object *newObject(Object *, TypeObject *, size_t);
+extern Object *newInteger(Object *, int64_t);
+extern Object *newStringWithLength(Object *, char *, size_t);
+extern Object *newString(Object *, char *);
+extern Object *newCons(Object *, Object **, Object **);
+extern Object *newSymbol(Object *, char *);
+extern Object *newError(Object *, Object *, Object *, char *);
+extern Object *newError2(Object *, Object *, Object *, char *, char *);
+extern Object *newErrorI(Object *, Object *, Object *, char *, int64_t, char *);
+extern Object *newError8(Object *, Object *, Object *, char *, char *, char *, char *, char *, char *, char *, char *);
 
-extern int streamGetc(Interpreter *interp, FILE *fd);
-extern void resetBuf(Interpreter *);
-extern size_t addCharToBuf(Interpreter *, int);
+extern Object *newStreamObject(Object *, FILE *, char *);
 
-extern void setInterpreterResult(Interpreter *, Object *, Object *, char *, ...);
-#define exceptionWithObject(interp, object, error, ...)           \
-    do {                                                          \
-        resetBuf(interp);                                         \
-        setInterpreterResult(interp, object, error, __VA_ARGS__); \
-        longjmp(*interp->catch, 2);                               \
-    } while(0)
-#define exception(interp, error, ...)       exceptionWithObject(interp, nil, error, __VA_ARGS__)
+extern void resetBuf(Object *);
+extern bool addCharToBuf(Object *, int);
 
+
+extern TypeObject type_symbol_obj, type_type_obj, type_str_obj, type_string_obj;
+
+/* Constants */
+#define FLISP_DEFINE_CONSTANT(NAME,STRING)                                    \
+    SimpleObject NAME##_obj = { .type = &type_symbol_obj, .size = 0, .str = #STRING }; \
+    Object *NAME = (Object *)&NAME##_obj
+
+/* Types */
+#define FLISP_DEFINE_TYPE(NAME)                                         \
+    TypeObject type_##NAME##_obj = {                                    \
+        .self.type = &type_type_obj,                                    \
+        .self.size = sizeof(Object*[3]),                                \
+        .self.length = 3,                                               \
+        .type.name =  (Object*)&(SimpleObject){ .type = &type_symbol_obj, .size = 0, .str = "type-" #NAME }, \
+        .type.new =   (Object*)&nil_obj,                                \
+        .type.write = (Object*)&nil_obj,                                \
+    };                                                                  \
+    TypeObject *type_##NAME = &type_##NAME##_obj
+
+/* Garbage Collector */
 #define GC_PASTE1(name, id)  name ## id
 #define GC_PASTE2(name, id)  GC_PASTE1(name, id)
 #define GC_UNIQUE(name)      GC_PASTE2(name, __LINE__)
 
-#define GC_CHECKPOINT Object *gcTop = interp->gcTop
-#define GC_RELEASE interp->gcTop = gcTop
-extern Object *gcReturn(Interpreter *, Object *, Object *);
+#define GC_CHECKPOINT Object *gcTop = interp->self.gcTop
+#define GC_RELEASE interp->self.gcTop = gcTop
+extern Object *gcReturn(Object *, Object *, Object *);
 #define GC_RETURN(expr)  return gcReturn(interp, gcTop, expr)
 
 #define GC_TRACE(name, init)                                            \
-    Object GC_UNIQUE(gcTrace) = { type_cons, .car = init, .cdr = interp->gcTop }; \
-    interp->gcTop = &GC_UNIQUE(gcTrace);                                \
+    Object GC_UNIQUE(gcTrace) = { .type = type_cons, .car = init, .cdr = interp->self.gcTop }; \
+    interp->self.gcTop = &GC_UNIQUE(gcTrace);                           \
     Object **name = &GC_UNIQUE(gcTrace).car;
 
-void fl_debug(Interpreter *, char *, ...);
+/*  do while dispatcher */
+extern bool flisp_not_same(Object **, Object *);
+extern bool flisp_is_error(Object **, Object *);
+#define FLISP_WHILE_OK(F) if (flisp_not_same(&e, F)) break
+#define FLISP_UNLESS_ERR(F) if (flisp_is_error(&e, F)) break
 
+void flisp_debug(Object *, char *, ...);
 
-#define FLISP_ARG_ONE (*args)->car
-#define FLISP_ARG_TWO (*args)->cdr->car
-#define FLISP_ARG_THREE (*args)->cdr->cdr->car
+#define FLISP_ARG1 (*args)->car
+#define FLISP_ARG2 (*args)->cdr->car
+#define FLISP_ARG3 (*args)->cdr->cdr->car
+#define FLISP_ARG4 (*args)->cdr->cdr->cdr->car
+#define FLISP_ARG5 (*args)->cdr->cdr->cdr->cdr->car
 
-#define FLISP_HAS_ARGS *args != nil
-#define FLISP_HAS_ARG_TWO ((*args)->cdr != nil)
-#define FLISP_HAS_ARG_THREE ((*args)->cdr->cdr != nil)
+#define FLISP_ASSERT(PARAM, TYPE, SIGNATURE)                            \
+    if (PARAM->type != TYPE)                                            \
+        return newError8(interp, wrong_type_argument, PARAM,            \
+                         SIGNATURE,                                     \
+                         " expected ",                                  \
+                         flisp_symbol_string((TYPE)->type.name),        \
+                         " got ",                                       \
+                         flisp_symbol_string((PARAM)->type->type.name), \
+                         "", "", "")
 
-#define FLISP_CHECK_TYPE(PARAM, TYPE, SIGNATURE) \
-    if (PARAM->type != TYPE)               \
-        exceptionWithObject(interp, PARAM, wrong_type_argument, \
-                            SIGNATURE " expected %s, got: %s", TYPE->string, PARAM->type->string)
-
-/* UTF-8 handling */
-extern size_t flisp_char_length(char);
-extern size_t flisp_char_index(Interpreter *, char *, size_t);
-extern size_t flisp_char_count(Interpreter *, char *, size_t);
-
-// PUBLIC INTERFACE ///////////////////////////////////////////////////////
-extern Interpreter *flisp_new(size_t size, char **, char*, FILE*, FILE*, FILE*);
-extern void flisp_destroy(Interpreter *);
-extern void flisp_eval(Interpreter *, char *);
-/* Note: experimental */
-extern void flisp_expr(Interpreter *, Object *);
-extern void flisp_write_object(Interpreter *, FILE *, Object *, bool);
-extern void flisp_write_error(Interpreter *, FILE *);
-
-extern void flisp_register_constant(Interpreter *, Object *, Object *);
-extern Primitive *flisp_register_primitive(Interpreter *, char *, int, int, Object *, LispEval);
-
-#define FLISP_RESULT_CODE(INTERPRETER) INTERPRETER->error
-#define FLISP_RESULT_MESSAGE(INTERPRETER) ((Object *)&INTERPRETER->message)
-#define FLISP_RESULT_OBJECT(INTERPRETER) INTERPRETER->result
-
+#define FLISP_INTERP interp->self
+#define FLISP_STANDARD_INPUT  interp->self.input->stream
+#define FLISP_STANDARD_OUTPUT interp->self.output->stream
+#define FLISP_STDERR          interp->self.stderr->stream
+#define FLISP_DEBUG_OUTPUT    interp->self.debug->stream
 #endif
+
 /*
  * Local Variables:
  * c-file-style: "k&r"

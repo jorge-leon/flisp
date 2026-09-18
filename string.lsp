@@ -1,14 +1,25 @@
 ;;
-;;  string function library
+;;  fLisp string library
 ;;
-;;
-;;  Built Into fLisp
-;;    (string-append s a)
-;;    (length s)
-;;    (substring s st end)
-;;    (string-search haystack needle)
+;; Hugh Barney
+;; leg20260331, CC 1.0
 ;;
 
+(extension 'string)
+
+;; (substring string[ start [end]])
+(defun substring (string . args)
+  (cond
+    ((null args) string)
+    ((and (integerp (car args)) (cdr args) (integerp (cadr args)))
+     (elements string (char-offset string (car args)) (char-offset string (cadr args))) )
+    ((integerp (car args))
+     (elements string (char-offset string (car args))) )
+    (t
+     (error wrong-type-argument
+	    (if (integerp (car args))
+		"(substring string[ start [end]]) - end expected type-integer, got"
+		"(substring string[ start [end]]) - start expected type-integer, got" )))))
 
 ;; trim all spaces from front of a string
 (defun string-trim-front(s)
@@ -24,7 +35,6 @@
 (defun string-trim(s)
   (string-trim-back (string-trim-front s)))
 
-
 ;;
 ;; string-ref , get character at position r
 ;;   zero based indexing
@@ -32,13 +42,11 @@
 (defun string-ref (s r)
    (substring s r (+ r 1)))
 
-
 ;;
 ;; string-startswith - return t if string starts with search
 ;;
 (defun string-startswith (str search)
   (eq 0 (string-search search str)))
-
 
 ;;
 ;; shrink string right by dropping off the first char
@@ -46,13 +54,11 @@
 (defun string-shrink-right(s)
   (substring s 1))
 
-
 ;;
 ;; shrink string left by dropping off last char
-;;  
+;;
 (defun string-shrink-left(s)
   (substring s 0 -1))
-
 
 ;;
 ;; return first char of string
@@ -90,5 +96,3 @@
 	   l )))))
 
 (provide 'string)
-
-

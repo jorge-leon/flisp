@@ -9,11 +9,15 @@ href="https://github.com/jorge-leon/femto">Femto</a> editor.</p>
 left to add, but when there is nothing left to take away. --
 <cite>Antoine de Saint-Exupery</cite></p>
 </blockquote>
+<p>But also:</p>
+<blockquote>
+<p>A LISP programmer knows the value of everything, but the cost of
+nothing. -- Alan Perlis</p>
+</blockquote>
 <h2 id="why-the-name-flisp">Why the name fLisp</h2>
 <p>Lower case "f" stands for the femto metric prefix which represents
 10^-15 — a very small number. fLisp is meant to be very small.</p>
-<p>Since "femtolisp" is already taken by a not so "femto" Lisp
-interpreter, the choice fell on "fLisp".</p>
+<p>Since "femtolisp" is already taken the choice fell on "fLisp".</p>
 <h2 id="goals-of-flisp">Goals of fLisp</h2>
 <ul>
 <li>To be the smallest embeddable Lisp interpreter yet powerful enough
@@ -28,25 +32,25 @@ further experimentation].</li>
 0.13     ?       85584   3.6k/2.4k/6            373/272/3
 0.14     ?       82984   3.7k/2.4k/7            610/355/5
 0.15     67096   87336   3.8k/2.5k/7            358/166/5
-0.16    223948  241696   3882/2547/7            371/166/5</code></pre>
+0.16    223948  241696   3882/2547/7            371/166/5
+0.17    116376  142368   5280/3632/10           736/191/5</code></pre>
 <p>Binary sizes are measured on Debian GNU/Linux amd64. The Library
 column shows the size of the <code>lispflisp.a</code> embeddable
-library, the Binary column the size of the <code>flisp</code> command
-line interpreter which contains the string and the posix library.</p>
+library, the Binary column the size of the <code>fl</code> command line
+interpreter which contains the string, double and posix library.</p>
 <h2 id="building">Building</h2>
 <p>fLisp depends only on the standard C libraries.</p>
 <p>The default Makefile target:</p>
 <pre><code>make all</code></pre>
 <p>creates:</p>
 <ul>
-<li><p>flisp .. The flisp command line utility.</p></li>
-<li><p>flispd .. The command line utility with floating point [double]
-support.</p></li>
-<li><p>libflisp.a and libflispd.a .. The libraries for embedding fLisp
-in other applications.</p>
+<li><p>fl .. The flisp micro repl command line utility.</p></li>
+<li><p>flisp .. An fLisp Repl written in fLisp.</p></li>
+<li><p>libflisp.a, flisp.pc .. The library and pkg-confif description
+file for embedding fLisp in other applications.</p>
 <p>make install</p></li>
 </ul>
-<p>Installs the command line utilities, documentation and Lisp
+<p>Installs fl, the command line utility flisp, documentation and Lisp
 libraries.</p>
 <pre><code>make install-dev</code></pre>
 <p>Installs the libraries, header files and pkg-config files.</p>

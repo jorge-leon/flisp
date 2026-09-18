@@ -1,0 +1,79 @@
+#!./test.sh # -*- mode: sh -*-
+#
+# fLisp test string extension
+#
+# leg20231128, CC0 1.0
+#
+
+export FLISP=../fl
+export FLISP_PRINT=1
+unset FLISP_DEBUG
+export FLISP_INTERACTIVE=0
+PREPARE="(extension 'string)"
+#PREPARE="(interp-gc-always t)$PREPARE"
+#PREPARE="(interp-trace-read t)$PREPARE"
+#PREPARE="(interp-trace-primitives t)$PREPARE"
+
+export FLISP_DEBUG=../f.log
+export FLISP_SIZE=$((20*1024*1024))
+
+tap 20
+
+
+IN='(code-length "a")' OUT=1
+flisp_expr; ok char-length-1 ascii is 1
+
+IN='(code-length "ä")' OUT=2
+flisp_expr; ok char-length-1 umlaut a is 2
+
+IN='(char-offset "answer" 4)' OUT=4
+flisp_expr; ok char-offset-1  offset into ascii string is index
+
+IN='(char-offset "änßwer" 4)' OUT=6
+flisp_expr; ok char-offset-2  offset into utf-8 string is greater then index
+
+IN='(char-offset "änßwer" -3)' OUT=5
+flisp_expr; ok char-offset-3  negative offset into utf-8 string counts from end
+
+IN='(string-length "")' OUT="0" flisp_expr; ok string-length-1 length of emtpy string is 0
+IN='(string-length "answer")' OUT="6" flisp_expr; ok string-length-2  length of answer string is 6
+IN='(string-length "änßwér")' OUT="6" flisp_expr; ok string-length-3  length of 3 unicode 3 ascii string is 6
+
+
+IN='(code-char 64)' OUT='"@"'
+flisp_expr; ok code-char-1 ascii 64 is @
+
+IN='(code-char 228)' OUT='"ä"'
+flisp_expr; ok code-char-2 codepoint 228 is umlaut a
+
+IN='(char-code "@")' OUT='64'
+flisp_expr; ok char-code-1 of @ is 64
+
+IN='(char-code "ä")' OUT='228'
+flisp_expr; ok char-code-2 of umlaut a is 228
+
+
+IN='(string-search "" "")' OUT='0'
+flisp_expr; ok string-search-1 emtpy string is contained in empty string at 0
+
+IN='(string-search "" "abcde")' OUT='0'
+flisp_expr; ok string-search-2 emtpy string is contained in string at 0
+
+IN='(string-search "ab" "abcde")' OUT='0'
+flisp_expr; ok string-search-3 start string is contained in string at 0
+
+IN='(string-search "bc" "abcde")' OUT='1'
+flisp_expr; ok string-search-4 not start string is contained in string at 1
+
+IN='(string-search "bc" "äbcdé")' OUT='1'
+flisp_expr; ok string-search-4-1  in unicode prefix string at 1
+
+IN='(string-search "x" "abcde")' OUT='nil'
+flisp_expr; ok string-search-5 not contained string is nil
+
+IN='(strspn "answer" "san")' OUT=3
+flisp_expr; ok strspn-1
+
+IN='(strcspn "answer" "wrs")' OUT=2
+flisp_expr; ok strcspn-1
+

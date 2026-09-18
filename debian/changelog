@@ -1,3 +1,38 @@
+flisp (0.17-1) trixie; urgency=medium
+
+  fLisp type system
+  Vector and user defined types
+  Multiple return values
+  Exception-less execution
+  Loadable extensions
+  Doubles moved to extension
+  Eval countdown facility
+  C embedding improvements
+  Two scriptable command line interpreters
+
+ -- Georg Lehner <jorge@magma-soft.at>  Fri, 18 Sep 2026 10:03:13 +0200
+
+flisp (0.17-alpha3) trixie; urgency=medium
+
+  C embedding improvements
+
+ -- Georg Lehner <jorge@magma-soft.at>  Tue, 14 Apr 2026 22:33:31 +0200
+
+flisp (0.17-alpha2) trixie; urgency=medium
+
+  Multiple return values
+
+ -- Georg Lehner <jorge@magma-soft.at>  Sun, 12 Apr 2026 11:37:10 +0200
+
+flisp (0.17-alpha1) trixie; urgency=medium
+
+  Extensible objects, vectors
+  Exception-less execution
+  Loadable extensions
+  Eval countdown
+
+ -- Georg Lehner <jorge@magma-soft.at>  Sun, 5 Apr 2026 20:48:35 +0200
+
 flisp (0.16-1) trixie; urgency=medium
 
   Add extensible objects. Add experimental error type and flisp_expr()

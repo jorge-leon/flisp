@@ -1,11 +1,17 @@
-#!./test # -*- mode: sh -*-
+#!./test.sh # -*- mode: sh -*-
+#
+# fLisp test file library
+#
 
-export FLISPRC=../init.lsp
-export PREPARE="(require 'file)"
+tap 21
 
-tap 22
+export FLISP_SIZE=$((200*1024*1024))
+flisp () {
+    { cat ../core.lsp ../string.lsp ../file.lsp ; echo '(interp-output (open ">1"))'; cat -; } | FLISP_QUIET=1 ../fl
+}
+FLISP=flisp
+export FLISP_PRINT=1
 
-false; ok mkdir-1 \# TODO
 
 IN='(file-name-directory "")' OUT='nil'
 flisp_expr; ok file-name-directory-1 empty string is empty

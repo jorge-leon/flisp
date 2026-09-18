@@ -11,14 +11,18 @@ fLisp is embedded into the
 > nothing left to add, but when there is nothing left to take away.
 > -- <cite>Antoine de Saint-Exupery</cite>
 
+But also:
+
+> A LISP programmer knows the value of everything, but the cost of nothing. 
+> -- Alan Perlis
+
 
 ## Why the name fLisp
 
 Lower case "f" stands for the femto metric prefix which represents
 10^-15 — a very small number.  fLisp is meant to be very small.
 
-Since "femtolisp" is already taken by a not so "femto" Lisp
-interpreter, the choice fell on "fLisp".
+Since "femtolisp" is already taken the choice fell on "fLisp".
 
 
 ## Goals of fLisp
@@ -37,11 +41,12 @@ Size by version:
 	0.14     ?		 82984   3.7k/2.4k/7			610/355/5
 	0.15     67096	 87336   3.8k/2.5k/7            358/166/5
 	0.16    223948  241696   3882/2547/7            371/166/5
+	0.17    116376  142368   5280/3632/10           736/191/5
 
 Binary sizes are measured on Debian GNU/Linux amd64. The Library
 column shows the size of the `lispflisp.a` embeddable library, the
-Binary column the size of the `flisp` command line interpreter which
-contains the string and the posix library.
+Binary column the size of the `fl` command line interpreter which
+contains the string, double and posix library.
 
 ## Building
 
@@ -52,13 +57,15 @@ The default Makefile target:
 	make all
 
 creates:
-- flisp .. The flisp command line utility.
-- flispd .. The command line utility with floating point [double] support.
-- libflisp.a and libflispd.a .. The libraries for embedding fLisp in other applications.
+- fl .. The flisp micro repl command line utility.
+- flisp .. An fLisp Repl written in fLisp.
+- libflisp.a, flisp.pc  .. The library and pkg-confif description file
+  for embedding fLisp in other applications.
 
 	make install
 
-Installs the command line utilities, documentation and Lisp libraries.
+Installs fl, the command line utility flisp, documentation and Lisp
+libraries.
 
 	make install-dev
 

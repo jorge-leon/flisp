@@ -1,0 +1,7 @@
+- Documentation
+  - new functions in flisp.lsp
+  - history.html
+    - review
+    - back navigation to other doc
+- trace-read is not working
+- Document build dependencies

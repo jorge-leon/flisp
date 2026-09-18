@@ -1,9 +1,17 @@
 #ifndef POSIX_H
 #define POSIX_H
+/*
+ * fLisp posix extension: Bag of POSIX libc wrappers
+ *
+ * leg20260315, CC0 1.0
+ *
+ */
 
 #include "lisp.h"
 
-extern bool flisp_posix_register(Interpreter *);
+#define FLISP_POSIX_VERSION "0.1"
+
+extern Object *flisp_posix_init(Object *, Object *);
 
 #endif
 /*

@@ -1,0 +1,42 @@
+#!./test.sh # -*- mode: sh -*-
+#
+# fLisp test executable and fLisp core
+#
+# leg20260505, CC0 1.0
+#
+
+FLISP_VERSION="fLisp 0.17α3"
+FLISP_MEMORY_INC_SIZE=$(
+    while read DEFINE CONST NUM REST; do
+	[ "$DEFINE" = "#define" -a "$CONST" = FLISP_MEMORY_INC_SIZE ] && echo ${NUM%UL} && break
+    done <../lisp.h
+)
+
+export FLISP=../fl
+export FLISP_DEBUG=../f.log
+unset FLISP_PRINT
+#export FLISP_SIZE=$((20*1024*1024))
+
+tap 7
+
+[ -x $FLISP ]
+ok fl-1 flisp exists and is executable
+
+: | $FLISP ; ok flisp-2  empty input succeeds
+
+OUT=$(: | script -qefc $FLISP /dev/null |base64)
+EXP=$(printf "%s\r\n> \r\n" "$FLISP_VERSION" | base64)
+[ "$OUT" = "$EXP" ]; ok fl-3 interactive mode prints version
+
+OUT=$(echo t | env - FLISP=$FLISP $FLISP)
+[ -z "$OUT" ]; ok fl-4 by default quiet
+
+IN=t OUT=t
+FLISP_PRINT=1 flisp_expr; ok fl-5 with FLISP_PRINT print results
+
+OUT=$(: | FLISP_SIZE=$((10*$FLISP_MEMORY_INC_SIZE)) FLISP_DEBUG=- $FLISP)
+EXP="memoryAllocObject: allocate fromSpace: $((10*$FLISP_MEMORY_INC_SIZE)) bytes"
+[ "$OUT" = "$EXP" ]; ok fl-6 debug to stdout and memory preset
+
+OUT=$(: | FLISP_SIZE=$((10*$FLISP_MEMORY_INC_SIZE)) FLISP_DEBUG=\& $FLISP 2>&1)
+[ "$OUT" = "$EXP" ]; ok fl-6 debug to stderr
