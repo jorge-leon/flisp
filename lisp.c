@@ -2107,38 +2107,6 @@ Object *writeString(FILE *fd, char *str)
     return nil;
 }
 
-Object *writeStringReadably(FILE *fd, char *string)
-{
-    char *escape;
-    Object *e = nil;
-    if (flisp_not_same(&e, writeChar(fd, '"'))) return e;
-
-    for (; *string; ++string) {
-        switch (*string) {
-        case '"':
-            escape = "\\\"";
-            break;
-        case '\t':
-            escape = "\\t";
-            break;
-        case '\r':
-            escape = "\\r";
-            break;
-        case '\n':
-            escape = "\\n";
-            break;
-        case '\\':
-            escape = "\\\\";
-            break;
-        default:
-            if (flisp_not_same(&e, writeChar(fd, *string))) return e;
-            continue;
-        }
-        if (flisp_not_same(&e, writeString(fd, escape))) return e;
-    }
-    return writeChar(fd, '"');
-}
-
 /* print_*() are helper functions for the writer primitives. We
  * comment them as if they were Lisp primitives, but they aren't:
  * The readably and the stream come optionally from **args, but what
@@ -2177,18 +2145,6 @@ Object *print_string(Object *interp, Object **args, size_t nArgs, char *string)
         return newError2(interp, io_error, output, "print_string failed: ", strerror(errno));
     return nil;
 }
-/* Consider (print-string-with-len), using fwrite() */
-Object *print_string_readably(Object *interp, Object **args, size_t nArgs, char *string)
-{
-    Object *output = interp->self.output;
-
-    if (nArgs > 2) {
-        FLISP_ASSERT(FLISP_ARG3, type_stream, "(print_string o[ p[ stream]]) - stream");
-        output = FLISP_ARG3;
-    }
-    return writeStringReadably(output->stream.fd, string);
-}
-
 /* (write-/type/ obj[ readably[ stream]) */
 Object *primitiveWInteger(Object *interp, Object **args, Object **env, size_t nArgs)
 {
@@ -2200,24 +2156,10 @@ Primitive w_i_p = { .name = "write-integer", .nMinArgs = 2, .nMaxArgs = 3, .args
 SimpleObject write_integer = { .type = &type_primitive_obj, .size = 0, .primitive = &w_i_p };
 
 
-/* (print_strp o[ p[ s]])  print string taking into account readabl p'redicate */
-Object *print_strp(Object *interp, Object **args, size_t nArgs, char *string)
-{
-    bool readably = false;
-    if (nArgs > 1) {
-        FLISP_CHECK_ERR(FLISP_ARG2);
-        readably = FLISP_ARG2 != nil;
-    }
-    if (readably)
-        return print_string_readably(interp, args, nArgs, string);
-    else
-        return print_string(interp, args, nArgs, string);
-}
-
 Object *primitiveWString(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     FLISP_ASSERT(FLISP_ARG1, type_string, "(write-string o[ p[ s]]) - o");
-    FLISP_CHECK_ERR(print_strp(interp, args, nArgs, FLISP_ARG1->string));
+    FLISP_CHECK_ERR(print_string(interp, args, nArgs, FLISP_ARG1->string));
     return FLISP_ARG1;
 }
 Primitive w_string_p = { .name = "write-string", .nMinArgs = 2, .nMaxArgs = 3, .argsType = type_any, .eval = primitiveWString };
@@ -2226,7 +2168,7 @@ static SimpleObject write_string = { .type = &type_primitive_obj, .size = 0, .pr
 Object *primitiveWStr(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     FLISP_ASSERT(FLISP_ARG1, type_str, "(write-str o[ p[ s]]) - o");
-    FLISP_CHECK_ERR(print_strp(interp, args, nArgs, ((SimpleObject*)FLISP_ARG1)->str));
+    FLISP_CHECK_ERR(print_string(interp, args, nArgs, ((SimpleObject*)FLISP_ARG1)->str));
     return FLISP_ARG1;
 }
 Primitive w_str_p = { .name = "write-str", .nMinArgs = 2, .nMaxArgs = 3, .argsType = type_any, .eval = primitiveWStr };
