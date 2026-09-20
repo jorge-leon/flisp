@@ -5,7 +5,8 @@
 # leg20260505, CC0 1.0
 #
 
-FLISP_VERSION="fLisp 0.17α3"
+eval $(sed -n '/FL_NAME\|FL_VERSION/{s/\#define[[:space:]]\+//;s/[[:space:]]\+/=/;p}' ../lisp.h)
+FLISP_VERSION="$FL_NAME $FL_VERSION"
 FLISP_MEMORY_INC_SIZE=$(
     while read DEFINE CONST NUM REST; do
 	[ "$DEFINE" = "#define" -a "$CONST" = FLISP_MEMORY_INC_SIZE ] && echo ${NUM%UL} && break
