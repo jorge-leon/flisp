@@ -25,6 +25,7 @@
 #include "double.h"
 #include "posix.h"
 #include "string.h"
+#include "write.h"
 
 void fatal(char *msg)
 {
@@ -42,7 +43,7 @@ void write_string(FILE *fd, char *string)
 int main(int argc, char **argv)
 {
     char *env;
-    bool interactive = false;
+    bool interactive = false, print = false;
     FILE *debug_fd = NULL, *input_fd = stdin;
     long long size = 0;
     Object *interp, *e = nil;
@@ -79,23 +80,28 @@ int main(int argc, char **argv)
     }
 
     if (interactive)
-        interp->self.print = ((env = getenv("FLISP_PRINT")) == NULL || env[0] != '0');
+        print = ((env = getenv("FLISP_PRINT")) == NULL || env[0] != '0');
     else
-        interp->self.print = ((env = getenv("FLISP_PRINT")) != NULL && env[0] != '0');
+        print = ((env = getenv("FLISP_PRINT")) != NULL && env[0] != '0');
 
-    if (interactive) write_string(FLISP_STANDARD_OUTPUT.fd, FL_NAME " " FL_VERSION "\n");
+    if (interactive) write_string(FLISP_STANDARD_OUTPUT.fd, FL_NAME " " FL_VERSION);
 
     Object *result = nil;
     for (;;) {
-        if (interactive)  write_string(FLISP_STANDARD_OUTPUT.fd, "> ");
+        if (interactive)  write_string(stdout, "\n> ");
         fflush(NULL);
 
-        result = flisp_eval_input(interp, interactive ? nil : t);
+        result = flisp_eval_expr(interp, interactive ? nil : t);
         if (FLISP_IS_EOF(result)) {
-            if (interactive) write_string(FLISP_STANDARD_OUTPUT.fd, "\n");
+            if (interactive) write_string(stdout, "\n");
             return 0;
         }
-        if (!interactive) return 1;
+        if (FLISP_IS_ERR(result)) {
+            write_object(result, stderr);
+            if (!interactive)
+                return 1;
+        } else if (print)
+            write_object(result, stdout);
     }
 }
 

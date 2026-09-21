@@ -244,8 +244,9 @@ extern TypeObject *type_symbol;
 extern TypeObject *type_error;
 extern TypeObject *type_stream;
 /* embedding */
-extern TypeObject *type_ext; /* opaque object */
+extern TypeObject *type_extension; /* opaque object */
 extern TypeObject *type_str; /* C string / ASCII or UTF-8 */
+extern TypeObject *type_ptr; /* C pointer */
 
 #define type_any (TypeObject*)&nil_obj
 

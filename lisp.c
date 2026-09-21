@@ -3573,6 +3573,7 @@ Object *flisp_eval_expr(Object *interp, Object *readably)
         if (FLISP_IS_ERR(*gcObject = flisp_read_expr(interp))) break;
         *gcObject = flisp_eval_object(interp, *gcObject);
     } while (0);
+#if 0
     if ((*gcObject)->type == type_error) {
         if ((*gcObject)->error.type != end_of_file) {
             *gcResult = flisp_write_object(interp, *gcObject, readably, interp->self.stderr);
@@ -3588,6 +3589,7 @@ Object *flisp_eval_expr(Object *interp, Object *readably)
         if (FLISP_STANDARD_OUTPUT.fd) fputs("\n", FLISP_STANDARD_OUTPUT.fd);
     }
     fflush(0);
+#endif
     GC_RETURN(*gcObject);
 }
 
