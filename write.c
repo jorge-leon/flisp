@@ -1,6 +1,8 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
+
+#include "double.h"
 #include "write.h"
 
 
@@ -14,12 +16,14 @@ int write_case(Object *object, FILE *fd)
   
     if (type == type_integer)
         return fprintf(fd, "%"PRId64, object->value);
+    if (type == type_double)
+        return fprintf(fd, "#d%f", object->number);
     if (type == type_primitive)
         return fprintf(fd, "primitive: %s  [%d, %d] %s", object->primitive->name,
                        object->primitive->nMinArgs, object->primitive->nMaxArgs,
                        flisp_symbol_string(object->primitive->argsType->type.name));
     else if (type == type_str)
-        return fprintf(fd, "%s", ((SimpleObject*)object)->str);
+        return fprintf(fd, "%s", object->str);
     else if (type == type_ptr)
         return fprintf(fd, "ptr: 0X%"PRIXPTR, (uintptr_t)((SimpleObject*)object)->ptr);
 

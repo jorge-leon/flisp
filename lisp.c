@@ -2167,7 +2167,7 @@ static SimpleObject write_string = { .type = &type_primitive_obj, .size = 0, .pr
 Object *primitiveWStr(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     FLISP_ASSERT(FLISP_ARG1, type_str, "(write-str o[ p[ s]]) - o");
-    FLISP_CHECK_ERR(print_string(interp, args, nArgs, ((SimpleObject*)FLISP_ARG1)->str));
+    FLISP_CHECK_ERR(print_string(interp, args, nArgs, FLISP_ARG1->str));
     return FLISP_ARG1;
 }
 Primitive w_str_p = { .name = "write-str", .nMinArgs = 2, .nMaxArgs = 3, .argsType = type_any, .eval = primitiveWStr };
@@ -2176,7 +2176,7 @@ static SimpleObject write_str = { .type = &type_primitive_obj, .size = 0, .primi
 char *flisp_symbol_string(Object *symbol)
 {
     /* Note: "const" symbols are defined in C-code as SimpleObject, have size 0 and the pointer to the symbol string is stored in .str */
-    return symbol->size ? symbol->string : ((SimpleObject*)symbol)->str;
+    return symbol->size ? symbol->string : symbol->str;
 }
 /* (write-symbol o[ p[ s]])*/
 Object *primitiveWSymbol(Object *interp, Object **args, Object **env, size_t nArgs)
@@ -2308,7 +2308,7 @@ Object *primitiveWClosure(Object *interp, Object **args, Object **env, size_t nA
     if (closure->type != type_lambda && closure->type != type_macro)
         return newError2(interp, wrong_type_argument, closure,
                            "(write-closure o[ p[ s]]) - o expected type-lambda or type-macro, got ",
-                           ((SimpleObject*)(closure)->type->type.name)->str);
+                           (closure)->type->type.name->str);
     GC_CHECKPOINT;
     GC_TRACE(gcArgs, *args);
     GC_CHECK_ERR(print_fmt(interp, gcArgs, nArgs, "#<%s ",
@@ -2612,7 +2612,7 @@ Object *primitiveElements(Object *interp, Object **args, Object **env, size_t nA
     if (t == type_string || (t == type_symbol && o->size))
         end = o->size - 1;
     else if (t == type_symbol && ! o->size)
-        end = strlen(((SimpleObject*)o)->str);
+        end = strlen(o->str);
     else if (t == type_cons)
         end = -1; // Later: end = flisp_list_length(o);
     else if (o->size == 0) // simple object
@@ -2653,7 +2653,7 @@ Object *primitiveElements(Object *interp, Object **args, Object **env, size_t nA
         return newStringWithLength(interp, &o->string[i], j-i);
 
     if (t == type_symbol && !o->size)
-        return newStringWithLength(interp, &((SimpleObject*)o)->str[i], j-i);
+        return newStringWithLength(interp, &o->str[i], j-i);
 
     if (t == type_cons) {
         j -= i;
