@@ -492,9 +492,9 @@ Object *posixGetcwd(Object *interp, Object **args, Object **env, size_t nArgs)
     return newString(interp, buf);
 }
 
-FLISP_DEFINE_CONSTANT(fnm_pathname,FNM_PATHNAME);
-FLISP_DEFINE_CONSTANT(fnm_noescape,FNM_NOESCAPE);
-FLISP_DEFINE_CONSTANT(fnm_period,FNM_PERIOD);
+FLISP_DEFINE_CONSTANT(fnm_pathname, "FNM_PATHNAME");
+FLISP_DEFINE_CONSTANT(fnm_noescape,"FNM_NOESCAPE");
+FLISP_DEFINE_CONSTANT(fnm_period,"FNM_PERIOD");
 
 /** (fnmatch pattern string[ flags])
  * https://man7.org/linux/man-pages/man3/fnmatch.3p.html
@@ -519,6 +519,9 @@ Object *posixFnmatch(Object *interp, Object** args, Object **env, size_t nArgs)
         return nil;
     return newError(interp, invalid_value, nil, "(fnmatch pattern string[ flags]) - error");
 }
+
+FLISP_DEFINE_CONSTANT(extension_posix, "posix");
+FLISP_DEFINE_CONSTANT(extension_posix_version, FLISP_POSIX_VERSION);
 
 Object *flisp_posix_init(Object *interp, Object *extension)
 {
@@ -549,7 +552,7 @@ Object *flisp_posix_init(Object *interp, Object *extension)
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "getcwd",  0, 0, (TypeObject*)nil,         posixGetcwd));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "fnmatch", 2, 3, (TypeObject*)nil,         posixFnmatch));
 
-        FLISP_UNLESS_ERR((*gcExt)->extension.version = newString(interp, FLISP_POSIX_VERSION));
+        FLISP_UNLESS_ERR((*gcExt)->extension.version = extension_posix_version);
     } while (0);
     GC_RELEASE;
     return e;

@@ -16,7 +16,7 @@
 #include <limits.h>
 
 #define FL_NAME     "fLisp"
-#define FL_VERSION  "0.17"
+#define FL_VERSION  "0.18alpha1"
 
 #ifndef FLISP_MEMORY_INC_SIZE
 #define FLISP_MEMORY_INC_SIZE 16384UL  /* Increase memory by this amount if not enough */
@@ -150,6 +150,7 @@ struct Object {
         double number;
         /* convenience */
         Primitive * primitive;
+        char *str;
     };
     union {
         Object *objects[1];                      // Vector
@@ -216,7 +217,7 @@ extern SimpleObject flisp_init_invalid;
 /* Note: for speed reasons we could use a single static error object and compare pointers */
 #define FLISP_IS_OOM(OBJECT) (FLISP_IS_ERR(OBJECT) && (OBJECT)->error.type == gc_error)
 
-extern Object *flisp_register_extension(Object *, char *, ExtensionInit);
+extern Object *flisp_register_extension(Object *, Object *, ExtensionInit);
 
 extern Object *flisp_register_constant(Object *, Object *, Object *);
 extern Object *flisp_register_primitive(Object *, char *, int, int, TypeObject *, LispEval);
@@ -293,7 +294,7 @@ extern TypeObject type_symbol_obj, type_type_obj, type_str_obj, type_string_obj;
 
 /* Constants */
 #define FLISP_DEFINE_CONSTANT(NAME,STRING)                                    \
-    SimpleObject NAME##_obj = { .type = &type_symbol_obj, .size = 0, .str = #STRING }; \
+    SimpleObject NAME##_obj = { .type = &type_symbol_obj, .size = 0, .str = STRING }; \
     Object *NAME = (Object *)&NAME##_obj
 
 /* Types */

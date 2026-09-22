@@ -11,6 +11,8 @@
 
 #define FLISP_STRING_VERSION "0.1"
 
+extern Object *extension_string;
+
 extern Object *flisp_string_init(Object *, Object *);
 
 extern size_t flisp_code_length(char);

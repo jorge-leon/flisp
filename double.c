@@ -97,6 +97,8 @@ Object *primitiveWDouble(Object *interp, Object **args, Object **env, size_t nAr
 Primitive w_d_p = { .name = "write-double", .nMinArgs = 2, .nMaxArgs = 3, .argsType = (TypeObject*)&nil_obj, .eval = primitiveWDouble };
 SimpleObject write_double = { .type = &type_primitive_obj, .size = 0, .primitive = &w_d_p };
 
+FLISP_DEFINE_CONSTANT(extension_double,"double");
+FLISP_DEFINE_CONSTANT(extension_double_version,FLISP_DOUBLE_VERSION);
 
 Object *flisp_double_init(Object *interp, Object *extension)
 {
@@ -123,7 +125,7 @@ Object *flisp_double_init(Object *interp, Object *extension)
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "d>",      2,  2, type_double, doubleGreater));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "d>=",     2,  2, type_double, doubleGreaterEqual));
 
-        FLISP_UNLESS_ERR((*gcExt)->extension.version = newString(interp, FLISP_DOUBLE_VERSION));
+        FLISP_UNLESS_ERR((*gcExt)->extension.version = extension_double_version);
     } while (0);
     GC_RELEASE;
     return e;

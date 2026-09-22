@@ -27,6 +27,7 @@
 #include "string.h"
 #include "write.h"
 
+
 void fatal(char *msg)
 {
     fputs("\n" FL_NAME " " FL_VERSION ": ", stderr);
@@ -70,9 +71,9 @@ int main(int argc, char **argv)
     interactive = isatty(fileno(input_fd));
     do {
         FLISP_UNLESS_ERR(interp = flisp_interpreter((size_t) size, argv, input_fd, stdout, stderr, debug_fd));
-        FLISP_UNLESS_ERR(flisp_register_extension(interp, "string", flisp_string_init));
-        FLISP_UNLESS_ERR(flisp_register_extension(interp, "double", flisp_double_init));
-        FLISP_UNLESS_ERR(flisp_register_extension(interp, "posix", flisp_posix_init));
+        FLISP_UNLESS_ERR(flisp_register_extension(interp, extension_string, flisp_string_init));
+        FLISP_UNLESS_ERR(flisp_register_extension(interp, extension_double, flisp_double_init));
+        FLISP_UNLESS_ERR(flisp_register_extension(interp, extension_posix, flisp_posix_init));
     } while (0);
     if (FLISP_IS_ERR(e)) {
         /* Note: could write error string here */

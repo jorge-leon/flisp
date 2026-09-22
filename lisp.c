@@ -36,32 +36,34 @@
 
 /* Constants */
 /* Fundamentals */
-FLISP_DEFINE_CONSTANT(nil,nil);
-FLISP_DEFINE_CONSTANT(t,t);
+FLISP_DEFINE_CONSTANT(nil,"nil");
+FLISP_DEFINE_CONSTANT(t,"t");
 
 /* Error symbols */
-FLISP_DEFINE_CONSTANT(end_of_file,end-of-file);
-FLISP_DEFINE_CONSTANT(read_incomplete,read-incomplete);
-FLISP_DEFINE_CONSTANT(invalid_read_syntax,invalid-read-syntax);
-FLISP_DEFINE_CONSTANT(range_error,range-error);
-FLISP_DEFINE_CONSTANT(wrong_type_argument,wrong-type-argument);
-FLISP_DEFINE_CONSTANT(invalid_value,invalid-value);
-FLISP_DEFINE_CONSTANT(wrong_number_of_arguments,wrong-number-of-arguments);
-FLISP_DEFINE_CONSTANT(arithmetic_error,arithmetic-error);
-FLISP_DEFINE_CONSTANT(out_of_memory,out-of-memory);
-FLISP_DEFINE_CONSTANT(gc_error,gc-error);
+FLISP_DEFINE_CONSTANT(end_of_file, "end-of-file");
+FLISP_DEFINE_CONSTANT(read_incomplete, "read-incomplete");
+FLISP_DEFINE_CONSTANT(invalid_read_syntax, "invalid-read-syntax");
+FLISP_DEFINE_CONSTANT(range_error, "range-error");
+FLISP_DEFINE_CONSTANT(wrong_type_argument, "wrong-type-argument");
+FLISP_DEFINE_CONSTANT(invalid_value, "invalid-value");
+FLISP_DEFINE_CONSTANT(wrong_number_of_arguments, "wrong-number-of-arguments");
+FLISP_DEFINE_CONSTANT(arithmetic_error, "arithmetic-error");
+FLISP_DEFINE_CONSTANT(out_of_memory, "out-of-memory");
+FLISP_DEFINE_CONSTANT(gc_error, "gc-error");
 /* I/O */
-FLISP_DEFINE_CONSTANT(io_error,io-error);
-FLISP_DEFINE_CONSTANT(permission_denied,permission-denied);
-FLISP_DEFINE_CONSTANT(not_found,not-found);
-FLISP_DEFINE_CONSTANT(file_exists,file-exists);
-FLISP_DEFINE_CONSTANT(read_only,read-only);
-FLISP_DEFINE_CONSTANT(is_directory,is-directory);
+FLISP_DEFINE_CONSTANT(io_error, "io-error");
+FLISP_DEFINE_CONSTANT(permission_denied, "permission-denied");
+FLISP_DEFINE_CONSTANT(not_found, "not-found");
+FLISP_DEFINE_CONSTANT(file_exists, "file-exists");
+FLISP_DEFINE_CONSTANT(read_only, "read-only");
+FLISP_DEFINE_CONSTANT(is_directory, "is-directory");
 /* Traps */
-FLISP_DEFINE_CONSTANT(trap_countdown,trap-countdown);
+FLISP_DEFINE_CONSTANT(trap_countdown, "trap-countdown");
 /* Interpreter */
-FLISP_DEFINE_CONSTANT(debug_output,*debug-output*);
-
+FLISP_DEFINE_CONSTANT(debug_output, "*debug-output*");
+/* Extension */
+FLISP_DEFINE_CONSTANT(extension_core, "core");
+FLISP_DEFINE_CONSTANT(extension_core_version, FL_VERSION);
 /* Types */
 
 /* Simple */
@@ -980,12 +982,9 @@ Object *newStreamObject(Object *interp, FILE *fd, char *path)
     return object;
 }
 
-Object *newExtension(Object *interp, char *name, ExtensionInit init)
+Object *newExtension(Object *interp, Object *name, ExtensionInit init)
 {
-    GC_CHECKPOINT;
-    GC_TRACE(gcName, newString(interp, name));
-    Object *object = flisp_new(interp, type_extension, gcName, 2, sizeof(ExtensionInit));
-    GC_RELEASE;
+    Object *object = flisp_new(interp, type_extension, &name, 2, sizeof(ExtensionInit));
     CHECK_OOM(object);
     object->extension.version = nil;
     object->extension.init = init;
@@ -3069,7 +3068,7 @@ Object *primitiveLoadExtension(Object *interp, Object **args, Object **env, size
 
     for (extensions = FLISP_INTERP.extensions; extensions != nil; extensions = extensions->cdr) {
         if (extensions->car->type == type_extension
-            && strcmp(extensions->car->extension.name->string, name->string) == 0) {
+            && strcmp(flisp_symbol_string(extensions->car->extension.name), flisp_symbol_string(name)) == 0) {
             if (extensions->car->extension.version != nil)
                 return extensions->car->extension.version;
             GC_CHECKPOINT;
@@ -3081,7 +3080,7 @@ Object *primitiveLoadExtension(Object *interp, Object **args, Object **env, size
     }
     return nil;
 }
-Object *flisp_register_extension(Object *interp, char *name, ExtensionInit init)
+Object *flisp_register_extension(Object *interp, Object *name, ExtensionInit init)
 {
     GC_CHECKPOINT;
     GC_TRACE(gcObject, newExtension(interp, name, init));
@@ -3327,7 +3326,7 @@ Object *flisp_core_init(Object *interp, Object *extension)
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-gc",              0,  0, type_any,      primitiveInterpGc));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-countdown",       0,  1, type_integer,  primitiveInterpCountdown));
 
-        (*gcExt)->extension.version = newString(interp, FL_VERSION);
+        (*gcExt)->extension.version = extension_core_version;
     } while (0);
     GC_RELEASE;
     return e;
@@ -3484,7 +3483,7 @@ Object *flisp_interpreter(
 
         /* declare and load the core primitives */
         FLISP_INTERP.extensions = nil;
-        FLISP_UNLESS_ERR(flisp_register_extension(interp, "core", flisp_core_init));
+        FLISP_UNLESS_ERR(flisp_register_extension(interp, extension_core, flisp_core_init));
         FLISP_UNLESS_ERR(flisp_core_init(interp, FLISP_INTERP.extensions->car));
     } while (0);
     if (FLISP_IS_ERR(e)) {
@@ -3568,7 +3567,8 @@ Object *flisp_eval_expr(Object *interp, Object *readably)
 {
     GC_CHECKPOINT;
     GC_TRACE(gcObject, nil);
-    GC_TRACE(gcResult, nil);
+/* Note: clean up here */
+//    GC_TRACE(gcResult, nil);
     do {
         if (FLISP_IS_ERR(*gcObject = flisp_read_expr(interp))) break;
         *gcObject = flisp_eval_object(interp, *gcObject);
