@@ -40,6 +40,7 @@ int write_case(Object *object, FILE *fd)
             } else {
                 CHK_PRINT(fputs(" . ", fd));
                 CHK_PRINT(write_case(object, fd));
+                break;
             }
         }
         return fputc(')', fd);
@@ -50,29 +51,25 @@ int write_case(Object *object, FILE *fd)
             CHK_PRINT(write_case(object->objects[n], fd));
         return fputc(']', fd);
     }
-    else if (type == type_lambda) {
-        CHK_PRINT(fprintf(fd, "lambda: "));
-        return write_case(object->closure.params, fd);
-    }
-    else if (type == type_macro) {
-        CHK_PRINT(fprintf(fd, "macro: "));
-        return write_case(object->closure.params, fd);
+    else if (type == type_lambda || type == type_macro) {
+        CHK_PRINT(fprintf(fd, "#<%s: ", flisp_symbol_string(type->type.name)));
+        CHK_PRINT(write_case(object->closure.params, fd));
+        return fputc('>', fd);
     }
     else if (type == type_error) {
-        CHK_PRINT(fprintf(fd, "error:"));
-        CHK_PRINT(write_case(object->error.type, fd));
-        CHK_PRINT(fprintf(fd, ": "));
-        CHK_PRINT(write_case(object->error.message, fd));
-        CHK_PRINT(fprintf(fd, ": "));
-        return write_case(object->error.culprit, fd);
+        CHK_PRINT(fprintf(fd, "#<error:%s: %s: ",
+                          flisp_symbol_string(object->error.type),
+                          object->error.message->string));
+        CHK_PRINT(write_case(object->error.culprit, fd));
+        return fputc('>', fd);
     }
     else if (type == type_env) {
         Object *vars = object->env.vars;
         Object *vals = object->env.vals;
         if (object->env.parent == nil) {
-            CHK_PRINT(fprintf(fd, "global: "));
+            CHK_PRINT(fprintf(fd, "#<global: "));
         } else {
-            CHK_PRINT(fprintf(fd, "environment:"));
+            CHK_PRINT(fprintf(fd, "#<environment: "));
         }
         while (vars != nil) {
             CHK_PRINT(write_case(vars->car, fd));
@@ -83,22 +80,22 @@ int write_case(Object *object, FILE *fd)
             vars = vars->cdr;
             vals = vals->cdr;
         }
+        return fputc('>', fd);
     }
     else if (type == type_stream) {
-        CHK_PRINT(fprintf(fd, "stream 0X%"PRIX64" ", (uintptr_t)object->stream.fd));
+        CHK_PRINT(fprintf(fd, "#<stream: 0X%"PRIX64">", (uintptr_t)object->stream.fd));
         return write_case(object->stream.path, fd);
     }
     else if (type == type_extension) {
-        CHK_PRINT(fprintf(fd, "extension: "));
-        CHK_PRINT(write_case(object->extension.name, fd));
-        CHK_PRINT(fputc(' ', fd));
-        return write_case(object->extension.version, fd);
+        return fprintf(fd, "#<extension %s %s>",
+                       object->extension.name->str,
+                       object->extension.version->str);
     }
 
     if (object->size)
-        return fprintf(fd, "%s: %zu, %zu>", flisp_symbol_string(type->type.name),
+        return fprintf(fd, "#<%s: %zu elements, %zu extra>", flisp_symbol_string(type->type.name),
                        object->length,
-                       object->size
+                       object->size - sizeof(Object*)*object->length
             );
 
     return fprintf(fd, "%s: 0X%"PRIX64, flisp_symbol_string(type->type.name), (uintptr_t)((SimpleObject*)object)->ptr);
@@ -107,7 +104,7 @@ int write_case(Object *object, FILE *fd)
 void write_object(Object *object, FILE *fd)
 {
     if (write_case(object, fd) < 0)
-        fprintf(fd, "error: failed to write object: %s", strerror(errno));
+        fprintf(fd, "#<error:io-error: failed to write object: %s>", strerror(errno));
 }
 /*
  * Local Variables:
