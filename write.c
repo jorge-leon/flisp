@@ -19,7 +19,7 @@ int write_case(Object *object, FILE *fd)
     if (type == type_double)
         return fprintf(fd, "#d%f", object->number);
     if (type == type_primitive)
-        return fprintf(fd, "primitive: %s  [%d, %d] %s", object->primitive->name,
+        return fprintf(fd, "#<primitive: %s [%d, %d] %s>", object->primitive->name,
                        object->primitive->nMinArgs, object->primitive->nMaxArgs,
                        flisp_symbol_string(object->primitive->argsType->type.name));
     else if (type == type_str)
