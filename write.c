@@ -13,7 +13,7 @@ int write_case(Object *object, FILE *fd)
     TypeObject *type = object->type;
     int i;
     int64_t n;
-  
+
     if (type == type_integer)
         return fprintf(fd, "%"PRId64, object->value);
     if (type == type_double)
@@ -28,7 +28,7 @@ int write_case(Object *object, FILE *fd)
         return fprintf(fd, "ptr: 0X%"PRIXPTR, (uintptr_t)((SimpleObject*)object)->ptr);
 
     else if (type == type_type)
-        return fprintf(fd, "%s", flisp_symbol_string(type->type.name));
+        return fprintf(fd, "%s", flisp_symbol_string(((TypeObject*)object)->type.name));
     else if (type == type_string)
         return fprintf(fd, "\"%s\"", object->string);
     else if (type == type_symbol)
@@ -51,8 +51,10 @@ int write_case(Object *object, FILE *fd)
     }
     else if (type == type_vector) {
         CHK_PRINT(fputc('[', fd));
-        for (n = 0; n < object->length; n++)
+        for (n = 0; n < object->length; n++) {
+            if (n) CHK_PRINT(fputc(' ', fd));
             CHK_PRINT(write_case(object->objects[n], fd));
+        }
         return fputc(']', fd);
     }
     else if (type == type_lambda || type == type_macro) {
@@ -87,8 +89,10 @@ int write_case(Object *object, FILE *fd)
         return fputc('>', fd);
     }
     else if (type == type_stream) {
-        CHK_PRINT(fprintf(fd, "#<stream: 0X%"PRIX64">", (uintptr_t)object->stream.fd));
-        return write_case(object->stream.path, fd);
+        return fprintf(fd, "#<stream: 0X%"PRIX64" \"%s\">",
+                       (uintptr_t)object->stream.fd,
+                       object->stream.path->string
+            );
     }
     else if (type == type_extension) {
         return fprintf(fd, "#<extension %s %s>",

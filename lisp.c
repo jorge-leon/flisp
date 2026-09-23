@@ -1645,7 +1645,7 @@ Object *evalCond(Object *interp, Object **args, Object **env)
     GC_TRACE(gcArgs, *args);
     while((*gcArgs != nil)) {
         if ((*gcArgs)->type != type_cons)
-            GC_RETURN(newErrorI(interp, wrong_type_argument, *gcArgs, "(cond args) - args is not a list, arg ", nArgs, ""));
+            GC_RETURN(newErrorI(interp, wrong_type_argument, *gcArgs, "(cond args) - args is not a list: arg ", nArgs, ""));
 
         if (CLAUSE == nil)  goto next_clause;
 
@@ -3159,7 +3159,7 @@ Object *primitiveInterpTraceRead(Object *interp, Object **args, Object **env, si
 {
     if (nArgs) {
         if (FLISP_IS_ERR(FLISP_ARG1))
-            return newError(interp, invalid_value, FLISP_ARG1, "(interp-gc-always[ p]) - p");
+            return newError(interp, invalid_value, FLISP_ARG1, "(interp-trace-read[ p]) - p");
         FLISP_INTERP.trace_read = FLISP_ARG1 != nil;
     }
     return FLISP_INTERP.trace_read ? t : nil;
@@ -3169,7 +3169,7 @@ Object *primitiveInterpTracePrimitives(Object *interp, Object **args, Object **e
 {
     if (nArgs) {
         if (FLISP_IS_ERR(FLISP_ARG1))
-            return newError(interp, invalid_value, FLISP_ARG1, "(interp-gc-always[ p]) - p");
+            return newError(interp, invalid_value, FLISP_ARG1, "(interp-trace-primitives[ p]) - p");
         FLISP_INTERP.trace_primitives = FLISP_ARG1 != nil;
     }
     return FLISP_INTERP.trace_primitives ? t : nil;

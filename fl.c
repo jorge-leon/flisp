@@ -85,11 +85,11 @@ int main(int argc, char **argv)
     else
         print = ((env = getenv("FLISP_PRINT")) != NULL && env[0] != '0');
 
-    if (interactive) write_string(FLISP_STANDARD_OUTPUT.fd, FL_NAME " " FL_VERSION);
+    if (interactive) write_string(FLISP_STANDARD_OUTPUT.fd, FL_NAME " " FL_VERSION "\n");
 
     Object *result = nil;
     for (;;) {
-        if (interactive)  write_string(stdout, "\n> ");
+        if (interactive)  write_string(stdout, "> ");
         fflush(NULL);
 
         result = flisp_eval_expr(interp, interactive ? nil : t);
@@ -101,8 +101,10 @@ int main(int argc, char **argv)
             write_object(result, stderr);
             if (!interactive)
                 return 1;
-        } else if (print)
+        } else if (print) {
             write_object(result, stdout);
+            write_string(stdout, "\n");
+        }
     }
 }
 

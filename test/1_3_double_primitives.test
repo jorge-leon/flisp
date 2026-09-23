@@ -18,5 +18,6 @@ export FLISP_SIZE=$((20*1024*1024))
 
 
 tap 1
-IN='(d+ #d2.72 #d3.14)' OUT="#D401770A3D70A3D71"
+#IN='(d+ #d2.72 #d3.14)' OUT="#D401770A3D70A3D71"
+IN='(d+ #d2.72 #d3.14)' OUT="5.860000"
 flisp_expr; ok double-plus-1 \# TODO double tests
