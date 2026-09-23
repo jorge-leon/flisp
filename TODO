@@ -1,3 +1,15 @@
+- Make built-in types stringable:
+  - (primitive-name p) -> s
+  - str: -> s
+  - (ptr-value o) -> i -> hex
+  - type: (symbol-name (car (elements type-integer 0 1)))
+  - lambda/macro: fail?
+  - error: message?
+  - stream: path?
+  - env: fail?
+  - interpreter: fail?
+  - extension: "name version"
+
 - Documentation
   - new functions in flisp.lsp
   - history.html
