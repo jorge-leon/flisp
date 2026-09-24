@@ -108,8 +108,8 @@
     ((stringp o) o)
     ((symbolp o) (symbol-name o))
     ((consp o) (string-append (string (car o)) (string (cdr o))))
-    ((vectorp o) ((string (elements o))))
-    ((eq (type-of o) type-type) (symbol-name (car (elements o 0 1)))
+    ((vectorp o) (string (elements o)))
+    ((eq (type-of o) type-type) (symbol-name (car (elements o 0 1))))
     (t (symbol-name (type-of o))) ))
 
 
