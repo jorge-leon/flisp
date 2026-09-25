@@ -18,6 +18,23 @@
 
 /* Bag of POSIX libc wrappers */
 
+/* (fputs s[ stream]) - output string s to stream */
+Object *posixFputs(Object *interp, Object **args, Object **env, size_t nArgs)
+{
+    FLISP_ASSERT(FLISP_ARG1, type_string, "(fputs s[ stream]) - s");
+
+    if (FLISP_ARG1->string[0] == '\0') return nil;
+
+    Object *stream = interp->self.output;
+    if (nArgs > 1) {
+        FLISP_ASSERT(FLISP_ARG2, type_stream, "(fputs s[ stream]) - stream");
+        stream = FLISP_ARG2;
+    }
+    if (EOF == fputs(FLISP_ARG1->string, stream->stream.fd))
+        return newError2(interp, io_error, stream, "(fputs s[ stream]) failed: ", strerror(errno));
+    return nil;
+}
+
 /** (fflush[ stream]) - flush stream, output or all streams
  *
  * @param stream  Stream to flush. If t all streams are flushed, if
@@ -535,6 +552,7 @@ Object *flisp_posix_init(Object *interp, Object *extension)
         FLISP_UNLESS_ERR(flisp_register_constant(interp, fnm_noescape, newInteger(interp, FNM_NOESCAPE)));
         FLISP_UNLESS_ERR(flisp_register_constant(interp, fnm_period, newInteger(interp, FNM_PERIOD)));
 
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "fputs",   1, 2, type_any, posixFputs));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "fflush",  0, 1, type_stream, posixFflush));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "fseek",   2, 3, (TypeObject*)nil,         posixFseek));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "ftell",   0, 1, type_stream, posixFtell));

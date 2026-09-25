@@ -160,14 +160,6 @@
 	 (if (consp (car rev))  (eval (cons f (append (reverse (cdr rev)) (car rev))))
 	     (f . args)) )))
 
-(defun print (o . fd)
-  (if fd  (write o t (car fd))
-      (write o t) ))
-
-(defun princ (o . fd)
-  (if fd  (write o nil (car fd))
-      (write o nil) ))
-
 (defun string-to-number (string)
   (let* ((f (open string "<"))
 	 (n (read f))

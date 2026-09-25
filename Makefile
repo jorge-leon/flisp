@@ -50,7 +50,7 @@ debug: $(BINARIES) $(LIBRARIES)
 double.o: double.c double.h lisp.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
 
-fl: fl.o lisp.o $(OBJ) write.o
+fl: fl.o lisp.o $(OBJ) princ.o
 	$(LD) $(LDFLAGS) -o $@ $^ -lm
 
 flisp: flisp.sht fl core.lsp
@@ -74,10 +74,10 @@ libflisp.a: $(OBJ)
 posix.o: posix.c posix.h lisp.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
 
-string.o: string.c string.h lisp.h
+princ.o: princ.c princ.h lisp.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
 
-write.o: write.c write.h lisp.h
+string.o: string.c string.h lisp.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
 
 # Requires pandoc and tidy
@@ -158,7 +158,7 @@ strip: $(BINARIES) $(LIBRARIES) FORCE
 	strip $(BINARIES) $(LIBRARIES)
 
 clean: FORCE
-	-$(RM) -f $(OBJ) $(BINARIES) $(SCRIPTS) $(LIBRARIES) $(RC_FILES) fl.o write.o flisp.pc
+	-$(RM) -f $(OBJ) $(BINARIES) $(SCRIPTS) $(LIBRARIES) $(RC_FILES) fl.o princ.o flisp.pc
 	-$(RM) -rf doxygen
 	-$(RM) -f $(MOREDOCS)
 	-$(RM) -f f.log
