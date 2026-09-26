@@ -19,7 +19,7 @@ FLISP=flisp
 export FLISP_PRINT=1
 export FLISP_SIZE=$((20*1024*1024))
 
-tap 192
+tap 191
 
 # list
 IN='(list)' OUT=nil
@@ -191,7 +191,7 @@ flisp_expr; ok labelled-let-3 labelled let binding shadows outer value
 IN="(setq a 1 b 2) (let label ((a 3) (b 4)) (list a b))" OUT='(3 4)'
 flisp_expr; ok labelled-let-4 labelled let binds several symbols
 
-IN="(let label ((a 2) (b 0))  (print a) (if (i> a 0) (label (i- a 1) (i+ b 1))))" OUT='210nil'
+IN="(let label ((a 2) (b 0))  (princ a) (if (i> a 0) (label (i- a 1) (i+ b 1))))" OUT='210nil'
 flisp_expr; ok labelled-let-5 labelled let loops
 
 # let*
@@ -308,7 +308,7 @@ flisp_expr; ok append-4 append list atom is dotted list
 IN="(append '(1 2 3) '(a b c))" OUT="(1 2 3 a b c)"
 flisp_expr; ok append-5 append list list is list
 
-IN="(append 1 1)" OUT='#<error:invalid-value: (append lists) - list expected type-list, got #<type integer>: nil>'
+IN="(append 1 1)" OUT='#<error:invalid-value: (append lists) - list expected type-list, got type-integer: nil>'
 flisp_expr; ok append-6 append atom any errs
 
 IN="(apply +)" OUT="0"
@@ -323,7 +323,6 @@ flisp_expr; ok apply-3 apply n-ary + to list 7 4 is 11
 IN="(apply + 3 4 '(7 4))" OUT="18"
 flisp_expr; ok apply-4 apply n-ary + to 3 4  and final list 7 4 is 18
 
-true; ok print-1 \# TODO
 true; ok princ-1 \# TODO
 
 IN='(string-to-number "42")' OUT='42'
@@ -337,7 +336,7 @@ IN='(string-to-number "#d3.14")' OUT='#d3.140000' #OUT='#D40091EB851EB851F'
 flisp_expr; ok string-to-number-2 string #d3.14 is 3.14
 PREPARE="$T_P"
 
-IN='(string-to-number "answer")' OUT='#<error:invalid-value: (string-to-number string) - string expected number, got #<type symbol>: answer>'
+IN='(string-to-number "answer")' OUT='#<error:invalid-value: (string-to-number string) - string expected number, got type-symbol: answer>'
 flisp_expr; ok string-to-number-3 not number / string is error
 
 IN='(string-equal "a" "a")' OUT='t'
@@ -462,7 +461,7 @@ IN='(min)' OUT='#<error:wrong-number-of-arguments: (f args) - args, f expects at
 flisp_expr; ok min-1 with nil fails
 
 IN='(min "a")'
-OUT='#<error:invalid-value: (min n[ arg ..]) - n expected number, got #<type string>: "a">'
+OUT='#<error:invalid-value: (min n[ arg ..]) - n expected number, got type-string: "a">'
 flisp_expr; ok min-2 with not number fails
 
 IN='(min 0)' OUT=0
@@ -480,7 +479,7 @@ flisp_expr; ok min-6 with more then two args
 IN='(max)' OUT='#<error:wrong-number-of-arguments: (f args) - args, f expects at least 1 arguments: nil>'
 flisp_expr; ok max-1 with nil fails
 
-IN='(max "a")' OUT='#<error:invalid-value: (max n[ arg ..]) - n expected number, got #<type string>: "a">'
+IN='(max "a")' OUT='#<error:invalid-value: (max n[ arg ..]) - n expected number, got type-string: "a">'
 flisp_expr; ok max-2 with not number fails
 
 IN='(max 0)' OUT=0
