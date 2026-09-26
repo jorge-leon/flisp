@@ -240,17 +240,17 @@ flisp_expr; ok string-5 symbols converts to its name
 IN="(string (cons 'a  2))" OUT='"a2"'
 flisp_expr; ok string-6 cons converts to concatenated strings of elements
 
-IN="(string car)" OUT='"#<primitive car [1, 1] nil>"'
-flisp_expr; ok string-7 primitive prints reader macro and name
+IN="(string car)" OUT='"type-primitive"'
+flisp_expr; ok string-7 primitive prints type
 
-IN="(string (lambda (a b)))" OUT='"#<lambda (a b)>"'
-flisp_expr; ok string-8 lambda prints reader macro and parameters
+IN="(string (lambda (a b)))" OUT='"type-lambda"'
+flisp_expr; ok string-8 lambda prints type
 
-IN="(string (macro (a b)))" OUT='"#<macro (a b)>"'
-flisp_expr; ok string-9 macro prints reader macro and parameters
+IN="(string (macro (a b)))" OUT='"type-macro"'
+flisp_expr; ok string-9 macro prints type
 
-IN='(setq f (open "" "<"))(close f)(string f)' OUT='"#<stream 0X0 <STRING>"'
-flisp_expr; ok string-10 closed stream prints reader macro nil as fd and type
+IN='(setq f (open "" "<"))(close f)(string f)' OUT='"type-stream"'
+flisp_expr; ok string-10 closed stream prints type
 
 # concat
 IN="(concat 1 'a \"?\")" OUT='"1a?"'

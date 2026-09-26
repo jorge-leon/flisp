@@ -61,6 +61,13 @@
       ;;values are never seen
       )
 
+(defun type-name (o)
+  (if (typep type-type o) (elements (car (elements o 0 1)))
+      (error wrong-type-argument
+	     (string-append "(type-name o) - o expected type-type, got " (type-name (type-of o)))
+	     o )))
+
+
 (defun mapcar (f l)
   (cond (l (cons (f (car l)) (mapcar f (cdr l))))))
 
@@ -85,7 +92,9 @@
 	    (list 'bind nil b-or-l
 		  (cons 'lambda (cons (mapcar car (car args)) (cdr args))))
 	    (cons b-or-l (mapcar cadr (car args))) )))
-    (t (error wrong-type-argument "(let bindings body) - bindings expected type-consp or type-symbol, got " (type-of (car args)))) ))
+    (t (error wrong-type-argument
+	      (string-append "(let bindings body) - bindings expected type-consp or type-symbol, got " (type-name (car args)))
+	      (car args) ))))
 
 ;; (let* () body) => ((lambda () body))
 ;; (let* ((var val) ..) body) =>  ((lambda (var) (let* (..) body)) val)
@@ -97,11 +106,22 @@
 
 (defun prog1 (arg . args) arg)
 
-(defun symbol-name (symbol) (elements symbol))
+(defun symbol-name (symbol)
+  (if (symbolp symbol) (elements symbol)
+      (error wrong-type-argument
+	     (string-append "(symbol-name symbol) - symbol expected type-symbol, got " (type-name (type-of symbol)))
+	     symbol )))
 
-(defun string (o)
-  ;; Convert argument to string.
-  ;; Common Lisp
+
+;; Convert argument to string.
+;; Common Lisp converts a single string, character or symbol to a string.
+;; Elisp converts a list of characters to a string - we don't have characters.
+;;
+;; We extend the functionality to convert any object into some
+;; string. This way we can used it for primitive
+;; debugging/introspection.
+;;
+(defun str (o)
   (cond
     ((null o) "")
     ((integerp o) (ifmt o))
@@ -109,9 +129,12 @@
     ((symbolp o) (symbol-name o))
     ((consp o) (string-append (string (car o)) (string (cdr o))))
     ((vectorp o) (string (elements o)))
-    ((eq (type-of o) type-type) (symbol-name (car (elements o 0 1))))
-    (t (symbol-name (type-of o))) ))
+    ((same (type-of o) type-type) (type-name o))
+    (t (type-name (type-of o))) ))
 
+(defmacro string (o)
+  (list 'if (list 'errorp o) "type-error"
+	(list 'str o) ))
 
 ;; Concatenate all arguments to a string.
 ;; Elisp
