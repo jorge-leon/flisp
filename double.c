@@ -87,6 +87,7 @@ Object *writeDouble(FILE *fd, uint64_t number)
     return e;
 }
 #endif
+#if 0
 /* (write-/type/ obj[ readably[ stream]) */
 Object *primitiveWDouble(Object *interp, Object **args, Object **env, size_t nArgs)
 {
@@ -96,6 +97,7 @@ Object *primitiveWDouble(Object *interp, Object **args, Object **env, size_t nAr
 }
 Primitive w_d_p = { .name = "write-double", .nMinArgs = 2, .nMaxArgs = 3, .argsType = (TypeObject*)&nil_obj, .eval = primitiveWDouble };
 SimpleObject write_double = { .type = &type_primitive_obj, .size = 0, .primitive = &w_d_p };
+#endif
 
 FLISP_DEFINE_CONSTANT(extension_double,"double");
 FLISP_DEFINE_CONSTANT(extension_double_version,FLISP_DOUBLE_VERSION);
@@ -110,7 +112,7 @@ Object *flisp_double_init(Object *interp, Object *extension)
     GC_TRACE(gcExt, extension);
     do {
 
-        FLISP_WHILE_OK(flisp_register_type(interp, "type-double",      type_double, (Object*)&flisp_init_invalid, (Object*)&write_double));
+        FLISP_WHILE_OK(flisp_register_type(interp, "type-double",      type_double, (Object*)&flisp_init_invalid, nil)); //(Object*)&write_double));
        
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "integer", 1,  1, type_double,  integerFromDouble));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "double",  1,  1, type_integer, doubleFromInteger));

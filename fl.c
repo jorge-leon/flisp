@@ -91,7 +91,6 @@ int main(int argc, char **argv)
     if (interactive) write_string(FLISP_STANDARD_OUTPUT.fd, FL_NAME " " FL_VERSION "\n");
 
     Object *result = nil;
-    FILE *fd;
     for (;;) {
         if (interactive)  write_string(stdout, "> ");
         fflush(NULL);
