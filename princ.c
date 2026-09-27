@@ -117,14 +117,14 @@ void flisp_princ(Object *object, FILE *fd)
 
 Object *primitivePrinc(Object *interp, Object **args, Object **env, size_t nArgs)
 {
-    Object *stream = interp->self.output;
+    FILE *fd = stdout;
 
     if (nArgs > 1) {
         FLISP_ASSERT(FLISP_ARG2, type_stream, "");
-        stream = FLISP_ARG2;
+        fd = FLISP_ARG2->stream.fd;
     }
-    if (princ_case(FLISP_ARG1, stream->stream.fd) < 0)
-        return newError2(interp, io_error, stream, "(princ o[ stream]) failed: ", strerror(errno));
+    if (princ_case(FLISP_ARG1, fd) < 0)
+        return newError2(interp, io_error, (nArgs > 1) ? FLISP_ARG2 : nil, "(princ o[ stream]) failed: ", strerror(errno));
     return nil;
 }
 

@@ -25,13 +25,13 @@ Object *posixFputs(Object *interp, Object **args, Object **env, size_t nArgs)
 
     if (FLISP_ARG1->string[0] == '\0') return nil;
 
-    Object *stream = interp->self.output;
+    FILE *fd = stdout;
     if (nArgs > 1) {
         FLISP_ASSERT(FLISP_ARG2, type_stream, "(fputs s[ stream]) - stream");
-        stream = FLISP_ARG2;
+        fd = FLISP_ARG2->stream.fd;
     }
-    if (EOF == fputs(FLISP_ARG1->string, stream->stream.fd))
-        return newError2(interp, io_error, stream, "(fputs s[ stream]) failed: ", strerror(errno));
+    if (EOF == fputs(FLISP_ARG1->string, fd))
+        return newError2(interp, io_error, (nArgs > 1) ? FLISP_ARG2 : nil, "(fputs s[ stream]) failed: ", strerror(errno));
     return nil;
 }
 
@@ -45,7 +45,7 @@ Object *posixFputs(Object *interp, Object **args, Object **env, size_t nArgs)
  */
 Object *posixFflush(Object *interp, Object** args, Object **env, size_t nArgs)
 {
-    FILE *fd = FLISP_STANDARD_OUTPUT.fd;
+    FILE *fd = stdout;
 
     if (nArgs)
         if (FLISP_ARG1 == t)

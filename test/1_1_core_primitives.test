@@ -15,7 +15,7 @@ export FLISP_PRINT=1
 
 #export FLISP_SIZE=$((20*1024*1024))
 
-tap 231
+tap 230
 
 # reader
 IN='(' OUT='#<error:read-incomplete: unexpected end of stream while reading list: nil>'
@@ -330,9 +330,6 @@ flisp_expr; ok type-of-5 type-of type-of is primitive
 IN='(type-of (macro ()))' OUT='type-macro'
 flisp_expr; ok type-of-6 type-of macro is macro
 
-IN='(type-of *standard-output*)' OUT='type-stream'
-flisp_expr; ok type-of-7 type-of output stream is stream
-
 # consp
 IN='(consp nil)' OUT='nil'
 flisp_expr; ok consp-1  consp nil is nil
@@ -524,7 +521,7 @@ flisp_expr; ok elements-7 primitive has no elements
 IN='(elements (car (elements (interp) 0 1)))' OUT='("*standard-input*")'
 flisp_expr; ok elements-8-1 interpreters have elements
 
-IN='(elements (car (car (elements (interp) 4 5))))' OUT='(posix nil)'
+IN='(elements (car (car (elements (interp) 3 4))))' OUT='(posix nil)'
 flisp_expr; ok elements-8-2 extensions have elements
 
 IN='(elements (lambda args body) 0 2)' OUT='(args (body))'

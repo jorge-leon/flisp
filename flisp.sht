@@ -55,9 +55,9 @@ $(cat core.lsp)
       (repl-print-error r) )))
 
 (defun repl-getopts (argv)
-  (if-not argv (close (interp-output))
-	  (load (car argv))
-	  (repl-getopts (cdr argv)) ))
+  (when argv
+    (load (car argv))
+    (repl-getopts (cdr argv)) ))
 ;;      (repl-eprinc "Error parsing commandline: "argv"\n")
 ;;      (repl-print-error e) ))
 ;;  (close (interp-output)) )

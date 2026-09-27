@@ -116,7 +116,6 @@ typedef struct Memory {
 
 typedef struct InterpreterExt {
     Object *input;
-    Object *output;
     Object *stderr;
     Object *debug;
     Object *extensions;
@@ -183,7 +182,7 @@ typedef struct Scratchpad {
 } Scratchpad;
 
 // PUBLIC INTERFACE ///////////////////////////////////////////////////////
-extern Object *flisp_interpreter(size_t size, char **, FILE*, FILE*, FILE*, FILE*);
+extern Object *flisp_interpreter(size_t size, char **, FILE*, FILE*, FILE*);
 extern void flisp_destroy(Object *);
 extern Object *flisp_eval_object(Object *, Object *);
 extern Object *flisp_read_expr(Object *);
@@ -350,7 +349,6 @@ void flisp_debug(Object *, char *, ...);
 
 #define FLISP_INTERP interp->self
 #define FLISP_STANDARD_INPUT  interp->self.input->stream
-#define FLISP_STANDARD_OUTPUT interp->self.output->stream
 #define FLISP_STDERR          interp->self.stderr->stream
 #define FLISP_DEBUG_OUTPUT    interp->self.debug->stream
 #endif

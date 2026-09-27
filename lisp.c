@@ -2716,13 +2716,6 @@ Object *primitiveInterpInput(Object *interp, Object **args, Object **env, size_t
         FLISP_INTERP.input = FLISP_ARG1;
     return FLISP_INTERP.input;
 }
-/** (interp-output [ stream]]) - query or set interpreter output stream */
-Object *primitiveInterpOutput(Object *interp, Object **args, Object **env, size_t nArgs)
-{
-    if (nArgs)
-        FLISP_INTERP.output = FLISP_ARG1;
-    return FLISP_INTERP.output;
-}
 /** (interp-debug [ stream]]) - query or set interpreter debug stream */
 Object *primitiveInterpDebug(Object *interp, Object **args, Object **env, size_t nArgs)
 {
@@ -2909,7 +2902,6 @@ Object *flisp_core_init(Object *interp, Object *extension)
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp",                 0,  0, type_any,      primitiveInterp));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "env",                    0,  0, type_any,      primitiveEnv));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-input",           0,  1, type_stream,   primitiveInterpInput));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-output",          0,  1, type_stream,   primitiveInterpOutput));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-debug",           0,  1, type_stream,   primitiveInterpDebug));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-print",           0,  1, type_any,      primitiveInterpPrint));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-gc-always",       0,  1, type_any,      primitiveInterpGcAlways));
@@ -2998,7 +2990,6 @@ Memory *newMemory(size_t size)
  * @param size          Initial size of Lisp object space in bytes.
  * @param argv          null terminated array to arguments to be imported or NULL.
  * @param input         open readable file descriptor for default input or NULL.
- * @param output        open writable file descriptor for default output or NULL.
  * @param debug         open writable file descriptor for debug output or NULL.
  *
  * @returns On success: a pointer to an fLisp interpreter object
@@ -3011,7 +3002,7 @@ Memory *newMemory(size_t size)
 Object *flisp_interpreter(
     size_t size,
     char **argv,
-    FILE *input, FILE *output, FILE *error, FILE* debug)
+    FILE *input, FILE *error, FILE* debug)
 {
     Object *interp;
     Object *e = nil, *var;
@@ -3062,11 +3053,6 @@ Object *flisp_interpreter(
         FLISP_UNLESS_ERR(FLISP_INTERP.input = newStreamObject(interp, input, "*standard-input*"));
         FLISP_UNLESS_ERR(var = newSymbol(interp, "*standard-input*"));
         FLISP_UNLESS_ERR(envSet(interp, &var, &FLISP_INTERP.input, &FLISP_INTERP.global, true));
-
-        /* output stream */
-        FLISP_UNLESS_ERR(FLISP_INTERP.output = newStreamObject(interp, output, "*standard-output*"));
-        FLISP_UNLESS_ERR(var = newSymbol(interp, "*standard-output*"));
-        FLISP_UNLESS_ERR(envSet(interp, &var, &FLISP_INTERP.output, &FLISP_INTERP.global, true));
 
         /* error stream */
         FLISP_UNLESS_ERR(FLISP_INTERP.stderr = newStreamObject(interp, error, "*standard-error*"));
