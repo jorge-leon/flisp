@@ -2088,6 +2088,7 @@ Object *primitiveElements(Object *interp, Object **args, Object **env, size_t nA
         if (i > end) i = end;
     }
     if (nArgs > 2) {
+        FLISP_ASSERT(FLISP_ARG3, type_integer, "(elements object[ start[ end]] - end");
         j = (FLISP_ARG3->value);
         if (j < 0) j += end;
     }
