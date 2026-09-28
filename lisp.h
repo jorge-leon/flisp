@@ -116,8 +116,6 @@ typedef struct Memory {
 
 typedef struct InterpreterExt {
     Object *input;
-    Object *stderr;
-    Object *debug;
     Object *extensions;
     Object *symbols;
     Object *global;

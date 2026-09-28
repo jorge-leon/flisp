@@ -9,6 +9,7 @@
 
 #include <sys/mman.h>
 #include <errno.h>
+#include <stddef.h>
 #include <stdbool.h>
 #include <ctype.h>
 #include <stdlib.h>
@@ -2868,8 +2869,8 @@ Object *flisp_interpreter(size_t size, char **argv, FILE *input)
 
     interp->type = type_interpreter;
     interp->size = sizeof(InterpreterExt);
-    /* Note: 7 is the number of Lisp objects stored in InterpreterExt */
-    interp->length = 7;
+    /* Note: 4 is the number of Lisp objects stored in InterpreterExt */
+    interp->length = offsetof(InterpreterExt, gcTop)/sizeof(Object *);
 
     FLISP_INTERP.memory = memory;
 
