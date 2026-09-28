@@ -6,21 +6,6 @@
 
 (defun listp (o) (cond ((null o)) ((consp o))))
 
-(defun nthcdr (i l)
-  (cond
-    ((not (integerp i))
-     (error wrong-type-argument
-	    (concat "(nthcdr i l) - i expected type-integer, got: " (type-of i)) i )) 
-    ((< i 0) (error range-error "negative index" i))
-    ((not (listp l))
-     (error wrong-type-argument
-	    (concat "(nthcdr i l) - l expected type-cons, got: " (type-of l)) l ))
-    ((i=0 i) l)
-    (l (elements l i)) ))
-
-(defun nth (n list)
-  (car (nthcdr n list)))
-
 (defun fold-right (f o l)
   (cond
     ((null l) o)

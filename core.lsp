@@ -61,8 +61,11 @@
       ;;values are never seen
       )
 
+(defun nthcdr (i l) (when l (elements l i)))
+(defun nth (i l) (car (elements l i)))
+
 (defun type-name (o)
-  (if (typep type-type o) (elements (car (elements o 0 1)))
+  (if (typep type-type o) (elements (nth 0 o))
       (error wrong-type-argument
 	     (string-append "(type-name o) - o expected type-type, got " (type-name (type-of o)))
 	     o )))
@@ -336,11 +339,11 @@
 	  ((errorp r) r)
 	  ((memq feature features) feature)) )))
 
-(defun interp-extensions ()  (elements (interp) 4 5))
-(defun error-type (error)
-  (if (errorp error) (car (elements error 0 1))
-      (error wrong-type-argument
-	     (concat "(error-type error) - error expected type-error, got " (type-of error))
+(defun interp-extensions ()  (nth 3 (interp)))
+(defmacro error-type (error)
+  (list 'if (list 'errorp error) (list 'nth 0 error)
+      (list 'error wrong-type-argument
+	     (list 'concat "(error-type error) - error expected type-error, got " (list 'type-of error))
 	     error) ))
 
 (provide 'core)

@@ -521,7 +521,7 @@ flisp_expr; ok elements-7 primitive has no elements
 IN='(elements (car (elements (interp) 0 1)))' OUT='("*standard-input*")'
 flisp_expr; ok elements-8-1 interpreters have elements
 
-IN='(elements (car (car (elements (interp) 3 4))))' OUT='(posix nil)'
+IN='(elements (car (car (elements (interp) 1 2))))' OUT='(posix nil)'
 flisp_expr; ok elements-8-2 extensions have elements
 
 IN='(elements (lambda args body) 0 2)' OUT='(args (body))'

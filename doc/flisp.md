@@ -45,7 +45,7 @@ Other documentation topics on *fLisp*:
 2.  Table of Contents
 3.  [Notation Conventions](#notation)
 4.  [Lisp](#lisp)
-    1.  [fLisp Interpreter](#interpreter)
+    1.  [*fLisp* Interpreter Core](#interpreter)
     2.  [Syntax](#syntax)
     3.  [Objects and Data Types](#objects_and_data_types)
     4.  [Environments, Functions, Evaluation](#evaluation)
@@ -64,6 +64,7 @@ Other documentation topics on *fLisp*:
     1.  [String Extension](#string)
     2.  [POSIX Extension](#posix)
     3.  [Double Extension](#double)
+    4.  [`princ` Extension](#princ)
 7.  [Lisp Libraries](#libraries)
     1.  [fLisp Library](#flisp_lib)
     2.  [String Library](#string_lib)
@@ -164,15 +165,19 @@ No annotation indicates Common Lisp compatibility.
 
 ### Lisp
 
-#### fLisp Interpreter
+#### *fLisp* Interpreter Core
 
-*fLisp* processes programs in a three step process:
+The embeddable *fLisp* interpreter core implements a Lisp reader and a
+Lisp evaluator. Both return a Lisp object, which can be either the
+requested result or an error object.
 
-1.  Read: program text is read in and converted into an internal
-    representation.
-2.  Evaluate: the internal representation is evaluated.
-3.  Print: the result of the evaluation is optionally printed and
-    returned to the invoker.
+Traditional Lisp REPL's can be built, like demonstrated in the provided
+[Command Line Interpreters](#flisp). They use the simple [princ](#princ)
+formatter extension to implement the Lisp Printer.
+
+When embedding the interpreter in other applications a Lisp printer
+might not be necesary or required. The result or error object can be
+introspected directly.
 
 #### Syntax
 
@@ -528,15 +533,6 @@ the root environment:
 `*standard-input*`  
 The initial input stream..
 
-`*standard-output*`  
-The initial output stream, or `nil` if there is none.
-
-`*standard-error*`  
-The initial error output stream, or `nil` if there is none.
-
-`*debug-output*`  
-The initial debug output stream, or `nil` if there is none.
-
 `argv`  
 Is bound to a list of all command line arguments of the invoking program
 in order. Each element is of type string.
@@ -652,13 +648,6 @@ closed.
 Reads the next complete Lisp expression from *stream*. The read in
 object is returned. If end of file is reached, an exception is raised,
 unless *eof-value* is not `nil`. In that case `eof-value` is returned.
-
-`(write «object»[ «readably»[ «fd»]])` ⇒ *object*  
-Formats *object* into a string and writes it to the default output
-stream. When *readably* is not `nil` output is formatted in a way which
-which gives the same object when read again. When stream *fd* is given
-output is written to the given stream else to the output stream. `write`
-returns the *object*.
 
 `(ifmt «i»[ «base»[ «map»[ «padding»[ «length»]]]])`  
 Convert an integer into a string object.
@@ -838,12 +827,6 @@ already loaded. If the extension fails to load an error is returned. If
 `(interp-input[ «stream»])`  
 Return and/or set the default interpreter input stream.
 
-`(interp-output[ «stream»])`  
-Return and/or set the default interpreter output stream.
-
-`(interp-debug[ «stream»])`  
-Return and/or set the default interpreter debug stream.
-
 `(interp)`  
 Return the current interpreter object.
 
@@ -859,14 +842,6 @@ Invoke the garbage collector
 `(interp-gc-always[ «p»])`  
 Query or set the garbage collector stress test flag. When set, the
 garbage collector is run on each object allocation.
-
-`(interp-trace-read[ «p»])`  
-Query or set the interpreter read trace flag. When set, the object read
-in by the reader is printed to the debug stream before evaluation.
-
-`(interp-trace-primitives[ «p»])`  
-Query or set the interpreter primitives trace flag. When set each
-primitive invocation is printed together with its arguments.
 
 `(interp-countdown[ «i»])`  
 Query or set the interpreter countdown counter. The evaluator will
@@ -940,10 +915,11 @@ named object in the current or a parent environment the named object is
 set to *value*, if no symbol with this name exists, a new one is created
 in the top level environment. `setq` returns the last *value*.
 
-`(curry («func» «a»))` ⇒ *lambda*  
-Returns a lambda with one parameter which returns `(«func» «a» «b»)`.
+`(curry «func» «a»)` ⇒ *lambda*  
+Returns a lambda with one parameter *b*. The lambda evaluates
+`(«func» «a» «b»)`.
 
-`(typep («type» «object»))` ⇒ *p*  
+`(typep «type» «object»)` ⇒ *p*  
 Returns `t` if *object* is of type *type*, `nil` otherwise.
 
 `(integerp «object»)` ⇒ *p*  
@@ -953,7 +929,21 @@ Returns `t` if *object* is of type *type*, `nil` otherwise.
 `(lamdap «object»)` ⇒ *p*  
 `(macrop «object»)` ⇒ *p*  
 `(streamp «object»)` ⇒ *p*  
+`(errorp «object»)` ⇒ *p*  
+`(vectorp «object»)` ⇒ *p*  
 Return `t` if *object* is of the respective type, otherwise `nil`.
+
+`(nthcdr «i» «l»)` ⇒ *l'*  
+Return sub list of *l* starting from zero-based *i*th element to the
+last. `nthcdr` is based on `elements` and accepts any type of object.
+For simple object it returns always `nil`, for others the embeded
+`nthcdr` elements are returned.
+
+`(nth «i» «l»)` ⇒ *o*  
+Return zero-based *i*th element of list *l*
+
+`(type-name «o»)`  
+Returns the type of *o* as string
 
 `(mapcar «func» «list»)` ⇒ *list'* <u>Se, Dc</u>  
 Apply *func* to each element in list and return the list of results.
@@ -978,19 +968,19 @@ Evaluate all *sexp* in turn and return the value of the first.
 `(symbol-name «symbol»)` ⇒ *string*` `  
 Return the name of *symbol* as a string.
 
-`(string «arg»)` ⇒ *string*  
-Returns the string conversion of argument.
+`(str «o»)` ⇒ *string*  
+Returns the string conversion of *o*. `nil` is the empty string,
+integers are converted into their decimal string representation, strings
+are returned as-is, for symbols their name is returned as strings, The
+elements of lists and vectors are converted via `string` and then
+concatenated, and for all other types the `type-name` is returned.
+
+`(string «o»)`  
+A macro which returns the string `"type-error"` if *o* is an error, and
+`(str «o»)` otherwise.
 
 `(concat` \[*arg*..\]`)` ⇒ *string* <u>Ce</u>  
 Returns concatenation of all arguments converted to strings.
-
-`(assert-type «o» «type» «s»)`  
-`(assert-number «o» «s»)`  
-Throw an `invalid-type` exception if *o* is not of specified *type*. *s*
-is a signature string indicating the erroneous parameter, e.g.
-`(assert-type o type-string "(assert-type o type s) - s")` would assert
-that *s* is of `type-string`. In the case of `assert-number` the
-assertion is done for `numberp`.
 
 `(numberp «object»)` ⇒ *p*  
 Return `t` if *object* is integer or double, otherwise `nil`.
@@ -1335,6 +1325,14 @@ between *x* *y*.
 
 [^](#toc)
 
+#### `princ` Extensions
+
+This extension implements the `(princ «o»[ «stream»])` function, which
+prints *o* to the given *stream* or to `stdout` in a format for human
+consumption.
+
+[^](#toc)
+
 ### Complementary Lisp Libraries
 
 *flisp*  
@@ -1350,13 +1348,6 @@ File, filename and directory operations.
 
 `(listp «o»)` ⇒ *p* <u>D</u>  
 Returns true if *o* is `nil` or a *cons*.
-
-`(nthcdr «i» «l»)` ⇒ *l'*  
-Return sub list of *l* starting from zero-based *i*th element to the
-last.
-
-`(nth «i» «l»)` ⇒ *o*  
-Return zero-based *i*th element of list *l*
 
 `(fold-right «f» «o» «l»)` ⇒ *o'* <u>Cs</u>  
 Apply binary function *f* to last element of *l* and *o*, then
@@ -1483,11 +1474,6 @@ The following environment variables are taken into account by `fl`:
 The number of bytes to pre-allocate for the Lisp objects space. Defaults
 to zero.
 
-`FLISP_DEBUG`  
-When set to a file name, `fl` tries to truncate and open the file for
-writing and uses it as debug output. When set to “`-`”debug output is
-sent to *stdout*, when set to “`&`” debug output is sent to *stderr*.
-
 `FLISP_QUIET`  
 When set to 0, quiet mode is disabled, otherwise quiet mode is forced.
 
@@ -1512,12 +1498,10 @@ them from the `script_dir` directory which defaults to
 variable FLISPLIB.
 
 All environment variables recognized by `fl` are taken into account,
-however it is wise to only use `FLISP_SIZE« and »FLISP_DEBUG`.
+however it is wise to only use `FLISP_SIZE«.»`
 
-The original *argv0* command line argument, the full path to `fl`, is
-bound to the symbol *flisp_interpreter*, The full path to `flisp` is
-bound to the symbol *argv0* and the rest of the command line arguments
-are bound as a list of string to the symbol *argv*.
+*The original **argv0** command line argument, the full path to
+*`fl«, is bound to the symbol »«flisp_interpreter»«, The full path to »flisp« is bound to the symbol »«argv0»« and the rest of the command line arguments are bound as a list of string to the symbol »«argv»«.»`
 
 `flisp` tries to load a user specific rc file from
 `~/.config/flisp/init.lsp`. Then all arguments on the command line are
