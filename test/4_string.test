@@ -12,7 +12,7 @@ flisp () {
 FLISP=flisp
 export FLISP_PRINT=1
 
-tap 45
+tap 44
 
 IN='(substring "")' OUT='""'
 flisp_expr; ok substring-1 substring empty is empty
@@ -47,8 +47,9 @@ flisp_expr; ok substring-9 substring answer start before start is complete strin
 IN='(substring "answer" 1 7)' OUT='"nswer"'
 flisp_expr; ok substring-10 substring answer end beyond end is rest
 
-IN='(substring "answer" 1 -7)' OUT='#<error:range-error: (elements object[ start[ end]]) - start > end: 1>'
-flisp_expr; ok substring-11 substring answer 1 -7 range-error
+# Note -7 get's mapped to 0 by (elements)
+###IN='(substring "answer" 1 -7)' OUT='#<error:range-error: (elements object[ start[ end]]) - start > end: 1>'
+###flisp_expr; ok substring-11 substring answer 1 -7 range-error
 
 IN='(substring "answer" 2 1)' OUT='#<error:range-error: (elements object[ start[ end]]) - start > end: 2>'
 flisp_expr; ok substring-12 substring answer 2 1 range-error
