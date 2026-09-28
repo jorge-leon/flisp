@@ -1,4 +1,5 @@
 #!${BINDIR}/fl
+;;; -*- mode:lisp -*-
 ;;;
 ;;; fLisp command line interpreter
 ;;;
@@ -19,6 +20,8 @@ $(cat core.lsp)
 
 (when (getenv "FLISPLIB")
   (setq script_dir (getenv "FLISPLIB")) )
+
+(setq *standard-error* (open ">2"))
 
 (defun repl-princ s  (princ (concat s)))
 (defun repl-eprinc s (princ (concat s) *standard-error*))

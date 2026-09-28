@@ -165,9 +165,6 @@ Object *stringCodeChar(Object *interp, Object **args, Object **env, size_t nArgs
     if (len == -1)
         return newError(interp, FLISP_ARG1, range_error,
                             "(code-char n) - n out of Unicode range");
-    flisp_debug(interp, "%d: %hhX %hhX %hhX %hhX %hhX\n",
-             len, string[0], string[1], string[2], string[3], string[4]
-        );
     return newString(interp, string);
 }
 

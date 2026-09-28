@@ -45,7 +45,7 @@ int main(int argc, char **argv)
 {
     char *env;
     bool interactive = false, print = false;
-    FILE *debug_fd = NULL, *input_fd = stdin;
+    FILE *input_fd = stdin;
     long long size = 0;
     Object *interp, *e = nil;
 
@@ -54,23 +54,12 @@ int main(int argc, char **argv)
         size = strtoll(env, NULL, 10);
         if (errno == ERANGE)  fatal("invalid FLISP_SIZE");
     }
-    if ((env = getenv("FLISP_DEBUG")) != NULL) {
-        if (env[0] == '\0')
-            ;
-        else if (env[0] == '-')
-            debug_fd = stdout;
-        else if (env[0] == '&')
-            debug_fd = stderr;
-        else if ((debug_fd = fopen(env, "w")) == NULL) {
-            fatal("failed to open debug file");
-        }
-    }
     if (argc > 1 && argv[1][0] != '-')
         if ((input_fd = fopen(argv[1], "r")) == NULL)
             fatal("failed to open input file");
     interactive = isatty(fileno(input_fd));
     do {
-        FLISP_UNLESS_ERR(interp = flisp_interpreter((size_t) size, argv, input_fd, stderr, debug_fd));
+        FLISP_UNLESS_ERR(interp = flisp_interpreter((size_t) size, argv, input_fd));
         FLISP_UNLESS_ERR(flisp_register_extension(interp, extension_princ, flisp_princ_init));
         FLISP_UNLESS_ERR(flisp_princ_init(interp, FLISP_INTERP.extensions->car));
 

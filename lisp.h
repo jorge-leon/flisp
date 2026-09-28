@@ -182,7 +182,7 @@ typedef struct Scratchpad {
 } Scratchpad;
 
 // PUBLIC INTERFACE ///////////////////////////////////////////////////////
-extern Object *flisp_interpreter(size_t size, char **, FILE*, FILE*, FILE*);
+extern Object *flisp_interpreter(size_t size, char **, FILE*);
 extern void flisp_destroy(Object *);
 extern Object *flisp_eval_object(Object *, Object *);
 extern Object *flisp_read_expr(Object *);
@@ -198,7 +198,6 @@ extern Object *file_fopen(Object *, char *, char*);
 extern int file_fclose(Object *, Object *);
 extern int64_t flisp_list_length(Object*);
 
-extern Object *print_fmt(Object *, Object **, size_t, char *, ...);
 extern SimpleObject nil_obj;
 extern TypeObject type_primitive_obj;
 extern SimpleObject flisp_init_invalid;
@@ -329,8 +328,6 @@ extern bool flisp_is_error(Object **, Object *);
 #define FLISP_WHILE_OK(F) if (flisp_not_same(&e, F)) break
 #define FLISP_UNLESS_ERR(F) if (flisp_is_error(&e, F)) break
 
-void flisp_debug(Object *, char *, ...);
-
 #define FLISP_ARG1 (*args)->car
 #define FLISP_ARG2 (*args)->cdr->car
 #define FLISP_ARG3 (*args)->cdr->cdr->car
@@ -350,7 +347,6 @@ void flisp_debug(Object *, char *, ...);
 #define FLISP_INTERP interp->self
 #define FLISP_STANDARD_INPUT  interp->self.input->stream
 #define FLISP_STDERR          interp->self.stderr->stream
-#define FLISP_DEBUG_OUTPUT    interp->self.debug->stream
 #endif
 
 /*

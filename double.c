@@ -41,63 +41,6 @@ Object *doubleMod(Object *interp, Object **args, Object **env, size_t nArgs)
     return newDouble(interp, fmod(FLISP_ARG1->number, FLISP_ARG2->number));
 }
 
-#if 0
-/* Note: The following is a double formatter, however it only does
- * binary floats. The double reader has been removed but the #d reader
- * macro provides for an alternative.  The double writer prints the #D
- * reader macro variant.
- */
-Object *writeDouble(FILE *fd, uint64_t number)
-{
-    if (fd == NULL) return nil;
-
-    bool sign = number & 0x8000000000000000;
-    int64_t exponent = ((number & 0x7ff0000000000000) >> 52);
-    int64_t fraction = number   & 0x000fffffffffffff;
-    char *prefix = "1.";
-    Object *e = nil;
-
-    if (exponent == 0) {
-        if (fraction)
-            prefix = "0.";
-        else {
-            e = writeString(fd, "-0");
-            return e;
-        }
-    }
-    if (exponent == -1) {
-        if (fraction)
-            e = writeString(fd, "NaN");
-        else {
-            if (sign && ((e = writeChar(fd, '-')) != nil)) return e;
-            e = writeString(fd, "∞");
-        }
-        return e;
-    }
-    exponent -=1023;
-    /* Note: here is where we would start to convert to decimal */
-    if (sign && ((e = writeChar(fd, '-')) != nil)) return e;
-    if ((e = writeString(fd, prefix)) != nil ||
-        (e = writeInteger(fd, fraction)) != nil ||
-        (e = writeString(fd, "₂")) != nil) return e;
-    if (exponent &&
-        ((e = writeString(fd, "×2^")) != nil ||
-         (e = writeInteger(fd, exponent)) != nil)) return e;
-    if ((e = writeString(fd, "₂")) != nil) return e;
-    return e;
-}
-#endif
-#if 0
-/* (write-/type/ obj[ readably[ stream]) */
-Object *primitiveWDouble(Object *interp, Object **args, Object **env, size_t nArgs)
-{
-    FLISP_ASSERT(FLISP_ARG1, type_double, "(write-double o[ p[ s]]) - o");
-    FLISP_CHECK_ERR(print_fmt(interp, args, nArgs, "%f", FLISP_ARG1->number));
-    return FLISP_ARG1;
-}
-Primitive w_d_p = { .name = "write-double", .nMinArgs = 2, .nMaxArgs = 3, .argsType = (TypeObject*)&nil_obj, .eval = primitiveWDouble };
-SimpleObject write_double = { .type = &type_primitive_obj, .size = 0, .primitive = &w_d_p };
-#endif
 
 FLISP_DEFINE_CONSTANT(extension_double,"double");
 FLISP_DEFINE_CONSTANT(extension_double_version,FLISP_DOUBLE_VERSION);
