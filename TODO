@@ -1,1 +1,13 @@
-- implement gc - memory readjustment
++ implement gc - memory readjustment
+- object: move write out of core, replace with fmt.
+  - instead of writer slot have a fmt slot in the type object.
+  + consider eliminating readably formatting from core.
+  - fl: read, eval, fmt, puts()
+  - rationale: embedded operation most likely doesn't want to print neither fmt.
+- object: new and fmt slot contain either:
+  + nil -> fallback operation
+  + primitive -> execute
+  - cons -> eval *new: this allows to override
+- CAR() CDR() Macro: use it consistently
+- Remove global variables (except argv, argv0) - they are covered by (interp-[input|output|debug).
+- (iota 20000) segfaults -> Stack overflow
