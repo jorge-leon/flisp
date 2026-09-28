@@ -42,6 +42,9 @@ Size by version:
 	0.15     67096	 87336   3.8k/2.5k/7            358/166/5
 	0.16    223948  241696   3882/2547/7            371/166/5
 	0.17    116376  142368   5280/3632/10           736/191/5
+	0.18α1   94056  116936   4575/3080/10           742/178/5
+
+The statically compiled `fl` measures 1.1M.
 
 Binary sizes are measured on Debian GNU/Linux amd64. The Library
 column shows the size of the `lispflisp.a` embeddable library, the
@@ -50,7 +53,11 @@ contains the string, double and posix library.
 
 ## Building
 
-fLisp depends only on the standard C libraries.
+fLisp depends only on the standard C libraries. For building the
+documentation pandoc, graphviz and tidy is needed, the Debian packages
+are built with debhelper.
+
+	apt install build-essential debhelper graphviz pandoc tidy
 
 The default Makefile target:
 
@@ -79,6 +86,8 @@ Builds the following Debian packages:
 - `flisp-common` .. Lisp libraries
 - `flisp-doc` .. POSHdoc/HTML and Markdown documentation.
 - `flisp-dev` ..  Development resources.
+
+The command line utilities depend on the Lisp libraries.
 
 # Documentation
 

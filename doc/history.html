@@ -12,8 +12,19 @@
 </head>
 <body>
   <h1 id="top"><i>fLisp</i> History</h1>
-  <p>This document contains some notes on the evolution of <i>fLisp</i>, if you need a reference manual read
-  the&nbsp;<a href="flisp.html">fLisp Manual</a> <a href="flisp.md">(Markdown)</a>.</p>
+  <p>This document contains some notes on the evolution of <i>fLisp</i>.</p>
+  <p>Other documentation topics on <i>fLisp</i>:</p>
+  <ul>
+    <li>
+      <a href="flisp.html"><i>fLisp</i> Manual</a>&nbsp;<a href="flisp.md">(Markdown)</a>
+    </li>
+    <li>
+      <a href="develop.html">Development</a> of and with <i>fLisp</i> (<a href="development.md">Markdown</a>)
+    </li>
+    <li>
+      <a href="implementation.html">Implementation</a> Details (<a href="markdown.md">Markdown</a>)
+    </li>
+  </ul>
   <p>The original&nbsp;<a href="https://github.com/hughbarney/femto">Femto</a>&nbsp;editor came initially with a
   modified version of&nbsp;<a href="https://github.com/matp/tiny-lisp">Tiny-Lisp</a>&nbsp;by Matthias Pirstitz.</p>
   <p>In 2023 some severe bugs surfaced in Tiny-Lisp. &nbsp;Georg Lehner decided,&nbsp;that simplifying the code would
@@ -56,31 +67,32 @@
     <li>Lisp Object types are stored as Lisp symbols instead of C&nbsp;constants. This allows for type testing in
     Lisp.</li>
     <li>Numbers are represented by 64 bit integers instead of double floats.</li>
-    <li>The Lisp libraries are&nbsp;extended and functions are improved for compatibilty.</li>
+    <li>The Lisp libraries are extended and functions are improved for compatibilty.</li>
     <li>Lisp object space adjusts dynamically when needed.</li>
-    <li>The&nbsp;<code>setq</code>&nbsp;primitve is replaced by <code>bind</code> and then implemented as Lisp
-    macro.</li>
+    <li>The <code>setq</code> primitve is replaced by <code>bind</code> and then implemented as Lisp macro.</li>
     <li>Enough framework is built to implement the repl completely in Lisp.</li>
   </ul>
   <p>In 2026 <i>fLisp</i> is factored out of <i>Femto</i>, C-extensions can be loaded on demand and extensible objects
-  are introduced. Upon suggestion of Kirill L error handling is switched from exception handling to&nbsp;returning
-  error objects, multiple return values are implemented and the <code>fl</code> and <code>flisp</code> command line
-  utilities can be used for Lisp scripting.</p>
+  are introduced. Upon suggestion of Kirill L error handling is switched from exception handling to returning error
+  objects, multiple return values are implemented and the <code>fl</code> and <code>flisp</code> command line utilities
+  can be used for Lisp scripting.</p>
   <ul>
-    <li>The <i>fLisp</i> core, string and flisp libraries as well as the&nbsp;file extension&nbsp;primitives are
-    refined and complemented,&nbsp;a Lisp file library is added, the stdlib library is removed.</li>
-    <li>The read-eval-print loop is now completely written in Lisp, <code>fl</code>&nbsp;and
-    <code>flisp</code>&nbsp;can be used for scripting.</li>
+    <li>The <i>fLisp</i> core, string and flisp libraries as well as the file extension primitives are refined and
+    complemented, a Lisp file library is added, the stdlib library is removed.</li>
+    <li>Basic Unicode / UTF-8 support is added.</li>
+    <li>Extensible Objects are introduced, this allows to add new object types in extensions.</li>
+    <li>Exceptions and fatal error exists are removed completely from the core. Instead error objects are returned, an
+    error type and <code>(error)</code> object constructor are added.</li>
+    <li>The Lisp printer is removed from the core, a simple implementation is provided in the <code>princ</code>
+    extension.</li>
+    <li><code>fl</code> and <code>flisp</code> can be used for scripting</li>
     <li>All symbols and primitives are loaded dynamically and argument checking now relies only on Lisp object
     types.</li>
     <li>Public symbols are prefixed with <code>flisp_</code> to avoid name clashes when embedding.</li>
-    <li>Debian packages <code>flisp</code> and <code>flisp-dev</code>&nbsp;can be built.</li>
+    <li>Debian packages can be built: <code>flisp</code>, <code>flisp-common</code>, <code>flisp-doc</code> and
+    <code>flisp-dev</code>.</li>
     <li><i>fLisp</i> can be embedded now in other applications without the need for the <i>Femto</i> or <i>fLisp</i>
     sources.</li>
-    <li>Basic Unicode / UTF-8 support is added.</li>
-    <li>Extensible Objects are introduced, this allows to add new object types in extensions.</li>
-    <li>Error type and (error) object constructor is added. Exceptions are removed completely from core functions as
-    well as fatal error exits.</li>
   </ul>
   <nav>
     <a href="#top">^</a>

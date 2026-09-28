@@ -62,7 +62,9 @@
       )
 
 (defun nthcdr (i l) (when l (elements l i)))
-(defun nth (i l) (car (elements l i)))
+(defun nth (i l)
+  (if (stringp l) (elements l i (i+ 1 i))
+      (car (elements l i)) ))
 
 (defun type-name (o)
   (if (typep type-type o) (elements (nth 0 o))

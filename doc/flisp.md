@@ -937,7 +937,8 @@ Return `t` if *object* is of the respective type, otherwise `nil`.
 Return sub list of *l* starting from zero-based *i*th element to the
 last. `nthcdr` is based on `elements` and accepts any type of object.
 For simple object it returns always `nil`, for others the embeded
-`nthcdr` elements are returned.
+`nthcdr` elements are returned. Negative indexes pick elements from the
+end of the list/vector.
 
 `(nth «i» «l»)` ⇒ *o*  
 Return zero-based *i*th element of list *l*
@@ -1234,6 +1235,9 @@ All functions except `getenv` are specific to fLisp.
 <span class="mark">Tbd. carry over comprehensive documentation from
 `file.c`</span>
 
+`(fputs s[ «stream»])` ⇒ *p*  
+Print string *s* to *stream* or `stdout` if not given.
+
 `(fflush[ «stream»])` ⇒ *p*  
 Flush *stream*, output or all streams
 
@@ -1373,6 +1377,14 @@ Return value of key *k* from property list *l*.
 
 `(equal «o1» «o2»)` ⇒ *p*  
 Return `nil` if *o1* and *o2* are not isomorphic.
+
+`(vector[ arg ..])`  
+Create a vector from all given args
+
+`(quasiquote-splice «ast»)`  
+`(quasiquote-unquote «ast»)`  
+`(quasiquote «ast»)`  
+These functions/macro implement the quasiquote reader macro(s).
 
 [^](#toc)
 

@@ -116,15 +116,19 @@ flv: fl FORCE
 frama-c: FORCE
 	frama-c -c11 -cpp-extra-args="-I$(frama-c -print-path)/libc -I/usr/include -I." -kernel-msg-key pp -metrics *.c
 
+static: fl.o lisp.o $(OBJ) princ.o
+	$(LD) $(LDFLAGS) -static -o $@ $^ -lm
+
 LISPSRC = $(SCRIPTS) $(LISPLIB)
 ALLSRC = $(SOURCES) $(LISPSRC)
 # Requires sloccount
-measure: $(RC_FILES) $(BINARIES) $(SCRIPTS) strip FORCE
+measure: $(RC_FILES) $(BINARIES) static $(SCRIPTS) strip FORCE
 	@echo
 	@echo fLisp Code Stats
 	@echo
 	@echo "libsize: " $$(set -- $$(ls -l libflisp.a); echo $$5)
 	@echo "binsize: " $$(set -- $$(ls -l fl); echo $$5)
+	@echo "static:  " $$(set -- $$(ls -lh static); echo $$5)
 	@echo "              C  Lisp  Total"
 	@echo "lines:     $$(cat $(SOURCES) | wc -l)   $$(cat $(LISPSRC) | wc -l)   $$(cat $(ALLSRC) | wc -l)"
 	@echo "files:        $$(echo $(SOURCES) | wc -w)     $$(echo $(LISPSRC) | wc -w)     $$(echo $(ALLSRC) | wc -w)"
@@ -158,7 +162,7 @@ strip: $(BINARIES) $(LIBRARIES) FORCE
 	strip $(BINARIES) $(LIBRARIES)
 
 clean: FORCE
-	-$(RM) -f $(OBJ) $(BINARIES) $(SCRIPTS) $(LIBRARIES) $(RC_FILES) fl.o princ.o flisp.pc
+	-$(RM) -f $(OBJ) $(BINARIES) $(SCRIPTS) $(LIBRARIES) $(RC_FILES) fl.o flisp.pc princ.o static
 	-$(RM) -rf doxygen
 	-$(RM) -f $(MOREDOCS)
 	-$(RM) -f f.log

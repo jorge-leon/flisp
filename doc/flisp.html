@@ -830,7 +830,8 @@
       <dt><code>(nthcdr <var>i</var> <var>l</var>)</code> ⇒ <i>l'</i></dt>
       <dd>Return sub list of <var>l</var> starting from zero-based <var>i</var>th element to the last.
       <code>nthcdr</code> is based on <code>elements</code> and accepts any type of object. For simple object it
-      returns always <code>nil</code>, for others the embeded <code>nthcdr</code> elements are returned.</dd>
+      returns always <code>nil</code>, for others the embeded <code>nthcdr</code> elements are returned. Negative
+      indexes pick elements from the end of the list/vector.</dd>
       <dt><code>(nth <var>i</var> <var>l</var>)</code> ⇒ <i>o</i></dt>
       <dd>Return zero-based <var>i</var>th element of list <var>l</var></dd>
       <dt><code>(type-name <var>o</var>)</code></dt>
@@ -1037,6 +1038,8 @@
   <p>All functions except <code>getenv</code> are specific to fLisp.</p>
   <p><mark>Tbd. carry over comprehensive documentation from <code>file.c</code></mark></p>
   <dl>
+    <dt><code>(fputs s[&nbsp;<var>stream</var>])</code> ⇒ <i>p</i></dt>
+    <dd>Print string <var>s</var> to <var>stream</var> or <code>stdout</code> if not given.</dd>
     <dt><code>(fflush[&nbsp;<var>stream</var>])</code> ⇒ <i>p</i></dt>
     <dd>Flush <var>stream</var>, output or all streams</dd>
     <dt><code>(fseek <var>stream</var> <var>offset</var>[&nbsp;<var>relativep</var>])</code> ⇒
@@ -1145,6 +1148,14 @@
     <dd><code>t</code> if number <var>x</var> is zero.</dd>
     <dt><code>(equal <var>o1</var> <var>o2</var>)</code> ⇒ <i>p</i></dt>
     <dd>Return <code>nil</code> if <var>o1</var> and <var>o2</var> are not isomorphic.</dd>
+    <dt><code>(vector[&nbsp;arg&nbsp;..])</code></dt>
+    <dd>Create a vector from all given args</dd>
+    <dt><code>(quasiquote-splice <var>ast</var>)</code></dt>
+    <dt><code>(quasiquote-unquote <var>ast</var>)</code></dt>
+    <dt><code>(quasiquote <var>ast</var>)</code></dt>
+    <dd>
+      <p>These functions/macro implement the quasiquote reader macro(s).</p>
+    </dd>
   </dl>
   <nav>
     <a href="#toc">^</a>
