@@ -1,8 +1,14 @@
 # *fLisp* History
 
-This document contains some notes on the evolution of *fLisp*, if you
-need a reference manual read the [fLisp Manual](flisp.html)
-[(Markdown)](flisp.md).
+This document contains some notes on the evolution of *fLisp*.
+
+Other documentation topics on *fLisp*:
+
+- [*fLisp* Manual](flisp.html) [(Markdown)](flisp.md)
+- [Development](develop.html) of and with *fLisp*
+  ([Markdown](development.md))
+- [Implementation](implementation.html) Details
+  ([Markdown](markdown.md))
 
 The original [Femto](https://github.com/hughbarney/femto) editor came
 initially with a modified version
@@ -57,35 +63,38 @@ In 2025 garbage collection and Lisp facilities are improved:
 - Lisp Object types are stored as Lisp symbols instead of C constants.
   This allows for type testing in Lisp.
 - Numbers are represented by 64 bit integers instead of double floats.
-- The Lisp libraries are extended and functions are improved for
+- The Lisp libraries are extended and functions are improved for
   compatibilty.
 - Lisp object space adjusts dynamically when needed.
-- The `setq` primitve is replaced by `bind` and then implemented as Lisp
+- The `setq` primitve is replaced by `bind` and then implemented as Lisp
   macro.
 - Enough framework is built to implement the repl completely in Lisp.
 
 In 2026 *fLisp* is factored out of *Femto*, C-extensions can be loaded
 on demand and extensible objects are introduced. Upon suggestion of
-Kirill L error handling is switched from exception handling to returning
+Kirill L error handling is switched from exception handling to returning
 error objects, multiple return values are implemented and the `fl` and
 `flisp` command line utilities can be used for Lisp scripting.
 
-- The *fLisp* core, string and flisp libraries as well as the file
-  extension primitives are refined and complemented, a Lisp file library
+- The *fLisp* core, string and flisp libraries as well as the file
+  extension primitives are refined and complemented, a Lisp file library
   is added, the stdlib library is removed.
-- The read-eval-print loop is now completely written in Lisp, `fl` and
-  `flisp` can be used for scripting.
+- Basic Unicode / UTF-8 support is added.
+- Extensible Objects are introduced, this allows to add new object types
+  in extensions.
+- Exceptions and fatal error exists are removed completely from the
+  core. Instead error objects are returned, an error type and `(error)`
+  object constructor are added.
+- The Lisp printer is removed from the core, a simple implementation is
+  provided in the `princ` extension.
+- `fl` and `flisp` can be used for scripting
 - All symbols and primitives are loaded dynamically and argument
   checking now relies only on Lisp object types.
 - Public symbols are prefixed with `flisp_` to avoid name clashes when
   embedding.
-- Debian packages `flisp` and `flisp-dev` can be built.
+- Debian packages can be built: `flisp`, `flisp-common`, `flisp-doc` and
+  `flisp-dev`.
 - *fLisp* can be embedded now in other applications without the need for
   the *Femto* or *fLisp* sources.
-- Basic Unicode / UTF-8 support is added.
-- Extensible Objects are introduced, this allows to add new object types
-  in extensions.
-- Error type and (error) object constructor is added. Exceptions are
-  removed completely from core functions as well as fatal error exits.
 
 [^](#top)

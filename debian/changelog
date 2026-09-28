@@ -1,3 +1,9 @@
+flisp (0.18alpha1-1) trixie; urgency=medium
+
+  branch move-readably
+
+ -- Georg Lehner <jorge@magma-soft.at>  Tue, 14 Apr 2026 22:33:31 +0200
+
 flisp (0.17-1) trixie; urgency=medium
 
   fLisp type system

@@ -64,7 +64,7 @@
       <a href="#lisp">Lisp</a>
       <ol>
         <li>
-          <a href="#interpreter">fLisp Interpreter</a>
+          <a href="#interpreter"><i>fLisp</i> Interpreter Core</a>
         </li>
         <li>
           <a href="#syntax">Syntax</a>
@@ -123,6 +123,9 @@
         </li>
         <li>
           <a href="#double">Double Extension</a>
+        </li>
+        <li>
+          <a href="#princ"><code>princ</code> Extension</a>
         </li>
       </ol>
     </li>
@@ -220,13 +223,14 @@
     <a href="#toc">^</a>
   </nav>
   <h3 id="lisp">Lisp</h3>
-  <h4 id="interpreter">fLisp Interpreter</h4>
-  <p><i>fLisp</i> processes programs in a three step process:</p>
-  <ol>
-    <li>Read: program text is read in and converted into an internal representation.</li>
-    <li>Evaluate: the internal representation is evaluated.</li>
-    <li>Print: the result of the evaluation is optionally printed and returned to the invoker.</li>
-  </ol>
+  <h4 id="interpreter"><i>fLisp</i> Interpreter Core</h4>
+  <p>The embeddable <i>fLisp</i> interpreter core implements a Lisp reader and a Lisp evaluator. Both return a Lisp
+  object, which can be either the requested result or an error object.</p>
+  <p>Traditional Lisp REPL's can be built, like demonstrated in the provided <a href="#flisp">Command Line
+  Interpreters</a>. They use the simple <a href="#princ">princ</a> formatter extension to implement the Lisp
+  Printer.</p>
+  <p>When embedding the interpreter in other applications a Lisp printer might not be necesary or required. The result
+  or error object can be introspected directly.</p>
   <h4 id="syntax">Syntax</h4>
   <p>Program text is written as a sequence of symbolic expressions - <abbr><dfn>sexp</dfn></abbr>'s - in parenthesized
   form. A <a href="https://en.wikipedia.org/wiki/S-expression">sexp</a> is either a single symbol or a sequence of
@@ -479,12 +483,6 @@
   <dl>
     <dt><code>*standard-input*</code></dt>
     <dd>The initial input stream..</dd>
-    <dt><code>*standard-output*</code></dt>
-    <dd>The initial output stream, or&nbsp;<code>nil</code> if there is none.</dd>
-    <dt><code>*standard-error*</code></dt>
-    <dd>The initial error output stream, or <code>nil</code> if there is none.</dd>
-    <dt><code>*debug-output*</code></dt>
-    <dd>The initial debug output stream, or <code>nil</code> if there is none.</dd>
     <dt><code>argv</code></dt>
     <dd>Is bound to a list of all command line arguments of the invoking program in order. Each element is of type
     string.</dd>
@@ -591,13 +589,6 @@
       <p>Reads the next complete Lisp expression from <var>stream</var>. The read in object is returned. If end of file
       is reached, an exception is raised, unless <var>eof-value</var> is not <code>nil</code>. In that case
       <code>eof-value</code> is returned.</p>
-    </dd>
-    <dt><code>(write <var>object</var>[&nbsp;<var>readably</var>[&nbsp;<var>fd</var>]])</code> ⇒ <var>object</var></dt>
-    <dd>
-      <p>Formats <var>object</var> into a string and writes it to the default output stream. When <var>readably</var>
-      is not <code>nil</code> output is formatted in a way which which gives the same object when read again. When
-      stream <var>fd</var> is given output is written to the given stream else to the output stream. <code>write</code>
-      returns the <var>object</var>.</p>
     </dd>
     <dt><code>(ifmt <var>i</var>[ <var>base</var>[ <var>map</var>[&nbsp;<var>padding</var>[
     <var>length</var>]]]])</code></dt>
@@ -741,10 +732,6 @@
     extension <code>nil</code> is returned.</dd>
     <dt><code>(interp-input[ <var>stream</var>])</code></dt>
     <dd>Return and/or set the default interpreter input stream.</dd>
-    <dt><code>(interp-output[ <var>stream</var>])</code></dt>
-    <dd>Return and/or set the default interpreter output stream.</dd>
-    <dt><code>(interp-debug[ <var>stream</var>])</code></dt>
-    <dd>Return and/or set the default interpreter debug stream.</dd>
     <dt><code>(interp)</code></dt>
     <dd>Return the current interpreter object.</dd>
     <dt><code>(interp-version)</code></dt>
@@ -756,12 +743,6 @@
     <dt><code>(interp-gc-always[ <var>p</var>])</code></dt>
     <dd>Query or set the garbage collector stress test flag. When set, the garbage collector is run on each object
     allocation.</dd>
-    <dt><code>(interp-trace-read[ <var>p</var>])</code></dt>
-    <dd>Query or set the interpreter read trace flag. When set, the object read in by the reader is printed to the
-    debug stream before evaluation.</dd>
-    <dt><code>(interp-trace-primitives[ <var>p</var>])</code></dt>
-    <dd>Query or set the interpreter primitives trace flag. When set each primitive invocation is printed together with
-    its arguments.</dd>
     <dt><code>(interp-countdown[ <var>i</var>])</code></dt>
     <dd>Query or set the interpreter countdown counter. The evaluator will return an error after <i>i</i> cycles, if
     <i>i</i> is set to not-zero.</dd>
@@ -829,10 +810,10 @@
         or a parent environment the named object is set to <var>value</var>, if no symbol with this name exists, a new
         one is created in the top level environment. <code>setq</code> returns the last <var>value</var>.</p>
       </dd>
-      <dt><code>(curry (<var>func</var> <var>a</var>))</code> ⇒ <i>lambda</i></dt>
-      <dd>Returns a lambda with one parameter which returns
+      <dt><code>(curry <var>func</var> <var>a</var>)</code> ⇒ <i>lambda</i></dt>
+      <dd>Returns a lambda with one parameter <var>b</var>. The lambda evaluates
       <code>(<var>func</var>&nbsp;<var>a</var>&nbsp;<var>b</var>)</code>.</dd>
-      <dt><code>(typep (<var>type</var> <var>object</var>))</code> ⇒ <i>p</i></dt>
+      <dt><code>(typep <var>type</var> <var>object</var>)</code> ⇒ <i>p</i></dt>
       <dd>Returns <code>t</code> if <var>object</var> is of type&nbsp;<var>type</var>, <code>nil</code> otherwise.</dd>
       <dt><code>(integerp <var>object</var>)</code> ⇒ <i>p</i></dt>
       <dt><code>(doublep <var>object</var>)</code> ⇒ <i>p</i></dt>
@@ -841,7 +822,20 @@
       <dt><code>(lamdap <var>object</var>)</code> ⇒ <i>p</i></dt>
       <dt><code>(macrop <var>object</var>)</code> ⇒ <i>p</i></dt>
       <dt><code>(streamp <var>object</var>)</code> ⇒ <i>p</i></dt>
-      <dd>Return <code>t</code> if <var>object</var> is of the respective type, otherwise <code>nil</code>.</dd>
+      <dt><code>(errorp <var>object</var>)</code> ⇒ <i>p</i></dt>
+      <dt><code>(vectorp <var>object</var>)</code> ⇒ <i>p</i></dt>
+      <dd>
+        <p>Return <code>t</code> if <var>object</var> is of the respective type, otherwise <code>nil</code>.</p>
+      </dd>
+      <dt><code>(nthcdr <var>i</var> <var>l</var>)</code> ⇒ <i>l'</i></dt>
+      <dd>Return sub list of <var>l</var> starting from zero-based <var>i</var>th element to the last.
+      <code>nthcdr</code> is based on <code>elements</code> and accepts any type of object. For simple object it
+      returns always <code>nil</code>, for others the embeded <code>nthcdr</code> elements are returned. Negative
+      indexes pick elements from the end of the list/vector.</dd>
+      <dt><code>(nth <var>i</var> <var>l</var>)</code> ⇒ <i>o</i></dt>
+      <dd>Return zero-based <var>i</var>th element of list <var>l</var></dd>
+      <dt><code>(type-name <var>o</var>)</code></dt>
+      <dd>Returns the type of <var>o</var> as string</dd>
       <dt><code>(mapcar <var>func</var> <var>list</var>)</code> ⇒ <i>list'</i>&nbsp;<u>Se, Dc</u></dt>
       <dd>Apply <var>func</var> to each element in list and return the list of results.</dd>
       <dd>In Elisp func has to be quoted, in CL variadic <var>func</var> operates on a list of lists.</dd>
@@ -860,16 +854,16 @@
       <dd>Evaluate all <var>sexp</var> in turn and return the value of the first.</dd>
       <dt><code>(symbol-name <var>symbol</var>)</code> ⇒ <i>string</i><code>&nbsp;</code></dt>
       <dd>Return the name of <var>symbol</var> as a string.</dd>
-      <dt><code>(string <var>arg</var>)</code> ⇒ <i>string</i></dt>
-      <dd>Returns the string conversion of argument.</dd>
+      <dt><code>(str <var>o</var>)</code> ⇒ <i>string</i></dt>
+      <dd>Returns the string conversion of <var>o</var>. <code>nil</code> is the empty string, integers are converted
+      into their decimal string representation, strings are returned as-is, for symbols their name is returned as
+      strings, The elements of lists and vectors are converted via <code>string</code> and then concatenated, and for
+      all other types the <code>type-name</code> is returned.</dd>
+      <dt><code>(string <var>o</var>)</code></dt>
+      <dd>A macro which returns the string <code>"type-error"</code> if <var>o</var> is an error, and <code>(str
+      <var>o</var>)</code> otherwise.</dd>
       <dt><code>(concat</code> [<code><var>arg</var></code>..]<code>)</code> ⇒ <i>string</i>&nbsp;<u>Ce</u></dt>
       <dd>Returns concatenation of all arguments converted to strings.</dd>
-      <dt><code>(assert-type <var>o</var> <var>type</var> <var>s</var>)</code></dt>
-      <dt><code>(assert-number <var>o</var> <var>s</var>)</code></dt>
-      <dd>Throw an <code>invalid-type</code> exception if <var>o</var> is not of specified <var>type</var>.
-      <var>s</var> is a signature string indicating the erroneous parameter, e.g. <code>(assert-type o type-string
-      "(assert-type o type s) - s")</code> would assert that <var>s</var> is of <code>type-string</code>. In the case
-      of <code>assert-number</code> the assertion is done for <code>numberp</code>.</dd>
       <dt><code>(numberp <var>object</var>)</code> ⇒ <i>p</i></dt>
       <dd>Return <code>t</code> if <var>object</var> is integer or double, otherwise <code>nil</code>.</dd>
       <dt><code>(filter <var>p</var> <var>l</var>)</code> ⇒ <i>list</i></dt>
@@ -1044,6 +1038,8 @@
   <p>All functions except <code>getenv</code> are specific to fLisp.</p>
   <p><mark>Tbd. carry over comprehensive documentation from <code>file.c</code></mark></p>
   <dl>
+    <dt><code>(fputs s[&nbsp;<var>stream</var>])</code> ⇒ <i>p</i></dt>
+    <dd>Print string <var>s</var> to <var>stream</var> or <code>stdout</code> if not given.</dd>
     <dt><code>(fflush[&nbsp;<var>stream</var>])</code> ⇒ <i>p</i></dt>
     <dd>Flush <var>stream</var>, output or all streams</dd>
     <dt><code>(fseek <var>stream</var> <var>offset</var>[&nbsp;<var>relativep</var>])</code> ⇒
@@ -1115,6 +1111,12 @@
   <nav>
     <a href="#toc">^</a>
   </nav>
+  <h4 id="princ"><code>princ</code> Extensions</h4>
+  <p>This extension implements the <code>(princ <var>o</var>[ <var>stream</var>])</code> function, which prints
+  <var>o</var> to the given <var>stream</var> or to <code>stdout</code> in a format for human consumption.</p>
+  <nav>
+    <a href="#toc">^</a>
+  </nav>
   <h3>Complementary Lisp Libraries</h3>
   <dl>
     <dt><i>flisp</i></dt>
@@ -1128,10 +1130,6 @@
   <dl>
     <dt><code>(listp <var>o</var>)</code> ⇒ <i>p</i>&nbsp;<u>D</u></dt>
     <dd>Returns true if <var>o</var> is <code>nil</code> or a <i>cons</i>.</dd>
-    <dt><code>(nthcdr <var>i</var> <var>l</var>)</code> ⇒ <i>l'</i></dt>
-    <dd>Return sub list of <var>l</var> starting from zero-based <var>i</var>th element to the last.</dd>
-    <dt><code>(nth <var>i</var> <var>l</var>)</code> ⇒ <i>o</i></dt>
-    <dd>Return zero-based <var>i</var>th element of list <var>l</var></dd>
     <dt><code>(fold-right <var>f</var> <var>o</var> <var>l</var>)</code> ⇒ <i>o'</i>&nbsp;<u>Cs</u></dt>
     <dd>Apply binary function <var>f</var> to last element of <var>l</var> and <var>o</var>, then recursively to the
     previous element and the result.</dd>
@@ -1150,6 +1148,14 @@
     <dd><code>t</code> if number <var>x</var> is zero.</dd>
     <dt><code>(equal <var>o1</var> <var>o2</var>)</code> ⇒ <i>p</i></dt>
     <dd>Return <code>nil</code> if <var>o1</var> and <var>o2</var> are not isomorphic.</dd>
+    <dt><code>(vector[&nbsp;arg&nbsp;..])</code></dt>
+    <dd>Create a vector from all given args</dd>
+    <dt><code>(quasiquote-splice <var>ast</var>)</code></dt>
+    <dt><code>(quasiquote-unquote <var>ast</var>)</code></dt>
+    <dt><code>(quasiquote <var>ast</var>)</code></dt>
+    <dd>
+      <p>These functions/macro implement the quasiquote reader macro(s).</p>
+    </dd>
   </dl>
   <nav>
     <a href="#toc">^</a>
@@ -1227,10 +1233,6 @@
   <dl>
     <dt><var><code>FLISP_SIZE</code></var></dt>
     <dd>The number of bytes to pre-allocate for the Lisp objects space. Defaults to zero.</dd>
-    <dt><var><code>FLISP_DEBUG</code></var></dt>
-    <dd>When set to a file name, <code>fl</code> tries to truncate and open&nbsp;the file for writing and uses it as
-    debug output. When set to <q><code>-</code></q>debug output is sent to <i>stdout</i>, when set to
-    <q><code>&amp;</code></q> debug output is sent to <i>stderr</i>.</dd>
     <dt><var><code>FLISP_QUIET</code></var></dt>
     <dd>When set to 0, quiet mode is disabled, otherwise quiet mode is forced.</dd>
     <dt><var><code>FLISP_INTERACTIVE</code></var></dt>
@@ -1245,12 +1247,12 @@
   <p><code>flisp</code> can <code>require</code> any of the provided Lisp libraries by <code>load</code>'ing them from
   the <var><code>script_dir</code></var> directory which defaults to <code>/usr/local/share/flisp</code>. This can be
   overriden by the&nbsp;environment&nbsp; variable FLISPLIB.</p>
-  <p>All environment variables recognized by <code>fl</code> are taken into account, however it is wise to only
-  use&nbsp;<var><code>FLISP_SIZE</code> and&nbsp;<code>FLISP_DEBUG</code></var>.</p>
-  <p>The original <code><var>argv0</var></code> command line argument, the full path to <code>fl</code>, is bound to
-  the symbol <code><var>flisp_interpreter</var></code>, The full path to <code>flisp</code> is bound to the symbol
+  <p>All environment variables recognized by <code>fl</code> are taken into account, however it is wise to only use
+  <var><code>FLISP_SIZE</code>.</var></p>
+  <p><var>The original <code><var>argv0</var></code> command line argument, the full path to <code>fl</code>, is bound
+  to the symbol <code><var>flisp_interpreter</var></code>, The full path to <code>flisp</code> is bound to the symbol
   <code><var>argv0</var></code> and the rest of the command line arguments are bound as a list of string to the symbol
-  <code><var>argv</var></code>.</p>
+  <code><var>argv</var></code>.</var></p>
   <p><code>flisp</code> tries to load a user specific rc file from <code>~/.config/flisp/init.lsp</code>. Then all
   arguments on the command line are tried to be loaded as Lisp files. If no arguments are given, <code>flisp</code>
   enters an interactive read-eval-print loop. In a similar manner to <code>fl</code>, the startup version banner and

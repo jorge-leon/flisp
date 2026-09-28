@@ -61,6 +61,18 @@
       ;;values are never seen
       )
 
+(defun nthcdr (i l) (when l (elements l i)))
+(defun nth (i l)
+  (if (stringp l) (elements l i (i+ 1 i))
+      (car (elements l i)) ))
+
+(defun type-name (o)
+  (if (typep type-type o) (elements (nth 0 o))
+      (error wrong-type-argument
+	     (string-append "(type-name o) - o expected type-type, got " (type-name (type-of o)))
+	     o )))
+
+
 (defun mapcar (f l)
   (cond (l (cons (f (car l)) (mapcar f (cdr l))))))
 
@@ -85,7 +97,9 @@
 	    (list 'bind nil b-or-l
 		  (cons 'lambda (cons (mapcar car (car args)) (cdr args))))
 	    (cons b-or-l (mapcar cadr (car args))) )))
-    (t (error wrong-type-argument "(let bindings body) - bindings expected type-consp or type-symbol, got " (type-of (car args)))) ))
+    (t (error wrong-type-argument
+	      (string-append "(let bindings body) - bindings expected type-consp or type-symbol, got " (type-name (car args)))
+	      (car args) ))))
 
 ;; (let* () body) => ((lambda () body))
 ;; (let* ((var val) ..) body) =>  ((lambda (var) (let* (..) body)) val)
@@ -97,21 +111,35 @@
 
 (defun prog1 (arg . args) arg)
 
-(defun symbol-name (symbol) (elements symbol))
+(defun symbol-name (symbol)
+  (if (symbolp symbol) (elements symbol)
+      (error wrong-type-argument
+	     (string-append "(symbol-name symbol) - symbol expected type-symbol, got " (type-name (type-of symbol)))
+	     symbol )))
 
-(defun string (o)
-  ;; Convert argument to string.
-  ;; Common Lisp
+
+;; Convert argument to string.
+;; Common Lisp converts a single string, character or symbol to a string.
+;; Elisp converts a list of characters to a string - we don't have characters.
+;;
+;; We extend the functionality to convert any object into some
+;; string. This way we can used it for primitive
+;; debugging/introspection.
+;;
+(defun str (o)
   (cond
     ((null o) "")
+    ((integerp o) (ifmt o))
     ((stringp o) o)
     ((symbolp o) (symbol-name o))
     ((consp o) (string-append (string (car o)) (string (cdr o))))
-    (t (let ((f (open "" ">")))
-	 (errorp (write o nil f))
-	 (prog1
-	     (cadr (file-info f))
-	   (close f) )))))
+    ((vectorp o) (string (elements o)))
+    ((same (type-of o) type-type) (type-name o))
+    (t (type-name (type-of o))) ))
+
+(defmacro string (o)
+  (list 'if (list 'errorp o) "type-error"
+	(list 'str o) ))
 
 ;; Concatenate all arguments to a string.
 ;; Elisp
@@ -159,14 +187,6 @@
 	 ;; if last element is list splice it
 	 (if (consp (car rev))  (eval (cons f (append (reverse (cdr rev)) (car rev))))
 	     (f . args)) )))
-
-(defun print (o . fd)
-  (if fd  (write o t (car fd))
-      (write o t) ))
-
-(defun princ (o . fd)
-  (if fd  (write o nil (car fd))
-      (write o nil) ))
 
 (defun string-to-number (string)
   (let* ((f (open string "<"))
@@ -321,11 +341,11 @@
 	  ((errorp r) r)
 	  ((memq feature features) feature)) )))
 
-(defun interp-extensions ()  (elements (interp) 4 5))
-(defun error-type (error)
-  (if (errorp error) (car (elements error 0 1))
-      (error wrong-type-argument
-	     (concat "(error-type error) - error expected type-error, got " (type-of error))
+(defun interp-extensions ()  (nth 3 (interp)))
+(defmacro error-type (error)
+  (list 'if (list 'errorp error) (list 'nth 0 error)
+      (list 'error wrong-type-argument
+	     (list 'concat "(error-type error) - error expected type-error, got " (list 'type-of error))
 	     error) ))
 
 (provide 'core)

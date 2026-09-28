@@ -18,6 +18,23 @@
 
 /* Bag of POSIX libc wrappers */
 
+/* (fputs s[ stream]) - output string s to stream */
+Object *posixFputs(Object *interp, Object **args, Object **env, size_t nArgs)
+{
+    FLISP_ASSERT(FLISP_ARG1, type_string, "(fputs s[ stream]) - s");
+
+    if (FLISP_ARG1->string[0] == '\0') return nil;
+
+    FILE *fd = stdout;
+    if (nArgs > 1) {
+        FLISP_ASSERT(FLISP_ARG2, type_stream, "(fputs s[ stream]) - stream");
+        fd = FLISP_ARG2->stream.fd;
+    }
+    if (EOF == fputs(FLISP_ARG1->string, fd))
+        return newError2(interp, io_error, (nArgs > 1) ? FLISP_ARG2 : nil, "(fputs s[ stream]) failed: ", strerror(errno));
+    return nil;
+}
+
 /** (fflush[ stream]) - flush stream, output or all streams
  *
  * @param stream  Stream to flush. If t all streams are flushed, if
@@ -28,7 +45,7 @@
  */
 Object *posixFflush(Object *interp, Object** args, Object **env, size_t nArgs)
 {
-    FILE *fd = FLISP_STANDARD_OUTPUT.fd;
+    FILE *fd = stdout;
 
     if (nArgs)
         if (FLISP_ARG1 == t)
@@ -492,9 +509,9 @@ Object *posixGetcwd(Object *interp, Object **args, Object **env, size_t nArgs)
     return newString(interp, buf);
 }
 
-FLISP_DEFINE_CONSTANT(fnm_pathname,FNM_PATHNAME);
-FLISP_DEFINE_CONSTANT(fnm_noescape,FNM_NOESCAPE);
-FLISP_DEFINE_CONSTANT(fnm_period,FNM_PERIOD);
+FLISP_DEFINE_CONSTANT(fnm_pathname, "FNM_PATHNAME");
+FLISP_DEFINE_CONSTANT(fnm_noescape,"FNM_NOESCAPE");
+FLISP_DEFINE_CONSTANT(fnm_period,"FNM_PERIOD");
 
 /** (fnmatch pattern string[ flags])
  * https://man7.org/linux/man-pages/man3/fnmatch.3p.html
@@ -520,6 +537,9 @@ Object *posixFnmatch(Object *interp, Object** args, Object **env, size_t nArgs)
     return newError(interp, invalid_value, nil, "(fnmatch pattern string[ flags]) - error");
 }
 
+FLISP_DEFINE_CONSTANT(extension_posix, "posix");
+FLISP_DEFINE_CONSTANT(extension_posix_version, FLISP_POSIX_VERSION);
+
 Object *flisp_posix_init(Object *interp, Object *extension)
 {
     if (extension->extension.version != nil) return extension->extension.version;
@@ -532,6 +552,7 @@ Object *flisp_posix_init(Object *interp, Object *extension)
         FLISP_UNLESS_ERR(flisp_register_constant(interp, fnm_noescape, newInteger(interp, FNM_NOESCAPE)));
         FLISP_UNLESS_ERR(flisp_register_constant(interp, fnm_period, newInteger(interp, FNM_PERIOD)));
 
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "fputs",   1, 2, type_any, posixFputs));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "fflush",  0, 1, type_stream, posixFflush));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "fseek",   2, 3, (TypeObject*)nil,         posixFseek));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "ftell",   0, 1, type_stream, posixFtell));
@@ -549,7 +570,7 @@ Object *flisp_posix_init(Object *interp, Object *extension)
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "getcwd",  0, 0, (TypeObject*)nil,         posixGetcwd));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "fnmatch", 2, 3, (TypeObject*)nil,         posixFnmatch));
 
-        FLISP_UNLESS_ERR((*gcExt)->extension.version = newString(interp, FLISP_POSIX_VERSION));
+        FLISP_UNLESS_ERR((*gcExt)->extension.version = extension_posix_version);
     } while (0);
     GC_RELEASE;
     return e;

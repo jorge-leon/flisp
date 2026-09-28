@@ -1,4 +1,5 @@
 #!${BINDIR}/fl
+;;; -*- mode:lisp -*-
 ;;;
 ;;; fLisp command line interpreter
 ;;;
@@ -20,27 +21,27 @@ $(cat core.lsp)
 (when (getenv "FLISPLIB")
   (setq script_dir (getenv "FLISPLIB")) )
 
+(setq *standard-error* (open ">2"))
+
 (defun repl-princ s  (princ (concat s)))
 (defun repl-eprinc s (princ (concat s) *standard-error*))
 
 (defun repl-print-result (result)
-  (print result)
-  (princ "\n")
+  (princ result)
+  (fputs "\n")
   result )
 
 (defun repl-print-error (err)
   (errorp ; Note: w/o (errorp) progn quits on errors
-   (if (fttyp)
-       (princ err *standard-error*)
-       (print err *standard-error*) ))
-  (princ "\n" *standard-error*) )
+   (princ err *standard-error*) )
+  (fputs "\n" *standard-error*) )
 
 (defun repl ()
-  (when (fttyp) (repl-princ "> ")(fflush))
+  (when (fttyp) (fputs "> ")(fflush))
   (let ((e (read)))
     (if (errorp e)
 	(if (same (car (elements e 0 1)) end-of-file) e
-	    (when (fttyp) (princ "\n"))
+	    (when (fttyp) (fputs "\n"))
 	    (repl-print-error e)
 	    (repl) )
 
@@ -57,7 +58,7 @@ $(cat core.lsp)
       (repl-print-error r) )))
 
 (defun repl-getopts (argv)
-  (if-not argv (close (interp-output))
+  (when argv
     (load (car argv))
     (repl-getopts (cdr argv)) ))
 ;;      (repl-eprinc "Error parsing commandline: "argv"\n")
@@ -69,6 +70,6 @@ $(cat core.lsp)
   (if argv (repl-getopts argv)
       (interp-input (open "<0"))
       (when (fttyp)
-	(repl-princ (interp-version)"\n")
-	(repl-princ "exit with C-d\n") )
+	(fputs (concat (interp-version)"\n"))
+	(fputs "exit with C-d\n") )
       (repl) ))

@@ -25,6 +25,8 @@
 #include "double.h"
 #include "posix.h"
 #include "string.h"
+#include "princ.h"
+
 
 void fatal(char *msg)
 {
@@ -42,8 +44,8 @@ void write_string(FILE *fd, char *string)
 int main(int argc, char **argv)
 {
     char *env;
-    bool interactive = false;
-    FILE *debug_fd = NULL, *input_fd = stdin;
+    bool interactive = false, print = false;
+    FILE *input_fd = stdin;
     long long size = 0;
     Object *interp, *e = nil;
 
@@ -52,26 +54,18 @@ int main(int argc, char **argv)
         size = strtoll(env, NULL, 10);
         if (errno == ERANGE)  fatal("invalid FLISP_SIZE");
     }
-    if ((env = getenv("FLISP_DEBUG")) != NULL) {
-        if (env[0] == '\0')
-            ;
-        else if (env[0] == '-')
-            debug_fd = stdout;
-        else if (env[0] == '&')
-            debug_fd = stderr;
-        else if ((debug_fd = fopen(env, "w")) == NULL) {
-            fatal("failed to open debug file");
-        }
-    }
     if (argc > 1 && argv[1][0] != '-')
         if ((input_fd = fopen(argv[1], "r")) == NULL)
             fatal("failed to open input file");
     interactive = isatty(fileno(input_fd));
     do {
-        FLISP_UNLESS_ERR(interp = flisp_interpreter((size_t) size, argv, input_fd, stdout, stderr, debug_fd));
-        FLISP_UNLESS_ERR(flisp_register_extension(interp, "string", flisp_string_init));
-        FLISP_UNLESS_ERR(flisp_register_extension(interp, "double", flisp_double_init));
-        FLISP_UNLESS_ERR(flisp_register_extension(interp, "posix", flisp_posix_init));
+        FLISP_UNLESS_ERR(interp = flisp_interpreter((size_t) size, argv, input_fd));
+        FLISP_UNLESS_ERR(flisp_register_extension(interp, extension_princ, flisp_princ_init));
+        FLISP_UNLESS_ERR(flisp_princ_init(interp, FLISP_INTERP.extensions->car));
+
+        FLISP_UNLESS_ERR(flisp_register_extension(interp, extension_string, flisp_string_init));
+        FLISP_UNLESS_ERR(flisp_register_extension(interp, extension_double, flisp_double_init));
+        FLISP_UNLESS_ERR(flisp_register_extension(interp, extension_posix, flisp_posix_init));
     } while (0);
     if (FLISP_IS_ERR(e)) {
         /* Note: could write error string here */
@@ -79,23 +73,30 @@ int main(int argc, char **argv)
     }
 
     if (interactive)
-        interp->self.print = ((env = getenv("FLISP_PRINT")) == NULL || env[0] != '0');
+        print = ((env = getenv("FLISP_PRINT")) == NULL || env[0] != '0');
     else
-        interp->self.print = ((env = getenv("FLISP_PRINT")) != NULL && env[0] != '0');
+        print = ((env = getenv("FLISP_PRINT")) != NULL && env[0] != '0');
 
-    if (interactive) write_string(FLISP_STANDARD_OUTPUT.fd, FL_NAME " " FL_VERSION "\n");
+    if (interactive) write_string(stdout, FL_NAME " " FL_VERSION "\n");
 
     Object *result = nil;
     for (;;) {
-        if (interactive)  write_string(FLISP_STANDARD_OUTPUT.fd, "> ");
+        if (interactive)  write_string(stdout, "> ");
         fflush(NULL);
 
-        result = flisp_eval_input(interp, interactive ? nil : t);
+        result = flisp_eval_expr(interp, interactive ? nil : t);
         if (FLISP_IS_EOF(result)) {
-            if (interactive) write_string(FLISP_STANDARD_OUTPUT.fd, "\n");
+            if (interactive) write_string(stdout, "\n");
             return 0;
         }
-        if (!interactive) return 1;
+        if (FLISP_IS_ERR(result)) {
+            flisp_princ(result, stderr);
+            write_string(stderr, "\n");
+            if (!interactive)  return 1;
+        } else if (print) {
+            flisp_princ(result, stdout);
+            write_string(stdout, "\n");
+        }
     }
 }
 

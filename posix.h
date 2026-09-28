@@ -10,6 +10,7 @@
 #include "lisp.h"
 
 #define FLISP_POSIX_VERSION "0.1"
+extern Object *extension_posix;
 
 extern Object *flisp_posix_init(Object *, Object *);
 

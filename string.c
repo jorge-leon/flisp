@@ -165,9 +165,6 @@ Object *stringCodeChar(Object *interp, Object **args, Object **env, size_t nArgs
     if (len == -1)
         return newError(interp, FLISP_ARG1, range_error,
                             "(code-char n) - n out of Unicode range");
-    flisp_debug(interp, "%d: %hhX %hhX %hhX %hhX %hhX\n",
-             len, string[0], string[1], string[2], string[3], string[4]
-        );
     return newString(interp, string);
 }
 
@@ -253,6 +250,9 @@ Object *stringStrcspn(Object *interp, Object** args, Object **env, size_t nArgs)
         : newInteger(interp, i);
 }
 
+FLISP_DEFINE_CONSTANT(extension_string, "string");
+FLISP_DEFINE_CONSTANT(extension_string_version, FLISP_STRING_VERSION);
+
 Object *flisp_string_init(Object *interp, Object *extension)
 {
     if (extension->extension.version != nil) return extension->extension.version;
@@ -270,7 +270,7 @@ Object *flisp_string_init(Object *interp, Object *extension)
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "strspn",        2, 2, type_string,  stringStrspn));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "strcspn",       2, 2, type_string,  stringStrcspn));
 
-        FLISP_UNLESS_ERR((*gcExt)->extension.version = newString(interp, FLISP_STRING_VERSION));
+        FLISP_UNLESS_ERR((*gcExt)->extension.version = extension_string_version);
     } while (0);
     GC_RELEASE;
     return e;

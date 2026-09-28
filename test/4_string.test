@@ -7,7 +7,7 @@
 
 export FLISP_SIZE=$((200*1024*1024))
 flisp () {
-    { cat ../core.lsp ../string.lsp ; echo '(interp-output (open ">1"))'; cat -; } | FLISP_QUIET=1 ../fl
+    cat ../core.lsp ../string.lsp - | FLISP_QUIET=1 ../fl
 }
 FLISP=flisp
 export FLISP_PRINT=1
@@ -47,10 +47,10 @@ flisp_expr; ok substring-9 substring answer start before start is complete strin
 IN='(substring "answer" 1 7)' OUT='"nswer"'
 flisp_expr; ok substring-10 substring answer end beyond end is rest
 
-IN='(substring "answer" 1 -7)' OUT='#<error range-error: (elements object[ start[ end]]) - start > end, 1>'
+IN='(substring "answer" 1 -7)' OUT='#<error:range-error: (elements object[ start[ end]]) - start > end: 1>'
 flisp_expr; ok substring-11 substring answer 1 -7 range-error
 
-IN='(substring "answer" 2 1)' OUT='#<error range-error: (elements object[ start[ end]]) - start > end, 2>'
+IN='(substring "answer" 2 1)' OUT='#<error:range-error: (elements object[ start[ end]]) - start > end: 2>'
 flisp_expr; ok substring-12 substring answer 2 1 range-error
 
 

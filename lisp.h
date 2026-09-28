@@ -16,7 +16,7 @@
 #include <limits.h>
 
 #define FL_NAME     "fLisp"
-#define FL_VERSION  "0.17"
+#define FL_VERSION  "0.18α1"
 
 #ifndef FLISP_MEMORY_INC_SIZE
 #define FLISP_MEMORY_INC_SIZE 16384UL  /* Increase memory by this amount if not enough */
@@ -116,9 +116,6 @@ typedef struct Memory {
 
 typedef struct InterpreterExt {
     Object *input;
-    Object *output;
-    Object *stderr;
-    Object *debug;
     Object *extensions;
     Object *symbols;
     Object *global;
@@ -150,6 +147,7 @@ struct Object {
         double number;
         /* convenience */
         Primitive * primitive;
+        char *str;
     };
     union {
         Object *objects[1];                      // Vector
@@ -182,7 +180,7 @@ typedef struct Scratchpad {
 } Scratchpad;
 
 // PUBLIC INTERFACE ///////////////////////////////////////////////////////
-extern Object *flisp_interpreter(size_t size, char **, FILE*, FILE*, FILE*, FILE*);
+extern Object *flisp_interpreter(size_t size, char **, FILE*);
 extern void flisp_destroy(Object *);
 extern Object *flisp_eval_object(Object *, Object *);
 extern Object *flisp_read_expr(Object *);
@@ -198,7 +196,6 @@ extern Object *file_fopen(Object *, char *, char*);
 extern int file_fclose(Object *, Object *);
 extern int64_t flisp_list_length(Object*);
 
-extern Object *print_fmt(Object *, Object **, size_t, char *, ...);
 extern SimpleObject nil_obj;
 extern TypeObject type_primitive_obj;
 extern SimpleObject flisp_init_invalid;
@@ -216,7 +213,7 @@ extern SimpleObject flisp_init_invalid;
 /* Note: for speed reasons we could use a single static error object and compare pointers */
 #define FLISP_IS_OOM(OBJECT) (FLISP_IS_ERR(OBJECT) && (OBJECT)->error.type == gc_error)
 
-extern Object *flisp_register_extension(Object *, char *, ExtensionInit);
+extern Object *flisp_register_extension(Object *, Object *, ExtensionInit);
 
 extern Object *flisp_register_constant(Object *, Object *, Object *);
 extern Object *flisp_register_primitive(Object *, char *, int, int, TypeObject *, LispEval);
@@ -244,8 +241,9 @@ extern TypeObject *type_symbol;
 extern TypeObject *type_error;
 extern TypeObject *type_stream;
 /* embedding */
-extern TypeObject *type_ext; /* opaque object */
+extern TypeObject *type_extension; /* opaque object */
 extern TypeObject *type_str; /* C string / ASCII or UTF-8 */
+extern TypeObject *type_ptr; /* C pointer */
 
 #define type_any (TypeObject*)&nil_obj
 
@@ -292,7 +290,7 @@ extern TypeObject type_symbol_obj, type_type_obj, type_str_obj, type_string_obj;
 
 /* Constants */
 #define FLISP_DEFINE_CONSTANT(NAME,STRING)                                    \
-    SimpleObject NAME##_obj = { .type = &type_symbol_obj, .size = 0, .str = #STRING }; \
+    SimpleObject NAME##_obj = { .type = &type_symbol_obj, .size = 0, .str = STRING }; \
     Object *NAME = (Object *)&NAME##_obj
 
 /* Types */
@@ -328,8 +326,6 @@ extern bool flisp_is_error(Object **, Object *);
 #define FLISP_WHILE_OK(F) if (flisp_not_same(&e, F)) break
 #define FLISP_UNLESS_ERR(F) if (flisp_is_error(&e, F)) break
 
-void flisp_debug(Object *, char *, ...);
-
 #define FLISP_ARG1 (*args)->car
 #define FLISP_ARG2 (*args)->cdr->car
 #define FLISP_ARG3 (*args)->cdr->cdr->car
@@ -348,9 +344,7 @@ void flisp_debug(Object *, char *, ...);
 
 #define FLISP_INTERP interp->self
 #define FLISP_STANDARD_INPUT  interp->self.input->stream
-#define FLISP_STANDARD_OUTPUT interp->self.output->stream
 #define FLISP_STDERR          interp->self.stderr->stream
-#define FLISP_DEBUG_OUTPUT    interp->self.debug->stream
 #endif
 
 /*

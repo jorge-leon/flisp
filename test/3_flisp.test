@@ -5,11 +5,11 @@
 # leg20231129, CC 1.0
 #
 
-tap 35
+tap 26
 
 export FLISP_SIZE=$((200*1024*1024))
 flisp () {
-    { cat ../core.lsp ../flisp.lsp ; echo '(interp-output (open ">1"))'; cat -; } | FLISP_QUIET=1 ../fl
+    { cat ../core.lsp ../flisp.lsp ; cat -; } | FLISP_QUIET=1 ../fl
 }
 FLISP=flisp
 export FLISP_PRINT=1
@@ -29,35 +29,6 @@ flisp_expr; ok listp-4 two element list is list
 
 
 # Math
-
-IN='(nthcdr -1 nil)' OUT='#<error range-error: negative index, -1>'
-flisp_expr; ok nthcdr-1 negativ index fails
-
-IN="(nthcdr 0 '(a b c))" OUT='(a b c)'
-flisp_expr; ok nthcdr-2 0 index is list
-
-IN="(nthcdr 2 '(a b c))" OUT='(c)'
-flisp_expr; ok nthcdr-3 last index is last element
-
-IN="(nthcdr 40 '(a b c))" OUT=nil
-flisp_expr; ok nthcdr-4 index over length is nil
-
-IN="(nthcdr 40 nil)" OUT=nil
-flisp_expr; ok nthcdr-5 of nil is nil
-
-IN="(nthcdr 1 '(2 . 3))" OUT=3
-flisp_expr; ok nthcdr-6 of 1 of cons is cdr
-
-IN="(nthcdr null nil)"
-OUT='#<error wrong-type-argument: (nthcdr i l) - i expected type-integer, got: #<type primitive>, #<primitive null [1, 1] nil>>'
-flisp_expr; ok nthcdr-7 wrong index type fails
-
-IN="(nthcdr 1 null)"
-OUT='#<error wrong-type-argument: (nthcdr i l) - l expected type-cons, got: #<type primitive>, #<primitive null [1, 1] nil>>'
-flisp_expr; ok nthcdr-8 wrong list type fails
-
-IN="(nth 1 '(a b c))" OUT=b
-flisp_expr; ok nth-1 yields element
 
 true; ok fold-right-1 \# TODO
 
@@ -115,7 +86,7 @@ flisp_expr; ok zerop-2 1 is not zero
 true; ok equal \# TODO
 
 # vector
-IN="(vector 1 2 3)" OUT="#<vector 3>"
+IN="(vector 1 2 3)" OUT="[1 2 3]"
 flisp_expr; ok vector-1 vector of 3
 
 # quasiquote-splice

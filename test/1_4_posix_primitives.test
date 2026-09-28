@@ -28,10 +28,10 @@ false; ok fgets \# TODO
 RESULT=$(echo $PREPARE '(fstat "five_lines.txt")'  | $FLISP 2>&1 | grep  '(size .\+ mode .\+ uid .\+ gid .\+ type "f")')
 ok file-fstat-1 existing file returns data about it
 
-IN='(fstat "_unknown_")' OUT='#<error not-found: (fstat path[ linkp]): No such file or directory, _unknown_>'
+IN='(fstat "_unknown_")' OUT='#<error:not-found: (fstat path[ linkp]): No such file or directory: "_unknown_">'
 flisp_expr; ok file-fstat-2 existing file returns data
 
-IN='(fstat "five_lines.txt" (1))' OUT="error:wrong-type-argument: is not a function: '1'"
+IN='(fstat "five_lines.txt" (1))' OUT="#<error:invalid-value: (fstat path[ linkp]) - linkp: #<error:wrong-type-argument: is not a function: 1>>"
 flisp_expr; ok file-fstat-3 linkp in error errs
 
 IN='(fttyp (open "/dev/tty"))' OUT='t'
