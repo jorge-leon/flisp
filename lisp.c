@@ -2647,10 +2647,10 @@ Object *primitiveInterpCountdown(Object *interp, Object **args, Object **env, si
 
 // MAIN ///////////////////////////////////////////////////////////////////////
 
-Object *flisp_register_type(Object *interp, char *name, TypeObject *type, Object *init, Object *writer)
+Object *flisp_register_type(Object *interp, char *name, TypeObject *type, Object *init, Object *formatter)
 {
     type->type.new = init;
-    type->type.write = writer;
+    type->type.fmt = formatter;
     GC_CHECKPOINT;
     GC_TRACE(gcType, (Object *)type);
     GC_TRACE(gcSymbol, newSymbol(interp, name));

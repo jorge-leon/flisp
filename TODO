@@ -1,4 +1,5 @@
 + implement gc - memory readjustment
+- Give memory struct to gc() as parameter
 - object: move write out of core, replace with fmt.
   - instead of writer slot have a fmt slot in the type object.
   + consider eliminating readably formatting from core.

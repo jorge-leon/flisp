@@ -1,5 +1,3 @@
-#include <errno.h>
-#include <stdlib.h>
 #include <math.h>
 
 #include "lisp.h"

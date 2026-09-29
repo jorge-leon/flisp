@@ -15,8 +15,6 @@
 - Implement addIntegerToPad() and use it for object formatting, et. al.
 - ! don't! Remove argv0 and argv from flisp_interpreter(), inject them at startup <- or maybe not.
 - Clean up and document internal and exported flisp_* functions and FLISP_* macros.
-- Consider returning the element instead of the list with one element when
-  (elements o n n+1).
 - Namespace support for faster (?) symbol lookup with bigger programs
   - each namespace has its own symbols tree
   - when searching first the namespace is determined: prefix before '-', then

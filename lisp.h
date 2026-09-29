@@ -75,7 +75,7 @@ typedef struct SimpleObject {
 typedef struct TypeExt {
     Object *name;       /* symbol or str object */
     Object *new;        /* primitive or function to create the object */
-    Object *write;      /* primitive or function, (write stream object) */
+    Object *fmt;        /* primitive or function, (format stream object) */
 } TypeExt;
 
 typedef struct ConsExt {
@@ -299,9 +299,9 @@ extern TypeObject type_symbol_obj, type_type_obj, type_str_obj, type_string_obj;
         .self.type = &type_type_obj,                                    \
         .self.size = sizeof(Object*[3]),                                \
         .self.length = 3,                                               \
-        .type.name =  (Object*)&(SimpleObject){ .type = &type_symbol_obj, .size = 0, .str = "type-" #NAME }, \
-        .type.new =   (Object*)&nil_obj,                                \
-        .type.write = (Object*)&nil_obj,                                \
+        .type.name = (Object*)&(SimpleObject){ .type = &type_symbol_obj, .size = 0, .str = "type-" #NAME }, \
+        .type.new =  (Object*)&nil_obj,                                 \
+        .type.fmt =  (Object*)&nil_obj,                                 \
     };                                                                  \
     TypeObject *type_##NAME = &type_##NAME##_obj
 

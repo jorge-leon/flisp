@@ -1,3 +1,7 @@
+#include "lisp.h"
+#include "fmt.h"
+
+#if 0
 Object *writeStringReadably(FILE *fd, char *string)
 {
     char *escape;
@@ -53,4 +57,39 @@ Object *print_strp(Object *interp, Object **args, size_t nArgs, char *string)
     else
         return print_string(interp, args, nArgs, string);
 }
+#endif
+/* (fmt o[ arg..]) => string */
+Object *primitiveFmt(Object *interp, Object **args, Object **env, size_t nArgs)
+{
+    return newError(interp, not_found, (Object *)FLISP_ARG1->type, "(fmt o[ arg..]) - o no formatter for this type");
+}
 
+FLISP_DEFINE_CONSTANT(extension_fmt,"fmt");
+FLISP_DEFINE_CONSTANT(extension_fmt_version,FLISP_FMT_VERSION);
+
+Object *flisp_fmt_init(Object *interp, Object *extension)
+{
+
+    if (extension->extension.version != nil) return extension->extension.version;
+
+    Object *e = nil;
+    GC_CHECKPOINT;
+    GC_TRACE(gcExt, extension);
+    do {
+
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "fmt", 1,  -1, type_any,  primitiveFmt));
+
+        FLISP_UNLESS_ERR((*gcExt)->extension.version = extension_fmt_version);
+    } while (0);
+    GC_RELEASE;
+    return e;
+}
+
+
+/*
+ * Local Variables:
+ * c-file-style: "k&r"
+ * c-basic-offset: 4
+ * indent-tabs-mode: nil
+ * End:
+ */
