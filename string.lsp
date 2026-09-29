@@ -90,8 +90,8 @@
 	 ((null (setq i (string-search f s))) (nreverse (cons s parts)))
 	 (t
 	  (loop
-	   (cons (substring s 0 (cond ((i= 0 l) 1) (t i))) parts)
-	   (substring s (+ i (max l 1)))
+	   (cons (substring s 0 (if (i=0 l) 1 i)) parts)
+	   (substring s (i+ i (max l 1)))
 	   0
 	   l )))))
 

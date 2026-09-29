@@ -15,7 +15,7 @@ export FLISP_PRINT=1
 
 #export FLISP_SIZE=$((20*1024*1024))
 
-tap 230
+tap 231
 
 # reader
 IN='(' OUT='#<error:read-incomplete: unexpected end of stream while reading list: nil>'
@@ -498,19 +498,22 @@ IN='(elements "abc" -2)'  OUT='"bc"'
 flisp_expr; ok elements-6-5 string with negative start index
 
 IN='(elements "abc" -7)'  OUT='"abc"'
-flisp_expr; ok elements-5-1 string with negative start index before string
+flisp_expr; ok elements-6-6 string with negative start index before string
 
 IN='(elements "abc" -2 -1)'  OUT='"b"'
-flisp_expr; ok elements-5-1 string with negative start and end index within string
+flisp_expr; ok elements-6-7 string with negative start and end index within string
 
 IN='(elements "abc" 1 1)'  OUT='""'
-flisp_expr; ok elements-5-1 string with start equal end
+flisp_expr; ok elements-6-8 string with start equal end
 
 IN='(elements "abc" -2 -2)'  OUT='""'
-flisp_expr; ok elements-5-1 string with negative start equal end
+flisp_expr; ok elements-6-9 string with negative start equal end
 
 IN='(elements "abc" 0 7)'  OUT='"abc"'
-flisp_expr; ok elements-5-1 string with end beyond string
+flisp_expr; ok elements-6-10 string with end beyond string
+
+IN='(elements "abc" 0 0)'  OUT='""'
+flisp_expr; ok elements-6-11 string range 0 0 is empty string
 
 IN='(elements #d3.14)'  OUT=nil
 flisp_expr; ok elements-6 double has no elements

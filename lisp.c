@@ -309,11 +309,13 @@ Object *gcMoveObject(Object *interp, Object *object, gcStats *stats)
     return object->forward;
 }
 
+size_t memoryAlign(size_t, size_t);
+
 /** gc - move all active objects to new memory page
  *
  * @param interp   fLisp interpreter
  */
-void gc(Object *interp)
+void gc(Object *interp, bool shrink)
 {
     Object *object;
     gcStats stats = {0};
@@ -341,6 +343,10 @@ void gc(Object *interp)
     FLISP_INTERP.memory->toSpace = swap;
 
     FLISP_INTERP.memory->fromOffset = FLISP_INTERP.memory->toOffset;
+    /* Note: it is unclear, why we have to add to the fromOffset, and why we have to add like here (so to get no segfault)*/
+    if (shrink)  FLISP_INTERP.memory->capacity = FLISP_MEMORY_INC_SIZE * (1 + FLISP_INTERP.memory->fromOffset/FLISP_MEMORY_INC_SIZE);
+    //if (shrink)  FLISP_INTERP.memory->capacity = memoryAlign(FLISP_INTERP.memory->fromOffset, sizeof(Object *));
+    //if (shrink)  FLISP_INTERP.memory->capacity = FLISP_INTERP.memory->fromOffset + sizeof(Object *);
 }
 
 
@@ -390,7 +396,7 @@ Object *memoryAllocObject(Object *interp, TypeObject *type, size_t size)
                                                  -1, 0)))
                 return flisp_static_error(nil, &init_oom_message);
         }
-        gc(interp);
+        gc(interp, false);
     }
     /* Check if we now have enough space */
     if (FLISP_INTERP.memory->fromOffset + size + EXCEPTION_MEM_RESERVE < FLISP_INTERP.memory->capacity)
@@ -411,7 +417,7 @@ Object *memoryAllocObject(Object *interp, TypeObject *type, size_t size)
     FLISP_INTERP.memory->toSpace = new;
     FLISP_INTERP.memory->capacity += memory;
     FLISP_INTERP.memory->toOffset = 0;
-    gc(interp);
+    gc(interp, false);
     if (munmap(FLISP_INTERP.memory->toSpace, FLISP_INTERP.memory->capacity - memory) == -1) {
         FLISP_INTERP.memory->capacity+= EXCEPTION_MEM_RESERVE;
         return newError2(interp, gc_error, out_of_memory, "munmap(fromSpace) failed: ", strerror(errno));
@@ -491,8 +497,8 @@ Object *newCons(Object *interp, Object ** car, Object ** cdr)
     GC_RELEASE;
     CHECK_OOM(cons);
     cons->length = 2;
-    cons->car = *gcCar;
-    cons->cdr = *gcCdr;
+    CAR(cons) = *gcCar;
+    CDR(cons) = *gcCdr;
     return cons;
 }
 
@@ -557,27 +563,27 @@ Object *newClosure(Object *interp, TypeObject *type, Object ** args, Object **en
     Object *o;
 
     /* Covers: (closure (a b ..) body) and (closure (a b . ?) body) */
-    for (o = (*args)->car; o->type == type_cons;  o = o->cdr) {
-        if (o->car->type != type_symbol)
-            return newError2(interp, wrong_type_argument, o->car,
+    for (o = CAR(*args); o->type == type_cons;  o = CAR(o)) {
+        if (CAR(o)->type != type_symbol)
+            return newError2(interp, wrong_type_argument, CAR(o),
                                (type == type_lambda) ? "(lambda" : "(macro",
                                " params body) - param is not a symbol");
-        if (!gcCollectableObject(interp, o->car))
-            return newError2(interp, invalid_value, o->car,
+        if (!gcCollectableObject(interp, CAR(o)))
+            return newError2(interp, invalid_value, CAR(o),
                             (type == type_lambda) ? "(lambda" : "(macro",
                             " params body) - param cannot be used as a parameter");
     }
 
     /* Cover: (closure a body) and (closure (a b . c) body) */
     if (o != nil && o->type != type_symbol)
-        return newError2(interp, invalid_value, o->car,
+        return newError2(interp, invalid_value, CAR(o),
                          (type == type_lambda) ? "(lambda" : "(macro",
                          " params body) - param is not a symbol");
 
     o = flisp_new(interp, type, &nil, 3, 0);
     CHECK_OOM(o);
-    o->objects[0] = (*args)->car;
-    o->objects[1] = (*args)->cdr;
+    o->objects[0] = CAR(*args);
+    o->objects[1] = CDR(*args);
     o->objects[2] = *env;
     return o;
 }
@@ -585,7 +591,7 @@ Object *newClosure(Object *interp, TypeObject *type, Object ** args, Object **en
 int64_t flisp_list_length(Object *list)
 {
     int64_t i;
-    for (i = 0; list->type == type_cons; list = list->cdr)  i++;
+    for (i = 0; list->type == type_cons; list = CDR(list))  i++;
     if (i)
         return (list == nil) ? i : ++i;
     return 0;
@@ -609,19 +615,19 @@ Object *cloneList(Object *interp, Object *list, Object *end)
     GC_CHECKPOINT;
     GC_TRACE(gcList, list);
     GC_TRACE(gcEnd, end);
-    GC_TRACE(gcCons, newCons(interp, &(*gcList)->car, &nil));
+    GC_TRACE(gcCons, newCons(interp, &CAR(*gcList), &nil));
     GC_CHECK_OOM(*gcCons);
     GC_TRACE(gcNew, *gcCons);
-    while((*gcList)->cdr->type == type_cons) {
-        (*gcList) = (*gcList)->cdr;
-        (*gcCons)->cdr = newCons(interp, &(*gcList)->car, &nil);
+    while(CAR(*gcList)->type == type_cons) {
+        (*gcList) = CDR(*gcList);
+        CAR(*gcCons) = newCons(interp, &CAR(*gcList), &nil);
         GC_CHECK_OOM(*gcCons);
-        *gcCons = (*gcCons)->cdr;
+        *gcCons = CDR(*gcCons);
     }
     GC_RELEASE;
-    if ((*gcList)->cdr != nil)
+    if (CDR(*gcList) != nil)
         return newError(interp, invalid_value, list, "(cloneList list end) - list is not a proper list");
-    (*gcCons)->cdr = *gcEnd;
+    CDR(*gcCons) = *gcEnd;
     return *gcNew;
 }
 
@@ -645,39 +651,39 @@ Object *checkParams(Object *interp, Object *param, Object** vals, size_t nArgs)
             if (param == nil && val != nil)
                 return newErrorI(interp, wrong_number_of_arguments, *vals, "(f args) - args, f expects at most ", nArgs, " arguments");
             if (param != nil && val == nil) {
-                for (; param->type == type_cons; param = param->cdr, ++nArgs);
+                for (; param->type == type_cons; param = CDR(param), ++nArgs);
                 return newErrorI(interp, wrong_number_of_arguments, *vals, "(f args) - args, f expects at least ", nArgs, " arguments");
             }
         } else if (val == nil) break;
-        if (val->car->type == type_values) {
-            if (val->cdr == nil) {
+        if (CAR(val)->type == type_values) {
+            if (CDR(val) == nil) {
                 /* Special case, if values is at end of parameter list */
                 /* Destructively insert its arguments and restart checking */
                 if (prev == nil)
-                    *vals = val = val->car->values;
+                    *vals = val = CAR(val)->values;
                 else
-                    prev->cdr = val = val->car->values;
-                if (val->car->values == nil)  break;
+                    CDR(prev) = val = CAR(val)->values;
+                if (CAR(val)->values == nil)  break;
             } else {
                /* splice in a copy of vals */
                 if (prev == nil)  { /* at start of args list with more arguments*/
-                    if (val->car->values == nil)
-                        *vals = val = val->cdr;
+                    if (CAR(val)->values == nil)
+                        *vals = val = CDR(val);
                     else
-                        *vals = val = cloneList(interp, val->car->values, val->cdr);
+                        *vals = val = cloneList(interp, CAR(val)->values, CDR(val));
                 } else { /* values in between arguments */
-                    if (val->car->values == nil)
-                        prev->cdr = val = val->cdr;
+                    if (CAR(val)->values == nil)
+                        CDR(prev) = val = CDR(val);
                     else
-                        prev->cdr = val = cloneList(interp, val->car->values, val->cdr);
+                        CDR(prev) = val = cloneList(interp, CAR(val)->values, CDR(val));
                 }
                 CHECK_OOM(val);
             }
             continue;
         }
-        if (check)  param = param->cdr;
+        if (check)  param = CDR(param);
         prev = val;
-        val = val->cdr;
+        val = CDR(val);
         ++nArgs;
     }
     return nil;
@@ -2091,7 +2097,7 @@ Object *primitiveElements(Object *interp, Object **args, Object **env, size_t nA
     if (nArgs > 2) {
         FLISP_ASSERT(FLISP_ARG3, type_integer, "(elements object[ start[ end]] - end");
         j = (FLISP_ARG3->value);
-        if (j <= 0) j += end;
+        if (j < 0) j += end;
     }
 
     if (i < 0) i = 0;
@@ -2569,9 +2575,15 @@ Object *primitiveInterpVersion(Object *interp, Object **args, Object **env, size
 Object *primitiveInterpGc(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     /* Note: let the garbage collector return its statistics as property list */
-    /* Note: let the garbage collector receive an integer, indicating how much to increase/remove/set the memory capacity */
-    gc(interp);
-    return nil;
+    /* Note: check for error */
+    if (nArgs)  FLISP_CHECK_ERR(FLISP_ARG1);
+    gc(interp, nArgs && FLISP_ARG1 != nil);
+    GC_CHECKPOINT;
+    GC_TRACE(gcN, newInteger(interp, FLISP_INTERP.memory->capacity));
+    GC_TRACE(gcCons, newCons(interp, gcN, &nil));
+    *gcN = newInteger(interp, FLISP_INTERP.memory->fromOffset);
+    *gcCons = newCons(interp, gcN, gcCons);
+    GC_RETURN(*gcCons);
 }
 
 /** (interp-input [ stream]]) - query or set interpreter input stream */
@@ -2764,7 +2776,7 @@ Object *flisp_core_init(Object *interp, Object *extension)
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-gc-always",       0,  1, type_any,      primitiveInterpGcAlways));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-trace-read",      0,  1, type_any,      primitiveInterpTraceRead));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-trace-primitives",0,  1, type_any,      primitiveInterpTracePrimitives));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-gc",              0,  0, type_any,      primitiveInterpGc));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-gc",              0,  1, type_any,      primitiveInterpGc));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "interp-countdown",       0,  1, type_integer,  primitiveInterpCountdown));
 
         (*gcExt)->extension.version = extension_core_version;
