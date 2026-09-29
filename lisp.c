@@ -618,9 +618,9 @@ Object *cloneList(Object *interp, Object *list, Object *end)
     GC_TRACE(gcCons, newCons(interp, &CAR(*gcList), &nil));
     GC_CHECK_OOM(*gcCons);
     GC_TRACE(gcNew, *gcCons);
-    while(CAR(*gcList)->type == type_cons) {
+    while(CDR(*gcList)->type == type_cons) {
         (*gcList) = CDR(*gcList);
-        CAR(*gcCons) = newCons(interp, &CAR(*gcList), &nil);
+        CDR(*gcCons) = newCons(interp, &CAR(*gcList), &nil);
         GC_CHECK_OOM(*gcCons);
         *gcCons = CDR(*gcCons);
     }
