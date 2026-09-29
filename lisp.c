@@ -609,8 +609,8 @@ int64_t flisp_list_length(Object *list)
  */
 Object *cloneList(Object *interp, Object *list, Object *end)
 {
-    FLISP_ASSERT(list, type_cons, "(cloneList list end) - list");
-    //if (end != nil) FLISP_ASSERT(end, type_cons, "(cloneList list end) - end");
+    //FLISP_ASSERT(list, type_cons, "(cloneList list end) - list");
+    if (end != nil) FLISP_ASSERT(end, type_cons, "(cloneList list end) - end");
 
     GC_CHECKPOINT;
     GC_TRACE(gcList, list);
@@ -773,16 +773,16 @@ Object *flisp_find_symbol(Object *interp, char *string, size_t length)
 {
     size_t l;
     SimpleObject *s;
-    for (Object *symbols = FLISP_INTERP.symbols; symbols != nil; symbols = symbols->cdr) {
-        if (symbols->car->size) {
-            if (symbols->car->size == length + 1 && strncmp(symbols->car->string, string, length) == 0)
-                return symbols->car;
+    for (Object *symbols = FLISP_INTERP.symbols; symbols != nil; symbols = CDR(symbols)) {
+        if (CAR(symbols)->size) {
+            if (CAR(symbols)->size == length + 1 && strncmp(CAR(symbols)->string, string, length) == 0)
+                return CAR(symbols);
         } else {
-            s = (SimpleObject*)(symbols->car);
+            s = (SimpleObject*)(CAR(symbols));
             //l = strnlen(s->str, length);
             l = strlen(s->str);
             if (l == length && strncmp(s->str, string, length) == 0)
-                return symbols->car;
+                return CAR(symbols);
         }
     }
     return NULL;
@@ -941,9 +941,9 @@ Object *flisp_find_value(Object *interp, Object *env, Object *var) {
     for (; env != nil; env = env->env.parent) {
         Object *vars = env->env.vars, *vals = env->env.vals;
 
-        for (; vars->type == type_cons; vars = vars->cdr, vals = vals->cdr)
-            if (vars->car == var)
-                return vals->car;
+        for (; vars->type == type_cons; vars = CDR(vars), vals = CDR(vals))
+            if (CAR(vars) == var)
+                return CAR(vals);
 
         if (vars == var)
             return vals;
