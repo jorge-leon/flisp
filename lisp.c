@@ -1849,36 +1849,36 @@ Object *typeInitInvalid(Object *interp, Object **args, Object **env, size_t nArg
 Primitive t_ii_p = { .name = "init-invalid", .nMinArgs = 2, .nMaxArgs = -1, .argsType = type_any, .eval = typeInitInvalid };
 SimpleObject flisp_init_invalid = { .type = &type_primitive_obj, .size = 0, .primitive = &t_ii_p };
 
-/* (init-type type length name[ init[ write]]) */
+/* (init-type type length name[ init[ fmt]]) */
 Object *typeInitType(Object *interp, Object **args, Object **env, size_t nArgs)
 {
-    FLISP_ASSERT(FLISP_ARG3, type_symbol, "(init-type type length name[ init[ write]]) - name");
+    FLISP_ASSERT(FLISP_ARG3, type_symbol, "(init-type type length name[ init[ fmt]]) - name");
     /* Note: we want to strip type- when fmt'ing an object so it looks
      * nice. So we must extra check if it's there. That could be
      * taken away completely: type- would be just a convention
      */
     if (strncmp("type-", flisp_symbol_string(FLISP_ARG3), sizeof("type-")-1))
-        return newError(interp, invalid_value, FLISP_ARG3, "(init-type type length name[ init[ write]])) - name must start with \"type-\"");
+        return newError(interp, invalid_value, FLISP_ARG3, "(init-type type length name[ init[ fmt]])) - name must start with \"type-\"");
 
-    /* Note: init and write must be nil, primitive or (closure)
+    /* Note: init and fmt must be nil, primitive or closure
        but: DRY
      */
     if (nArgs > 3
         && !(
             FLISP_ARG4 == nil
             || FLISP_ARG4->type == type_primitive
-            || (FLISP_ARG4->type == type_cons && CAR(FLISP_ARG4)->type == type_lambda)
-            || (FLISP_ARG4->type == type_cons && CAR(FLISP_ARG4)->type == type_macro)
+            || (FLISP_ARG4->type == type_lambda)
+            || (FLISP_ARG4->type == type_macro)
             )
         )
         return newError(interp, invalid_value, FLISP_ARG4,
-                        "(init-type type length name[ init[ write]]) - init neither nil, type_primitive nor closure");
+                        "(init-type type length name[ init[ fmt]]) - init neither nil, type_primitive nor closure");
     if (nArgs > 4
         && !(
             FLISP_ARG5 == nil
             || FLISP_ARG5->type == type_primitive
-            || (FLISP_ARG5->type == type_cons && CAR(FLISP_ARG5)->type == type_lambda)
-            || (FLISP_ARG5->type == type_cons && CAR(FLISP_ARG5)->type == type_macro)
+            || (FLISP_ARG5->type == type_lambda)
+            || (FLISP_ARG5->type == type_macro)
             )
         )
         return newError(interp, invalid_value, FLISP_ARG4,
@@ -1923,6 +1923,45 @@ char *flisp_symbol_string(Object *symbol)
     /* Note: "const" symbols are defined in C-code as SimpleObject, have size 0 and the pointer to the symbol string is stored in .str */
     return symbol->size ? symbol->string : symbol->str;
 }
+
+
+char *flisp_fmt(Object *object)
+{
+    /* Obvious string representations */
+    if (object->type == type_integer)
+        return fmtInteger(object->value, 10, flisp_integer_char_map, ' ', -1);
+    if (object->type == type_str)
+        return object->str;
+    if (object->type == type_ptr)
+        return fmtInteger(object->value, 16, flisp_integer_char_map, 'X', 0);
+    if (object->type == type_type)
+        return flisp_symbol_string(object->type->type.name);
+    if (object->type == type_string)
+        return object->string;
+    if (object->type == type_symbol)
+        return flisp_symbol_string(object);
+
+    /* For anything else just return the type string */
+    return flisp_symbol_string(object->type->type.name);
+}
+/* (fmt o[ arg..]) => string */
+Object *primitiveFmt(Object *interp, Object **args, Object **env, size_t nArgs)
+{
+    CHECK_OOM(FLISP_ARG1);
+
+    Object *fmt = FLISP_ARG1->type->type.fmt;
+    if (fmt == nil)
+        return newString(interp, flisp_fmt(FLISP_ARG1));
+    if (!(fmt->type == type_lambda || fmt->type == type_primitive || fmt->type == type_macro))
+        return newError(interp, invalid_value, FLISP_ARG1, "(fmt o[ arg..]) - o no formatter for objects of this type");
+    GC_CHECKPOINT;
+    GC_TRACE(gcArgs, *args);
+    GC_TRACE(gcFmt, fmt);
+    GC_TRACE(gcCons, newCons(interp, gcFmt, gcArgs));
+    GC_RETURN(flisp_eval_object(interp, *gcCons));
+}
+
+
 
 // Result assertion //
 /** flisp_not_same() - result assertion
@@ -2008,7 +2047,7 @@ Object *primitiveObjectLength(Object *interp, Object **args, Object **env, size_
 {
     return newInteger(interp, FLISP_ARG1->size ? FLISP_ARG1->length : 0);
 }
-/** (new type length[arg ..]) => extended_object */
+/** (new type length[ arg ..]) => extended_object */
 Object *primitiveNew(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     FLISP_ASSERT(FLISP_ARG1, type_type, "(new length type[ arg ..]) - type");
@@ -2018,32 +2057,39 @@ Object *primitiveNew(Object *interp, Object **args, Object **env, size_t nArgs)
         return newError(interp, range_error, FLISP_ARG2,  "(new type length[ arg ..]) - length must be positive)");
 
     TypeObject *type = (TypeObject*)FLISP_ARG1;
+    Object *init = type->type.new;
 
-    if (type->type.new != nil)
-        /* Note: for now only implement primitives, later we want also lambdas */
-        FLISP_ASSERT(type->type.new, type_primitive, "(new length type[ arg ..]) - type.new");
-
-    if (type->type.new == nil) {
+    if (init == nil) {
         GC_CHECKPOINT;
         GC_TRACE(gcArgs, (*args)->cdr->cdr);
         Object *object = flisp_new(interp, type, gcArgs, (FLISP_ARG2->value) ? (FLISP_ARG2->value) : nArgs-2, 0);
         GC_RETURN(object);
     }
-    Primitive *init = type->type.new->primitive;
-    /* Note: this is ripped out of the evaluator for the specific use
-     * case of init-cons. It is bad because:
-     * - We should not repeat ourself.
-     * - Min arg checking and n-tuple checking is not implemented here.
-     * - Instead of FLISP_ARG1 we want the name string of the init
-     *   primitive. Or we could rethink the approach so that the error
-     *   seems to come from (object ...).
-     */
-    if (nArgs > init->nMaxArgs && init->nMaxArgs >= 0)
-        return newErrorI(interp, wrong_number_of_arguments, FLISP_ARG1,
-                         "expects at most ", init->nMaxArgs, " arguments");
+    if (!(init->type == type_primitive || init->type == type_lambda || init->type == type_macro))
+        return newError(interp, invalid_value, FLISP_ARG1, "(new type length[ arg ..]) - type no initializer for objects of this type");
+    GC_CHECKPOINT;
+    GC_TRACE(gcArgs, *args);
+    GC_TRACE(gcInit, init);
+    GC_TRACE(gcCons, newCons(interp, gcInit, gcArgs));
+    GC_RETURN(flisp_eval_object(interp, *gcCons));
+#if 0
+    if (init->type == type_primitive) {
+        Primitive *init = type->type.new->primitive;
+        /* Note: this is ripped out of the evaluator for the specific use
+         * case of init-cons. It is bad because:
+         * - We should not repeat ourself.
+         * - Min arg checking and n-tuple checking is not implemented here.
+         * - Instead of FLISP_ARG1 we want the name string of the init
+         *   primitive. Or we could rethink the approach so that the error
+         *   seems to come from (object ...).
+         */
+        if (nArgs > init->nMaxArgs && init->nMaxArgs >= 0)
+            return newErrorI(interp, wrong_number_of_arguments, FLISP_ARG1,
+                             "expects at most ", init->nMaxArgs, " arguments");
 
-    /* Note: why do we evaluate in the global environment? */
-    return init->eval(interp, args, &interp->self.global, nArgs);
+        return init->eval(interp, args, &interp->self.global, nArgs);
+    }
+#endif
 }
 /** (store obj index [..]) */
 Object *primitiveStore(Object *interp, Object **args, Object **env, size_t nArgs)
@@ -2735,6 +2781,7 @@ Object *flisp_core_init(Object *interp, Object *extension)
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "object-size",            1,  1, type_any,      primitiveObjectSize));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "object-length",          1,  1, type_any,      primitiveObjectLength));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "new",                    1, -1, type_any,      primitiveNew));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "fmt",                    1, -1, type_any,      primitiveFmt));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "store",                  2, -1, type_any,      primitiveStore));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "elements",               1,  3, type_any,      primitiveElements));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "open",                   1,  2, type_string,   primitiveFopen));

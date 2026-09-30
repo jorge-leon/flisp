@@ -59,7 +59,7 @@ Object *print_strp(Object *interp, Object **args, size_t nArgs, char *string)
 }
 #endif
 /* (fmt o[ arg..]) => string */
-Object *primitiveFmt(Object *interp, Object **args, Object **env, size_t nArgs)
+Object *XprimitiveFmt(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     return newError(interp, not_found, (Object *)FLISP_ARG1->type, "(fmt o[ arg..]) - o no formatter for this type");
 }
@@ -77,7 +77,7 @@ Object *flisp_fmt_init(Object *interp, Object *extension)
     GC_TRACE(gcExt, extension);
     do {
 
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "fmt", 1,  -1, type_any,  primitiveFmt));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "Xfmt", 1,  -1, type_any,  XprimitiveFmt));
 
         FLISP_UNLESS_ERR((*gcExt)->extension.version = extension_fmt_version);
     } while (0);
