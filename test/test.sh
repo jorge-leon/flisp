@@ -36,7 +36,6 @@
 
 : ${FLISP:=../fl}
 FLISP_DEBUG=
-FEMTO_DEBUG=
 
 usage () {
     cat <<EOF
