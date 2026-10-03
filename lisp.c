@@ -514,7 +514,7 @@ Object *flisp_store_object(Object *interp, Object *object, Object *list, size_t 
 {
     Object *o = list;
 
-    for(; index < object->length && o != nil; o = CDR(o))
+    for (; index < object->length && o != nil; o = CDR(o))
         if (o->type == type_cons)
             object->objects[index++] = CAR(o);
         else {
@@ -563,7 +563,7 @@ Object *newClosure(Object *interp, TypeObject *type, Object ** args, Object **en
     Object *o;
 
     /* Covers: (closure (a b ..) body) and (closure (a b . ?) body) */
-    for (o = CAR(*args); o->type == type_cons;  o = CAR(o)) {
+    for (o = CAR(*args); o->type == type_cons;  o = CDR(o)) {
         if (CAR(o)->type != type_symbol)
             return newError2(interp, wrong_type_argument, CAR(o),
                                (type == type_lambda) ? "(lambda" : "(macro",
