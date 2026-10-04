@@ -50,7 +50,7 @@ debug: $(BINARIES) $(LIBRARIES)
 double.o: double.c double.h lisp.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
 
-fl: fl.o lisp.o $(OBJ) princ.o fmt.o
+fl: fl.o lisp.o $(OBJ) princ.o
 	$(LD) $(LDFLAGS) -o $@ $^ -lm
 
 flisp: flisp.sht fl core.lsp

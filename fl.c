@@ -64,7 +64,7 @@ int main(int argc, char **argv)
         FLISP_UNLESS_ERR(flisp_register_extension(interp, extension_princ, flisp_princ_init));
         FLISP_UNLESS_ERR(flisp_princ_init(interp, FLISP_INTERP.extensions->car));
 
-        FLISP_UNLESS_ERR(flisp_register_extension(interp, extension_fmt, flisp_fmt_init));
+//        FLISP_UNLESS_ERR(flisp_register_extension(interp, extension_fmt, flisp_fmt_init));
         FLISP_UNLESS_ERR(flisp_register_extension(interp, extension_string, flisp_string_init));
         FLISP_UNLESS_ERR(flisp_register_extension(interp, extension_double, flisp_double_init));
         FLISP_UNLESS_ERR(flisp_register_extension(interp, extension_posix, flisp_posix_init));
