@@ -1927,46 +1927,46 @@ char *flisp_symbol_string(Object *symbol)
 }
 
 // Iteration
-typedef Object *(*InfixFunc) (Object *, Object *, void *, size_t index);
-typedef Object *(*PostFunc) (Object *, Object *, void *);
-typedef Object *(*PreFunc) (Object *, Object *,  void *);
+typedef Object *(*InfixFunc) (Object *, void *, size_t index);
+typedef Object *(*PostFunc) (Object *, void *);
+typedef Object *(*PreFunc) (Object *,  void *);
 
-Object *flisp_iterate_list(Object *interp, Object *object, InfixFunc infix, void *arg)
+Object *flisp_iterate_list(Object *object, InfixFunc infix, void *arg)
 {
     Object *o = object;
     size_t i = 0;
     for (;;) {
         if (o == nil) return nil;
-        FLISP_CHECK_ERR(infix(interp, o, arg, i++));
+        FLISP_CHECK_ERR(infix(o, arg, i++));
         if (o->type != type_cons) return o;
         o = CDR(o);
     }
 }
 
-Object *flisp_iterate_vector(Object *interp, Object *object, InfixFunc infix, void *arg)
+Object *flisp_iterate_vector(Object *object, InfixFunc infix, void *arg)
 {
     for (size_t i = 0; i < object->length; i++)
-        FLISP_CHECK_ERR(infix(interp, object->objects[i], arg, i));
+        FLISP_CHECK_ERR(infix(object->objects[i], arg, i));
     return nil;
 }
 
-Object *flisp_iterate(Object *interp, Object *object, PreFunc pre, InfixFunc infix, PostFunc post, void *arg)
+Object *flisp_iterate(Object *object, PreFunc pre, InfixFunc infix, PostFunc post, void *arg)
 {
-    if (pre != NULL) FLISP_CHECK_ERR(pre(interp, object, arg));
+    Object *result;
+    if (pre != NULL) FLISP_CHECK_ERR(pre(object, arg));
     if (object->type == type_cons) {
-        FLISP_CHECK_ERR(flisp_iterate_list(interp, object, infix, arg));
+        FLISP_CHECK_ERR(result = flisp_iterate_list(object, infix, arg));
     } else if (object->size && object->length) {
-        FLISP_CHECK_ERR(flisp_iterate_vector(interp, object, infix, arg));
-    } else
-        FLISP_CHECK_ERR(infix(interp, object, arg, 0));
-    if (post != NULL)
-        return post(interp, object, arg);
-    return nil;
+        FLISP_CHECK_ERR(result = flisp_iterate_vector(object, infix, arg));
+    } else {
+        FLISP_CHECK_ERR(result = infix(object, arg, 0));
+    }
+    if (post == NULL)  return result;
+    return post(object, arg);
 }
 
-// Formatter
-Object *flisp_fmt(Object *, Object *);
 
+#if 1
 char *flisp_fmt_fallback(Object *object)
 {
     /* Obvious string representations */
@@ -1986,100 +1986,126 @@ char *flisp_fmt_fallback(Object *object)
     /* For anything else just return the type string */
     return flisp_symbol_string(object->type->type.name);
 }
+#endif
+// Formatter
+Object *fmt_object(Object *);
+
 typedef struct fmt_delimiter { char *prefix; char *infix; char *postfix; } fmt_delimiter;
 
-Object *fmt_prefix(Object *interp, Object *object, void *delimiter)
+Object *fmt_prefix(Object *object, void *delimiter)
 {
     if (addStringToPad(scratchpad, ((fmt_delimiter*)delimiter)->prefix)) return nil;
-    return newError(interp, io_error, nil, "fmt_pre() failed: could not add prefix");
+    return flisp_static_error(io_error, &fmt_oom_message);
 }
-Object *fmt_postfix(Object *interp, Object *object, void *delimiter)
+Object *fmt_postfix(Object *object, void *delimiter)
 {
     if (addStringToPad(scratchpad, ((fmt_delimiter*)delimiter)->postfix)) return nil;
-    return newError(interp, io_error, nil, "fmt_post() failed: could not add postfix");    
+    return flisp_static_error(io_error, &fmt_oom_message);    
 }
-Object *fmt_infix_list(Object *interp, Object *object, void *delimiter, size_t i)
+Object *fmt_infix_list(Object *object, void *delimiter, size_t i)
 {
-    Object *string;
-
     if (i)  if (!addStringToPad(scratchpad, ((fmt_delimiter*)delimiter)->infix)) goto err;
     if (object->type == type_cons) {
-        FLISP_CHECK_ERR(string = flisp_fmt(interp, CAR(object)));
+        FLISP_CHECK_ERR(fmt_object(CAR(object)));
     } else {
-        FLISP_CHECK_ERR(string = flisp_fmt(interp, object));
         if (!addStringToPad(scratchpad, ". ")) goto err;
+        FLISP_CHECK_ERR(fmt_object(object));
     }
-    if (!addStringToPad(scratchpad, string->string)) goto err;
     return nil;
 err:
-    return newError(interp, io_error, nil, "fmt_infix() failed: could not add object");    
+    return flisp_static_error(io_error, &fmt_oom_message);    
 }
-Object *fmt_infix_vector(Object *interp, Object *object, void *pad, size_t i)
+Object *fmt_infix_vector(Object *object, void *delimiter, size_t i)
 {
-    Object *string;
-    if (i) if (!addStringToPad(scratchpad, " ")) goto err;
-    FLISP_CHECK_ERR(string = flisp_fmt(interp, object));
-    if (!addStringToPad(scratchpad, string->string)) goto err;
+    if (i && !addStringToPad(scratchpad, ((fmt_delimiter*)delimiter)->infix))
+        return flisp_static_error(io_error, &fmt_oom_message);
+    FLISP_CHECK_ERR(fmt_object(object));
     return nil;
-
-err:
-    return newError(interp, io_error, nil, "fmt_infix() failed: could not add object");    
 }
-Object *fmt_prefix_object(Object *interp, Object *object, void *delimiter)
+Object *fmt_prefix_object(Object *object, void *delimiter)
 {
     if (!addStringToPad(scratchpad, ((fmt_delimiter*)delimiter)->prefix)) goto err;
-    if (!addStringToPad(scratchpad, flisp_symbol_string(object->type->type.name))) goto err;
+    if (!addStringToPad(scratchpad, flisp_symbol_string(object->type->type.name)+strlen("type-"))) goto err;
+    if (!addStringToPad(scratchpad, ":")) goto err;
     return nil;
 err:
-    return newError(interp, io_error, nil, "fmt_prefix_object() failed: could not add prefix");
+    return flisp_static_error(io_error, &fmt_oom_message);
 }
-Object *fmt_infix_object(Object *interp, Object *object, void *pad, size_t i)
+Object *fmt_infix_object(Object *object, void *delimiter, size_t i)
 {
-    Object *string;
-    if (!addStringToPad(scratchpad, " ")) goto err;
-    FLISP_CHECK_ERR(string = flisp_fmt(interp, object));
-    if (!addStringToPad(scratchpad, string->string)) goto err;
+    if (i && !addStringToPad(scratchpad, ((fmt_delimiter*)delimiter)->infix))
+        return flisp_static_error(io_error, &fmt_oom_message);
+    FLISP_CHECK_ERR(fmt_object(object));
     return nil;
-
-err:
-    return newError(interp, io_error, nil, "fmt_infix() failed: could not add object");    
+}
+char *fmt_string_object(Object *object)
+{
+    /* Obvious string representations */
+    if (object->type == type_integer)
+        return fmtInteger(object->value, 10, flisp_integer_char_map, ' ', -1);
+    if (object->type == type_str)
+        return object->str;
+    if (object->type == type_ptr)
+        return fmtInteger(object->value, 16, flisp_integer_char_map, 'X', 0);
+    if (object->type == type_type)
+        return flisp_symbol_string(object->type->type.name);
+    if (object->type == type_string)
+        return object->string;
+    if (object->type == type_symbol)
+        return flisp_symbol_string(object);
+    return NULL;
 }
 
-Object *flisp_fmt(Object *interp, Object *object)
-{
+/* Adds string representation of object to scratchpad, returns either error object, or result of iteration */
+Object *fmt_object(Object *object) {
     fmt_delimiter delimiters = { "", "", "" };
     PreFunc pre = fmt_prefix;
     InfixFunc infix;
+
     if (object->type == type_cons) {
         delimiters = (fmt_delimiter){ "(", " ", ")" };
         infix = fmt_infix_list;
-    }
-    if (object->size && object->length) {
+    } else if (object->size && object->length) {
         if (object->type == type_vector) {
             delimiters = (fmt_delimiter){ "[", " ", "]" };
             infix = fmt_infix_vector;
         } else {
-            delimiters = (fmt_delimiter){ "#<", " ", ">" };
+            delimiters = (fmt_delimiter){ "#<", ": ", ">" };
             pre = fmt_prefix_object;
             infix = fmt_infix_object;
         }
-    } else /* Note: WIP replace/reduce */
-        return newString(interp, flisp_fmt_fallback(object));
+    } else {
+        char *s = fmt_string_object(object);
+        if (s) {
+            if (addStringToPad(scratchpad, s)) return nil;
+            return flisp_static_error(io_error, &fmt_oom_message);
+        }
+        return flisp_static_error(wrong_type_argument, &write_invalid_object);
+    }
+    return flisp_iterate(object, pre, infix, fmt_postfix, (void*) &delimiters);
+}
+char *flisp_fmt(Object *object, Object **error)
+{
+    char *s = fmt_string_object(object);
+    if (s) return s;
 
-    FLISP_CHECK_ERR(flisp_iterate(interp, object, pre, infix, fmt_postfix, (void*) &delimiters));
-    return newString(interp, scratchpad->string);
+    initPad(scratchpad);
+    *error = fmt_object(object);
+    return scratchpad->string;
 }
 
 /* (fmt o[ arg..]) => string */
 Object *primitiveFmt(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     CHECK_OOM(FLISP_ARG1);
-
+    
     Object *fmt = FLISP_ARG1->type->type.fmt;
     if (fmt == nil) {
-        //return newString(interp, flisp_fmt_fallback(FLISP_ARG1));
         initPad(scratchpad);
-        return flisp_fmt(interp, FLISP_ARG1);
+        Object *error;
+        char *s = flisp_fmt(FLISP_ARG1, &error);
+        FLISP_CHECK_ERR(error);
+        return newString(interp, s);
     }
     if (!(fmt->type == type_lambda || fmt->type == type_primitive || fmt->type == type_macro))
         return newError(interp, invalid_value, FLISP_ARG1, "(fmt o[ arg..]) - o no formatter for objects of this type");
