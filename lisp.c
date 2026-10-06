@@ -1927,7 +1927,7 @@ char *flisp_symbol_string(Object *symbol)
 }
 
 // Iteration
-typedef Object *(*InfixFunc) (Object *, void *, size_t index);
+typedef Object *(*InfixFunc) (Object *, void *, size_t index, bool end);
 typedef Object *(*PostFunc) (Object *, void *);
 typedef Object *(*PreFunc) (Object *,  void *);
 
@@ -1937,16 +1937,18 @@ Object *flisp_iterate_list(Object *object, InfixFunc infix, void *arg)
     size_t i = 0;
     for (;;) {
         if (o == nil) return nil;
-        FLISP_CHECK_ERR(infix(o, arg, i++));
-        if (o->type != type_cons) return o;
-        o = CDR(o);
+        FLISP_CHECK_ERR(infix(CAR(o), arg, i++, false));
+        if (o->type == type_cons)
+            o = CDR(o);
+        else
+            return infix(o, arg, i, true);
     }
 }
 
 Object *flisp_iterate_vector(Object *object, InfixFunc infix, void *arg)
 {
     for (size_t i = 0; i < object->length; i++)
-        FLISP_CHECK_ERR(infix(object->objects[i], arg, i));
+        FLISP_CHECK_ERR(infix(object->objects[i], arg, i, false));
     return nil;
 }
 
@@ -1959,34 +1961,13 @@ Object *flisp_iterate(Object *object, PreFunc pre, InfixFunc infix, PostFunc pos
     } else if (object->size && object->length) {
         FLISP_CHECK_ERR(result = flisp_iterate_vector(object, infix, arg));
     } else {
-        FLISP_CHECK_ERR(result = infix(object, arg, 0));
+        FLISP_CHECK_ERR(result = infix(object, arg, 0, false));
     }
     if (post == NULL)  return result;
     return post(object, arg);
 }
 
 
-#if 1
-char *flisp_fmt_fallback(Object *object)
-{
-    /* Obvious string representations */
-    if (object->type == type_integer)
-        return fmtInteger(object->value, 10, flisp_integer_char_map, ' ', -1);
-    if (object->type == type_str)
-        return object->str;
-    if (object->type == type_ptr)
-        return fmtInteger(object->value, 16, flisp_integer_char_map, 'X', 0);
-    if (object->type == type_type)
-        return flisp_symbol_string(object->type->type.name);
-    if (object->type == type_string)
-        return object->string;
-    if (object->type == type_symbol)
-        return flisp_symbol_string(object);
-
-    /* For anything else just return the type string */
-    return flisp_symbol_string(object->type->type.name);
-}
-#endif
 // Formatter
 Object *fmt_object(Object *);
 
@@ -2002,25 +1983,13 @@ Object *fmt_postfix(Object *object, void *delimiter)
     if (addStringToPad(scratchpad, ((fmt_delimiter*)delimiter)->postfix)) return nil;
     return flisp_static_error(io_error, &fmt_oom_message);    
 }
-Object *fmt_infix_list(Object *object, void *delimiter, size_t i)
+Object *fmt_infix(Object *object, void *delimiter, size_t i, bool end)
 {
-    if (i)  if (!addStringToPad(scratchpad, ((fmt_delimiter*)delimiter)->infix)) goto err;
-    if (object->type == type_cons) {
-        FLISP_CHECK_ERR(fmt_object(CAR(object)));
-    } else {
-        if (!addStringToPad(scratchpad, ". ")) goto err;
-        FLISP_CHECK_ERR(fmt_object(object));
-    }
-    return nil;
+    if (i &&  !addStringToPad(scratchpad, ((fmt_delimiter*)delimiter)->infix)) goto err;
+    if (end && !addStringToPad(scratchpad, ". ")) goto err;
+    return fmt_object(object);
 err:
     return flisp_static_error(io_error, &fmt_oom_message);    
-}
-Object *fmt_infix_vector(Object *object, void *delimiter, size_t i)
-{
-    if (i && !addStringToPad(scratchpad, ((fmt_delimiter*)delimiter)->infix))
-        return flisp_static_error(io_error, &fmt_oom_message);
-    FLISP_CHECK_ERR(fmt_object(object));
-    return nil;
 }
 Object *fmt_prefix_object(Object *object, void *delimiter)
 {
@@ -2031,12 +2000,10 @@ Object *fmt_prefix_object(Object *object, void *delimiter)
 err:
     return flisp_static_error(io_error, &fmt_oom_message);
 }
-Object *fmt_infix_object(Object *object, void *delimiter, size_t i)
+Object *fmt_prefix_other(Object *object, void *delimiter)
 {
-    if (i && !addStringToPad(scratchpad, ((fmt_delimiter*)delimiter)->infix))
-        return flisp_static_error(io_error, &fmt_oom_message);
-    FLISP_CHECK_ERR(fmt_object(object));
-    return nil;
+    if (addStringToPad(scratchpad, ((fmt_delimiter*)delimiter)->prefix)) return nil;
+    return flisp_static_error(io_error, &fmt_oom_message);
 }
 char *fmt_string_object(Object *object)
 {
@@ -2047,8 +2014,6 @@ char *fmt_string_object(Object *object)
         return object->str;
     if (object->type == type_ptr)
         return fmtInteger(object->value, 16, flisp_integer_char_map, 'X', 0);
-    if (object->type == type_type)
-        return flisp_symbol_string(object->type->type.name);
     if (object->type == type_string)
         return object->string;
     if (object->type == type_symbol)
@@ -2058,21 +2023,18 @@ char *fmt_string_object(Object *object)
 
 /* Adds string representation of object to scratchpad, returns either error object, or result of iteration */
 Object *fmt_object(Object *object) {
-    fmt_delimiter delimiters = { "", "", "" };
+    fmt_delimiter delimiters = { "#<", ": ", ">" };;
     PreFunc pre = fmt_prefix;
-    InfixFunc infix;
 
-    if (object->type == type_cons) {
+    if (object->type == type_lambda) goto other;
+    if (object->type == type_macro) goto other;
+    if (object->type == type_cons)
         delimiters = (fmt_delimiter){ "(", " ", ")" };
-        infix = fmt_infix_list;
-    } else if (object->size && object->length) {
+    else if (object->size && object->length) {
         if (object->type == type_vector) {
             delimiters = (fmt_delimiter){ "[", " ", "]" };
-            infix = fmt_infix_vector;
         } else {
-            delimiters = (fmt_delimiter){ "#<", ": ", ">" };
             pre = fmt_prefix_object;
-            infix = fmt_infix_object;
         }
     } else {
         char *s = fmt_string_object(object);
@@ -2080,9 +2042,12 @@ Object *fmt_object(Object *object) {
             if (addStringToPad(scratchpad, s)) return nil;
             return flisp_static_error(io_error, &fmt_oom_message);
         }
-        return flisp_static_error(wrong_type_argument, &write_invalid_object);
+        /* simple objects not covered by fmt_string_object() */
+        goto other; 
     }
-    return flisp_iterate(object, pre, infix, fmt_postfix, (void*) &delimiters);
+    return flisp_iterate(object, pre, fmt_infix, fmt_postfix, (void*) &delimiters);
+other:
+    return flisp_iterate(object->type->type.name, fmt_prefix_other, fmt_infix, fmt_postfix, (void*) &delimiters);
 }
 char *flisp_fmt(Object *object, Object **error)
 {

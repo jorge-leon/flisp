@@ -23,6 +23,10 @@ $(cat core.lsp)
 
 (setq *standard-error* (open ">2"))
 
+(defun princ (o . args)
+  (if args (fputs (fmt o) (car args))
+      (fputs (fmt o)) ))
+
 (defun repl-princ s  (princ (concat s)))
 (defun repl-eprinc s (princ (concat s) *standard-error*))
 

@@ -347,5 +347,4 @@
       (list 'error wrong-type-argument
 	     (list 'concat "(error-type error) - error expected type-error, got " (list 'type-of error))
 	     error) ))
-
 (provide 'core)

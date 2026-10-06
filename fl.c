@@ -26,8 +26,6 @@
 #include "double.h"
 #include "posix.h"
 #include "string.h"
-#include "princ.h"
-
 
 void fatal(char *msg)
 {
@@ -61,10 +59,7 @@ int main(int argc, char **argv)
     interactive = isatty(fileno(input_fd));
     do {
         FLISP_UNLESS_ERR(interp = flisp_interpreter((size_t) size, argv, input_fd));
-        FLISP_UNLESS_ERR(flisp_register_extension(interp, extension_princ, flisp_princ_init));
-        FLISP_UNLESS_ERR(flisp_princ_init(interp, FLISP_INTERP.extensions->car));
 
-//        FLISP_UNLESS_ERR(flisp_register_extension(interp, extension_fmt, flisp_fmt_init));
         FLISP_UNLESS_ERR(flisp_register_extension(interp, extension_string, flisp_string_init));
         FLISP_UNLESS_ERR(flisp_register_extension(interp, extension_double, flisp_double_init));
         FLISP_UNLESS_ERR(flisp_register_extension(interp, extension_posix, flisp_posix_init));
@@ -81,7 +76,7 @@ int main(int argc, char **argv)
 
     if (interactive) write_string(stdout, FL_NAME " " FL_VERSION "\n");
 
-    Object *result = nil;
+    Object *result = nil, *error = nil;
     for (;;) {
         if (interactive)  write_string(stdout, "> ");
         fflush(NULL);
@@ -92,11 +87,13 @@ int main(int argc, char **argv)
             return 0;
         }
         if (FLISP_IS_ERR(result)) {
-            flisp_princ(result, stderr);
+            fputs(flisp_fmt(result, &error), stderr);
+            if (FLISP_IS_ERR(error)) fatal("Failed to format error");
             write_string(stderr, "\n");
             if (!interactive)  return 1;
         } else if (print) {
-            flisp_princ(result, stdout);
+            fputs(flisp_fmt(result, &error), stdout);
+            if (FLISP_IS_ERR(error)) fatal("Failed to format result");
             write_string(stdout, "\n");
         }
     }

@@ -189,6 +189,7 @@ extern Object *flisp_eval_input(Object *, Object *);
 extern Object *flisp_write_object(Object *, Object *, Object *, Object *);
 extern Object *flisp_lookup(Object *, Object *);
 /* Note: to be documented */
+extern char *flisp_fmt(Object *, Object **);
 extern Object *flisp_find_symbol(Object *, char*, size_t);
 extern Object *flisp_nreverse(Object *, Object *);
 extern char *flisp_symbol_string(Object *);
