@@ -1,11 +1,14 @@
 + implement gc - memory readjustment
 - Fix: new/values have gc problems: run test with interp-gc-always
 - Fix: test (fmt) thoroughly.
++ implement flisp_iterate()
+  - use in applicable scenarios
+  - document
 - Give memory struct to gc() as parameter.
 - object: move write out of core, replace with fmt.
   + instead of writer slot have a fmt slot in the type object.
   + consider eliminating readably formatting from core.
-  - fl: read, eval, fmt, puts()
+  + fl: read, eval, fmt, puts()
   - rationale: embedded operation most likely doesn't want to print neither fmt.
 - object: new and fmt slot contain either:
   + nil -> fallback operation

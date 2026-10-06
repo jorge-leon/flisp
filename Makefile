@@ -50,7 +50,7 @@ debug: $(BINARIES) $(LIBRARIES)
 double.o: double.c double.h lisp.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
 
-fl: fl.o lisp.o $(OBJ) princ.o
+fl: fl.o lisp.o $(OBJ)
 	$(LD) $(LDFLAGS) -o $@ $^ -lm
 
 flisp: flisp.sht fl core.lsp
@@ -119,7 +119,7 @@ flv: fl FORCE
 frama-c: FORCE
 	frama-c -c11 -cpp-extra-args="-I$(frama-c -print-path)/libc -I/usr/include -I." -kernel-msg-key pp -metrics *.c
 
-static: fl.o lisp.o $(OBJ) princ.o
+static: fl.o lisp.o $(OBJ)
 	$(LD) $(LDFLAGS) -static -o $@ $^ -lm
 
 LISPSRC = $(SCRIPTS) $(LISPLIB)
