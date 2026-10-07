@@ -21,3 +21,15 @@ tap 1
 #IN='(d+ #d2.72 #d3.14)' OUT="#D401770A3D70A3D71"
 IN='(d+ #d2.72 #d3.14)' OUT="#d5.860000"
 flisp_expr; ok double-plus-1 \# TODO double tests
+
+#IN="#d.1" OUT='#D3FB999999999999A'
+#flisp_expr; ok reader-4-5 read double .1 is 0.1 at eof
+#
+#IN="#d3.14" OUT='#D40091EB851EB851F'
+#flisp_expr; ok reader-4-6 read double 3.14 is 3.14 at eof
+#
+#IN="#d7." OUT='#D401C000000000000'
+#flisp_expr; ok reader-4-7 read double 7. is 7 at eof
+#
+#IN="#d7. " OUT='#D401C000000000000'
+#flisp_expr; ok reader-4-8 read double 7. is 7

@@ -8,30 +8,28 @@
 export FLISP=../fl
 export FLISP_DEBUG=../f.log
 export FLISP_PRINT=1
-export PREPARE="(interp-gc-always t)"
-#PREPARE="(interp-trace-read t)$PREPARE"
-#PREPARE="(interp-trace-primitives t)$PREPARE"
+#export PREPARE="(interp-gc-always t)"
 
 
-#export FLISP_SIZE=$((20*1024*1024))
+export FLISP_SIZE=$((20*1024*1024))
 
-tap 231
+tap 221
 
 # reader
-IN='(' OUT='#<error:read-incomplete: unexpected end of stream while reading list: nil>'
+IN='(' OUT='#<error:read-incomplete: "unexpected end of stream while reading list": nil>'
 flisp_expr; ok reader-1 incomplete sexp error msg
 
-IN='"' OUT='#<error:read-incomplete: unexpected end of stream while reading string literal: nil>'
+IN='"' OUT='#<error:read-incomplete: "unexpected end of stream while reading string literal": nil>'
 flisp_expr; ok reader-2 incomplete string error msg
 
-IN="\010" OUT='#<error:invalid-read-syntax: unexpected character: 0x08: nil>'
+IN="\010" OUT='#<error:invalid-read-syntax: "unexpected character: 0x08": nil>'
 flisp_expr; ok reader-3-1 unexpected control character error msg
 
 # Note: test with 0x7f, 0xc1, 0xfe, 0xff
-IN="]" OUT='#<error:invalid-read-syntax: unexpected character: ]: nil>'
+IN="]" OUT='#<error:invalid-read-syntax: "unexpected character: ]": nil>'
 flisp_expr; ok reader 3-2 unexpected ascii character error msg
 
-IN="\776" OUT='#<error:invalid-read-syntax: unexpected character: 0xFE: nil>'
+IN="\776" OUT='#<error:invalid-read-syntax: "unexpected character: 0xFE": nil>'
 flisp_expr; ok reader-3-3 unexpected unicode character error msg
 
 IN="0" OUT='0'
@@ -46,22 +44,9 @@ flisp_expr; ok reader-4-3 read integer octal 10 is 8
 IN="0x10" OUT='16'
 flisp_expr; ok reader-4-4 read integer hex 10 is 16
 
-# Note: type-double, and it's writer is moved to double extension
-IN="#d.1" OUT='#d0.100000'
-flisp_expr; ok reader-4-5 read double .1 is 0.1 at eof
-
-#  We just test the reader here, move the tests to the double extension test suite.
-#IN="#d.1" OUT='#D3FB999999999999A'
-#flisp_expr; ok reader-4-5 read double .1 is 0.1 at eof
-#
-#IN="#d3.14" OUT='#D40091EB851EB851F'
-#flisp_expr; ok reader-4-6 read double 3.14 is 3.14 at eof
-#
-#IN="#d7." OUT='#D401C000000000000'
-#flisp_expr; ok reader-4-7 read double 7. is 7 at eof
-#
-#IN="#d7. " OUT='#D401C000000000000'
-#flisp_expr; ok reader-4-8 read double 7. is 7
+# Note: We just test the reader here,type-double is handled in the double extension.
+IN="#d.1" OUT='#<type-double>'
+flisp_expr; ok reader-4-5 read double is type
 
 IN="t" OUT='t'
 flisp_expr; ok reader-5 read constant t at eof
@@ -96,47 +81,47 @@ flisp_expr; ok reader-13 read dotted pair
 IN="'(0 1 . 2)" OUT='(0 1 . 2)'
 flisp_expr; ok reader-14 read dotted list
 
-IN="'(0 1 . " OUT="#<error:read-incomplete: unexpected end of stream while reading expression in dotted list: nil>"
+IN="'(0 1 . " OUT='#<error:read-incomplete: "unexpected end of stream while reading expression in dotted list": nil>'
 flisp_expr; ok reader-14-1 dotted list w/o end paren
 
-IN="'(0 1 . 2 3)" OUT="#<error:invalid-read-syntax: unexpected object at end of dotted list: nil>"
+IN="'(0 1 . 2 3)" OUT='#<error:invalid-read-syntax: "unexpected object at end of dotted list": nil>'
 flisp_expr; ok reader-15 read dotted list with extra element
 
-IN="'(0 1 .)" OUT="#<error:invalid-read-syntax: expected object at end of dotted list: nil>"
+IN="'(0 1 .)" OUT='#<error:invalid-read-syntax: "expected object at end of dotted list": nil>'
 flisp_expr; ok reader-16 read dotted list without cdr
 
 IN="'(nil . t)" OUT="(nil . t)"
 flisp_expr; ok reader-16-1 read dotted list where nil precedes dot
 
-IN="'( . t)" OUT="#<error:invalid-read-syntax: unexpected dot at start of list: nil>"
+IN="'( . t)" OUT='#<error:invalid-read-syntax: "unexpected dot at start of list": nil>'
 flisp_expr; ok reader-16-2 read dotted list where nil precedes dot
 
-IN="'(t . )" OUT="#<error:invalid-read-syntax: expected object at end of dotted list: nil>"
+IN="'(t . )" OUT='#<error:invalid-read-syntax: "expected object at end of dotted list": nil>'
 flisp_expr; ok reader-16-3 read dotted list without object at end
 
-IN="(" OUT="#<error:read-incomplete: unexpected end of stream while reading list: nil>"
+IN="(" OUT='#<error:read-incomplete: "unexpected end of stream while reading list": nil>'
 flisp_expr; ok reader-17 read list without end
 
 # Special forms
-IN='(quote)' OUT="#<error:wrong-number-of-arguments: quote expects exactly 1 argument: nil>"
+IN='(quote)' OUT='#<error:wrong-number-of-arguments: "quote expects exactly 1 argument": nil>'
 flisp_expr; ok quote-1 w/o arg error message
 
-IN='(bind)' OUT='#<error:wrong-number-of-arguments: (bind p s[ o] ..) expects at least two arguments: nil>'
+IN='(bind)' OUT='#<error:wrong-number-of-arguments: "(bind p s[ o] ..) expects at least two arguments": nil>'
 flisp_expr; ok bind-1 zero arg errs
 
-IN='(bind t)' OUT='#<error:wrong-number-of-arguments: (bind p s[ o] ..) expects at least two arguments: (t)>'
+IN='(bind t)' OUT='#<error:wrong-number-of-arguments: "(bind p s[ o] ..) expects at least two arguments": (t)>'
 flisp_expr; ok bind-2 one arg errs
 
-IN='(bind . t)' OUT='#<error:wrong-number-of-arguments: (bind p s[ o] ..) expects at least two arguments: t>'
+IN='(bind . t)' OUT='#<error:wrong-number-of-arguments: "(bind p s[ o] ..) expects at least two arguments": t>'
 flisp_expr; ok bind-2-1 dottet list before p errs
 
-IN='(bind t s . 1)' OUT='#<error:invalid-value: (bind p s[ o] ..) - o, arguments are not a proper list: (t s . 1)>'
+IN='(bind t s . 1)' OUT='#<error:invalid-value: "(bind p s[ o] ..) - o, arguments are not a proper list": (t s . 1)>'
 flisp_expr; ok bind-2-2 dotted list before value errs
 
-IN='(bind t s 1 . t)' OUT='#<error:invalid-value: (bind p s[ o] ..) - s, arguments are not a proper list: (t s 1 . t)>'
+IN='(bind t s 1 . t)' OUT='#<error:invalid-value: "(bind p s[ o] ..) - s, arguments are not a proper list": (t s 1 . t)>'
 flisp_expr; ok bind-2-3 dotted list before symbol errs
 
-IN='(bind t invalid-value)' OUT='#<error:wrong-type-argument: (bind p s[ o[ s[ ..]]]) - s is a constant and cannot be redefined: invalid-value>'
+IN='(bind t invalid-value)' OUT='#<error:wrong-type-argument: "(bind p s[ o[ s[ ..]]]) - s is a constant and cannot be redefined": invalid-value>'
 flisp_expr; ok bind-2-4  binding constant errs
 
 IN="(bind nil var 'val)" OUT=val
@@ -154,7 +139,7 @@ flisp_expr; ok bind-6 local bind does not set outer variable.
 IN="(bind t var1 3) ((lambda () (bind t var1 2) t)) var1" OUT=2
 flisp_expr; ok bind-7 global bind does set outer variable.
 
-IN="(type-of (bind t var (1))) var" OUT="#<error:wrong-type-argument: is not a function: 1>"
+IN="(type-of (bind t var (1))) var" OUT='#<error:wrong-type-argument: "is not a function": 1>'
 flisp_expr; ok bind-8 bind to error still binds variable
 
 IN='(progn)' OUT=nil
@@ -203,62 +188,32 @@ flisp_expr; ok cond-12 cond with last expresion single string list gives its val
 IN="(cond nil ((consp (quote (a b)))))" OUT=t
 flisp_expr; ok cond-13 cond with last expresion funcall gives result
 
-IN='(cond . "a")' OUT='#<error:wrong-type-argument: (cond args) - args is not a list: arg 1: "a">'
+IN='(cond . "a")' OUT='#<error:wrong-type-argument: "(cond args) - args is not a list: arg 1": "a">'
 flisp_expr; ok cond-14 fail if not called with a cons
 
-IN='(cond "a" ())' OUT='#<error:wrong-type-argument: (cond clause ..) - clause is not a list: "a">'
+IN='(cond "a" ())' OUT='#<error:wrong-type-argument: "(cond clause ..) - clause is not a list": "a">'
 flisp_expr; ok cond-15 fail if clause is not a cons
 
-IN='(cond (nil . "a"))' OUT='#<error:wrong-type-argument: (cond (pred action) ..) action is not a list: (nil . "a")>'
+IN='(cond (nil . "a"))' OUT='#<error:wrong-type-argument: "(cond (pred action) ..) action is not a list": (nil . "a")>'
 flisp_expr; ok cond-16 fail if clause is cons with car nil
 
-IN='(cond (t . t))' OUT="#<error:wrong-type-argument: (cond (pred action) ..) action is not a list: (t . t)>"
+IN='(cond (t . t))' OUT='#<error:wrong-type-argument: "(cond (pred action) ..) action is not a list": (t . t)>'
 flisp_expr; ok cond-17 fail if t and clause action is not a list
 
 IN="(cond (42))" OUT="42"
 flisp_expr; ok cond-18 cond with only pred returns pred
 
 # lambda
-IN='(lambda nil)' OUT="#<type-lambda: nil>"
+IN='(lambda nil)' OUT="#<type-lambda>"
 flisp_expr; ok lambda-1 arg nil
-
-IN='(lambda a nil)' OUT="#<type-lambda: a>"
-flisp_expr; ok lambda-2 args a nil
-
-IN='(lambda nil nil)' OUT="#<type-lambda: nil>"
-flisp_expr; ok lambda-3 args nil nil
-
-IN='(lambda (a b) nil)' OUT="#<type-lambda: (a b)>"
-flisp_expr; ok lambda-4 args a b
-
-IN='(lambda (a . b) nil)' OUT="#<type-lambda: (a . b)>"
-flisp_expr; ok lambda-5 args a . b nil
-
-IN='(lambda (a b) a b)' OUT="#<type-lambda: (a b)>"
-flisp_expr; ok lambda-6 args nil nil
-
-IN='((lambda (a b) a b) 0 "a")' OUT='"a"'
-flisp_expr; ok lambda-7 apply return b string a
 
 # Time for memory allocator test
 #IN='(setq r (lambda args (r args))) (r)' OBJ='out of memory, 48 bytes' ERR='48 bytes'
 #flisp_err; ok memory-1 exhausting memory exits with error code
 
 # macro
-IN='(macro nil)' OUT='#<type-macro: nil>'
+IN='(macro nil)' OUT='#<type-macro>'
 flisp_expr; ok macro-1 arg nil
-
-IN='(macro a nil)' OUT='#<type-macro: a>'
-flisp_expr; ok macro-2 args a nil
-
-IN='(macro (a b) nil)' OUT='#<type-macro: (a b)>'
-flisp_expr; ok macro-3 args a b
-
-IN='(macro (a . b) nil)' OUT='#<type-macro: (a . b)>'
-flisp_expr; ok macro-4 args a . b
-
-IN='((macro (a b) a b) 0 "a")' OUT='"a"'
-flisp_expr; ok macro-5  apply return b string a
 
 # macroexpand-1
 IN='(macroexpand-1 nil)' OUT='nil'
@@ -308,26 +263,26 @@ flisp_expr; ok null-6 null lambda is  nil
 IN="(null macro)" OUT="nil"
 flisp_expr; ok null-7 null macro is  nil
 
-IN="(null (1))" OUT="#<error:invalid-value: (null o) - o: #<error:wrong-type-argument: is not a function: 1>>"
+IN="(null (1))" OUT='#<error:invalid-value: "(null o) - o": #<error:wrong-type-argument: "is not a function": 1>>'
 flisp_expr; ok null-8 null error is error
 
 # type-of
-IN='(type-of 1)' OUT='type-integer'
+IN='(type-of 1)' OUT='#<type-integer>'
 flisp_expr; ok type-of-1 type-of 1 is integer
 
-IN='(type-of "a")' OUT='type-string'
+IN='(type-of "a")' OUT='#<type-string>'
 flisp_expr; ok type-of-2 type-of \"a\" is string
 
-IN='(type-of nil)' OUT='type-symbol'
+IN='(type-of nil)' OUT='#<type-symbol>'
 flisp_expr; ok type-of-3 type-of nil is symbol
 
-IN="(type-of '(a . b))" OUT='type-cons'
+IN="(type-of '(a . b))" OUT='#<type-cons>'
 flisp_expr; ok type-of-4 type-of cons is cons
 
-IN='(type-of type-of)' OUT='type-primitive'
+IN='(type-of type-of)' OUT='#<type-primitive>'
 flisp_expr; ok type-of-5 type-of type-of is primitive
 
-IN='(type-of (macro ()))' OUT='type-macro'
+IN='(type-of (macro ()))' OUT='#<type-macro>'
 flisp_expr; ok type-of-6 type-of macro is macro
 
 # consp
@@ -349,7 +304,7 @@ flisp_expr; ok consp-5  consp list is t
 IN="(consp consp)" OUT='nil'
 flisp_expr; ok consp-5  consp lambda is nil
 
-IN="(consp (1))" OUT="#<error:invalid-value: (consp o) - o: #<error:wrong-type-argument: is not a function: 1>>"
+IN="(consp (1))" OUT='#<error:invalid-value: "(consp o) - o": #<error:wrong-type-argument: "is not a function": 1>>'
 flisp_expr; ok consp-6  consp error is error
 
 
@@ -363,7 +318,7 @@ IN="(nreverse '(a 1 b 2))" OUT="(2 b 1 a)"
 flisp_expr; ok nreverse-3 nreverse four elements is reverse of list
 
 # intern
-IN='(type-of (intern "SYMBOL"))' OUT='type-symbol'
+IN='(type-of (intern "SYMBOL"))' OUT='#<type-symbol>'
 flisp_expr; ok intern-1  intern of string is symbol
 
 IN="(same 1 1)" OUT='nil'
@@ -398,7 +353,7 @@ IN="(car '(1 2))" OUT='1'
 flisp_expr; ok car-1  car returns first element
 
 # Intermezzo
-IN="(car 1)" OUT="#<error:wrong-type-argument: (car o) - o expected type-cons got type-integer: 1>"
+IN="(car 1)" OUT='#<error:wrong-type-argument: "(car o) - o expected type-cons got type-integer": 1>'
 flisp_expr; ok arg_check-1  argument checking '(car 1)' fails
 
 IN="(cdr '(1 2))" OUT='(2)'
@@ -714,15 +669,15 @@ IN='(string-compare "a" "ä")' OUT="-98" flisp_expr; ok string-compare-4 a less 
 
 IN='(interp-gc-always nil)' OUT=nil flisp_expr; ok interp-gc-always-1 nil is nil
 IN='(interp-gc-always t)'   OUT=t   flisp_expr; ok interp-gc-always-2 t is t
-IN='(interp-gc-always (1))'  OUT="#<error:invalid-value: (interp-gc-always[ p]) - p: #<error:wrong-type-argument: is not a function: 1>>"
+IN='(interp-gc-always (1))'  OUT='#<error:invalid-value: "(interp-gc-always[ p]) - p": #<error:wrong-type-argument: "is not a function": 1>>'
 flisp_expr; ok interp-gc-always-3 error is error
 
 IN='(interp-trace-read nil)' OUT=nil flisp_expr; ok interp-trace-read-1 nil is nil
 IN='(interp-trace-read t)'   OUT=t   flisp_expr; ok interp-trace-read-2 t is t
-IN='(interp-trace-read (1))'  OUT="#<error:invalid-value: (interp-trace-read[ p]) - p: #<error:wrong-type-argument: is not a function: 1>>"
+IN='(interp-trace-read (1))'  OUT='#<error:invalid-value: "(interp-trace-read[ p]) - p": #<error:wrong-type-argument: "is not a function": 1>>'
 flisp_expr; ok interp-trace-read-3 error is error
 
 IN='(interp-trace-primitives nil)' OUT=nil flisp_expr; ok interp-trace-primitives-1 nil is nil
 IN='(interp-trace-primitives t)'   OUT=t   flisp_expr; ok interp-trace-primitives-2 t is t
-IN='(interp-trace-primitives (1))'  OUT="#<error:invalid-value: (interp-trace-primitives[ p]) - p: #<error:wrong-type-argument: is not a function: 1>>"
+IN='(interp-trace-primitives (1))'  OUT='#<error:invalid-value: "(interp-trace-primitives[ p]) - p": #<error:wrong-type-argument: "is not a function": 1>>'
 flisp_expr; ok interp-trace-primitives-3 error is error

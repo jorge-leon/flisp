@@ -1,6 +1,8 @@
 + implement gc - memory readjustment
 - Fix: new/values have gc problems: run test with interp-gc-always
 - Fix: test (fmt) thoroughly.
+- Fix: FLISP_DEFINE_STR() used with flisp_static_error() seems not to work correctly.
+- Note: (setq x (interp)) crashes: when setting the global environment to a variable we get an infinite loop.
 + implement flisp_iterate()
   - use in applicable scenarios
   - document

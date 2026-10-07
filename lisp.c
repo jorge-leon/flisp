@@ -1937,18 +1937,19 @@ Object *flisp_iterate_list(Object *object, InfixFunc infix, void *arg)
     size_t i = 0;
     for (;;) {
         if (o == nil) return nil;
-        FLISP_CHECK_ERR(infix(CAR(o), arg, i++, false));
-        if (o->type == type_cons)
+        if (o->type == type_cons) {
+            FLISP_CHECK_ERR(infix(CAR(o), arg, i++, false));
             o = CDR(o);
-        else
+        } else
             return infix(o, arg, i, true);
     }
 }
 
 Object *flisp_iterate_vector(Object *object, InfixFunc infix, void *arg)
 {
-    for (size_t i = 0; i < object->length; i++)
-        FLISP_CHECK_ERR(infix(object->objects[i], arg, i, false));
+    if (object->length)
+        for (size_t i = 0; i < object->length; i++)
+            FLISP_CHECK_ERR(infix(object->objects[i], arg, i, false));
     return nil;
 }
 
@@ -1958,11 +1959,11 @@ Object *flisp_iterate(Object *object, PreFunc pre, InfixFunc infix, PostFunc pos
     if (pre != NULL) FLISP_CHECK_ERR(pre(object, arg));
     if (object->type == type_cons) {
         FLISP_CHECK_ERR(result = flisp_iterate_list(object, infix, arg));
-    } else if (object->size && object->length) {
+    } else if (object->size) {
         FLISP_CHECK_ERR(result = flisp_iterate_vector(object, infix, arg));
-    } else {
+    } else
         FLISP_CHECK_ERR(result = infix(object, arg, 0, false));
-    }
+
     if (post == NULL)  return result;
     return post(object, arg);
 }
@@ -2005,22 +2006,37 @@ Object *fmt_prefix_other(Object *object, void *delimiter)
     if (addStringToPad(scratchpad, ((fmt_delimiter*)delimiter)->prefix)) return nil;
     return flisp_static_error(io_error, &fmt_oom_message);
 }
-char *fmt_string_object(Object *object)
+Object *fmt_add_string(char *s)
+{
+    if (!s) return flisp_static_error(invalid_value, &fmt_invalid_length);
+    if (addStringToPad(scratchpad, s)) return nil;
+    return flisp_static_error(io_error, &fmt_oom_message);
+}
+Object *fmt_string_object(Object *object)
 {
     /* Obvious string representations */
     if (object->type == type_integer)
-        return fmtInteger(object->value, 10, flisp_integer_char_map, ' ', -1);
-    if (object->type == type_str)
-        return object->str;
+        return fmt_add_string(fmtInteger(object->value, 10, flisp_integer_char_map, ' ', -1));
+    if (object->type == type_str) {
+        FLISP_CHECK_ERR(fmt_add_string("\""));
+        FLISP_CHECK_ERR(fmt_add_string(object->str));
+        return fmt_add_string("\"");
+    }
+    if (object->type == type_string) {
+        FLISP_CHECK_ERR(fmt_add_string("\""));
+        FLISP_CHECK_ERR(fmt_add_string(object->string));
+        return fmt_add_string("\"");
+    }
     if (object->type == type_ptr)
-        return fmtInteger(object->value, 16, flisp_integer_char_map, 'X', 0);
-    if (object->type == type_string)
-        return object->string;
+        return fmt_add_string(fmtInteger(object->value, 16, flisp_integer_char_map, 'X', 0));
     if (object->type == type_symbol)
-        return flisp_symbol_string(object);
-    return NULL;
-}
+        return fmt_add_string(flisp_symbol_string(object));
 
+    if (object == flisp_empty_vector)
+        return fmt_add_string("[]");
+
+    return invalid_value;
+}
 /* Adds string representation of object to scratchpad, returns either error object, or result of iteration */
 Object *fmt_object(Object *object) {
     fmt_delimiter delimiters = { "#<", ": ", ">" };;
@@ -2028,32 +2044,29 @@ Object *fmt_object(Object *object) {
 
     if (object->type == type_lambda) goto other;
     if (object->type == type_macro) goto other;
+    Object *s = fmt_string_object(object);
+    if (s != invalid_value)  return s;
+    /* simple objects not covered by fmt_string_object() */
+    if (!object->size) goto other;
+
     if (object->type == type_cons)
         delimiters = (fmt_delimiter){ "(", " ", ")" };
-    else if (object->size && object->length) {
-        if (object->type == type_vector) {
-            delimiters = (fmt_delimiter){ "[", " ", "]" };
-        } else {
-            pre = fmt_prefix_object;
-        }
-    } else {
-        char *s = fmt_string_object(object);
-        if (s) {
-            if (addStringToPad(scratchpad, s)) return nil;
-            return flisp_static_error(io_error, &fmt_oom_message);
-        }
-        /* simple objects not covered by fmt_string_object() */
-        goto other; 
+    else if (object->type == type_vector)
+        delimiters = (fmt_delimiter){ "[", " ", "]" };
+    else if (object->type == type_type) {
+        object = ((TypeObject*)object)->type.name;
+        pre = fmt_prefix_other;
     }
+    else
+        pre = fmt_prefix_object;
     return flisp_iterate(object, pre, fmt_infix, fmt_postfix, (void*) &delimiters);
+    
 other:
+/* cannot or do not want to fmt all contained objects */
     return flisp_iterate(object->type->type.name, fmt_prefix_other, fmt_infix, fmt_postfix, (void*) &delimiters);
 }
 char *flisp_fmt(Object *object, Object **error)
 {
-    char *s = fmt_string_object(object);
-    if (s) return s;
-
     initPad(scratchpad);
     *error = fmt_object(object);
     return scratchpad->string;
@@ -2066,7 +2079,6 @@ Object *primitiveFmt(Object *interp, Object **args, Object **env, size_t nArgs)
     
     Object *fmt = FLISP_ARG1->type->type.fmt;
     if (fmt == nil) {
-        initPad(scratchpad);
         Object *error;
         char *s = flisp_fmt(FLISP_ARG1, &error);
         FLISP_CHECK_ERR(error);
@@ -2149,14 +2161,14 @@ Object *primitiveCar(Object *interp, Object **args, Object **env, size_t nArgs)
     if (FLISP_ARG1 == nil)
         return nil;
     FLISP_ASSERT(FLISP_ARG1, type_cons, "(car o) - o");
-    return FLISP_ARG1->car;
+    return CAR(FLISP_ARG1);
 }
 Object *primitiveCdr(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     if (FLISP_ARG1 == nil)
         return nil;
     FLISP_ASSERT(FLISP_ARG1, type_cons, "(cdr o) - o");
-    return FLISP_ARG1->cdr;
+    return CDR(FLISP_ARG1);
 }
 Object *primitiveObjectSize(Object *interp, Object **args, Object **env, size_t nArgs)
 {
