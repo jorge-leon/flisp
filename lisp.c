@@ -2042,12 +2042,14 @@ Object *fmt_object(Object *object) {
     fmt_delimiter delimiters = { "#<", ": ", ">" };;
     PreFunc pre = fmt_prefix;
 
-    if (object->type == type_lambda) goto other;
-    if (object->type == type_macro) goto other;
     Object *s = fmt_string_object(object);
     if (s != invalid_value)  return s;
     /* simple objects not covered by fmt_string_object() */
     if (!object->size) goto other;
+
+    if (object->type == type_lambda) goto other;
+    if (object->type == type_macro) goto other;
+    if (object->type == type_stream) goto other;
 
     if (object->type == type_cons)
         delimiters = (fmt_delimiter){ "(", " ", ")" };
@@ -2056,8 +2058,7 @@ Object *fmt_object(Object *object) {
     else if (object->type == type_type) {
         object = ((TypeObject*)object)->type.name;
         pre = fmt_prefix_other;
-    }
-    else
+    } else
         pre = fmt_prefix_object;
     return flisp_iterate(object, pre, fmt_infix, fmt_postfix, (void*) &delimiters);
     

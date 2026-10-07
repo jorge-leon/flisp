@@ -13,7 +13,7 @@ export FLISP_PRINT=1
 
 export FLISP_SIZE=$((20*1024*1024))
 
-tap 221
+tap 220
 
 # reader
 IN='(' OUT='#<error:read-incomplete: "unexpected end of stream while reading list": nil>'
@@ -502,27 +502,22 @@ flisp_expr; ok elements-15 environments have elements
 
 # I/O
 rm -f _file_
-IN='(open "_file_" "w")' OUT=""
-RESULT=$(echo "$PREPARE" "$IN" | $FLISP 2>&1 | grep -qE '#<stream: 0X[0-9A-F]{2,16} "_file_">')
-ok open-1-1 create file returns stream
+IN='(open "_file_" "w")' OUT="#<type-stream>"
+flisp_expr; ok open-1-1 create file returns stream
 [ -e _file_ ]; ok open-1-2 create file creates file
 rm -f _file_
 
-IN='(open "empty.lsp")'
-RESULT=$(echo $PREPARE $IN | $FLISP 2>&1 | grep -qE '#<stream: 0X[0-9A-F]{2,16} "empty.lsp">')
-ok open-2 open file readonly
+IN='(open "<0")'  OUT="#<type-stream>"
+flisp_expr; ok open-3 open readable file descriptor
 
-RESULT=$(echo $PREPARE '(open "<0")' | $FLISP 2>&1 | grep -E '#<stream: 0X[0-9A-F]{2,16} "<0">')
-ok open-3 open readable file descriptor
+IN='(open ">1")'  OUT="#<type-stream>"
+flisp_expr; ok open-4 open writeable file descriptor
 
-RESULT=$(echo $PREPARE '(open ">1")' | $FLISP 2>&1 | grep -E '#<stream: 0X[0-9A-F]{2,17} ">1">')
-ok open-4 open writeable file descriptor
+IN='(open "any text" "<")'  OUT="#<type-stream>"
+flisp_expr; ok open-5 open memory input stream
 
-RESULT=$(echo $PREPARE '(open "any text" "<")' | $FLISP 2>&1 | grep -E '#<stream: 0X[0-9A-F]{2,16} "<STRING">')
-ok open-5 open memory input stream
-
-RESULT=$(echo $PREPARE '(open "" ">")' | $FLISP 2>&1 | grep -E '#<stream: 0X[0-9A-F]{2,16} ">STRING">')
-ok open-6 open memory output stream
+IN='(open "" ">")'  OUT="#<type-stream>"
+flisp_expr; ok open-6 open memory output stream
 
 IN='(close (open "empty.lsp"))' OUT="nil"
 flisp_expr; ok close-1 close file
