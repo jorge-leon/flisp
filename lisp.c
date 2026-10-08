@@ -22,11 +22,6 @@
 #include "posix.h"
 #include "string.h"
 
-//#define EXCEPTION_MEM_RESERVE 4*sizeof(Object)
-// Note: debugging //#define EXCEPTION_MEM_RESERVE 8*sizeof(Object)
-// Note: no exception in gc anymore
-#define EXCEPTION_MEM_RESERVE 0
-
 #if !defined(MAP_ANONYMOUS) && defined(MAP_ANON)
 #define MAP_ANONYMOUS        MAP_ANON
 #endif
@@ -371,7 +366,7 @@ size_t memoryAlign(size_t size, size_t alignment)
 Object *memoryAllocObject(Object *interp, TypeObject *type, size_t size)
 {
     size = memoryAlign(size, sizeof(void *));
-    size_t blocks = ((size + EXCEPTION_MEM_RESERVE) / FLISP_MEMORY_INC_SIZE) + 1;
+    size_t blocks = (size / FLISP_MEMORY_INC_SIZE) + 1;
     size_t memory = blocks * FLISP_MEMORY_INC_SIZE;
 
     /* If not done already allocate to space */
@@ -386,7 +381,7 @@ Object *memoryAllocObject(Object *interp, TypeObject *type, size_t size)
     }
     /* Run garbage collection if capacity exceeded */
     if (
-        (FLISP_INTERP.memory->fromOffset + size + EXCEPTION_MEM_RESERVE >= FLISP_INTERP.memory->capacity)
+        (FLISP_INTERP.memory->fromOffset + size >= FLISP_INTERP.memory->capacity)
         || FLISP_INTERP.gc_always
         ) {
         /* If not done already allocate to space */
@@ -399,19 +394,16 @@ Object *memoryAllocObject(Object *interp, TypeObject *type, size_t size)
         gc(interp, false);
     }
     /* Check if we now have enough space */
-    if (FLISP_INTERP.memory->fromOffset + size + EXCEPTION_MEM_RESERVE < FLISP_INTERP.memory->capacity)
+    if (FLISP_INTERP.memory->fromOffset + size < FLISP_INTERP.memory->capacity)
         goto allocateObject;
 
     /* Increase to space */
     void *new;
     if (MAP_FAILED == (new = mmap(NULL, FLISP_INTERP.memory->capacity + memory,
                                   PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0))) {
-        /* Note: fake that we have more memory return an error and then hope the best. */
-        FLISP_INTERP.memory->capacity+= EXCEPTION_MEM_RESERVE;
         return newError2(interp, gc_error, out_of_memory, "OOM reallocating toSpace: ", strerror(errno));
     }
     if (munmap(FLISP_INTERP.memory->toSpace, FLISP_INTERP.memory->capacity) == -1) {
-        FLISP_INTERP.memory->capacity+= EXCEPTION_MEM_RESERVE;
         return newError2(interp, gc_error, out_of_memory, "munmap(toSpace) failed: ", strerror(errno));
     }
     FLISP_INTERP.memory->toSpace = new;
@@ -419,7 +411,6 @@ Object *memoryAllocObject(Object *interp, TypeObject *type, size_t size)
     FLISP_INTERP.memory->toOffset = 0;
     gc(interp, false);
     if (munmap(FLISP_INTERP.memory->toSpace, FLISP_INTERP.memory->capacity - memory) == -1) {
-        FLISP_INTERP.memory->capacity+= EXCEPTION_MEM_RESERVE;
         return newError2(interp, gc_error, out_of_memory, "munmap(fromSpace) failed: ", strerror(errno));
     }
     FLISP_INTERP.memory->toSpace = NULL;
@@ -1970,81 +1961,75 @@ Object *flisp_iterate(Object *object, PreFunc pre, InfixFunc infix, PostFunc pos
 
 
 // Formatter
-Object *fmt_object(Object *);
+Object *str_object(Object *);
 
-typedef struct fmt_delimiter { char *prefix; char *infix; char *postfix; } fmt_delimiter;
+typedef struct str_delimiter { char *prefix; char *infix; char *postfix; } str_delimiter;
 
-Object *fmt_prefix(Object *object, void *delimiter)
+Object *str_prefix(Object *object, void *delimiter)
 {
-    if (addStringToPad(scratchpad, ((fmt_delimiter*)delimiter)->prefix)) return nil;
+    if (addStringToPad(scratchpad, ((str_delimiter*)delimiter)->prefix)) return nil;
     return flisp_static_error(io_error, &fmt_oom_message);
 }
-Object *fmt_postfix(Object *object, void *delimiter)
+Object *str_postfix(Object *object, void *delimiter)
 {
-    if (addStringToPad(scratchpad, ((fmt_delimiter*)delimiter)->postfix)) return nil;
+    if (addStringToPad(scratchpad, ((str_delimiter*)delimiter)->postfix)) return nil;
     return flisp_static_error(io_error, &fmt_oom_message);    
 }
-Object *fmt_infix(Object *object, void *delimiter, size_t i, bool end)
+Object *str_infix(Object *object, void *delimiter, size_t i, bool end)
 {
-    if (i &&  !addStringToPad(scratchpad, ((fmt_delimiter*)delimiter)->infix)) goto err;
+    if (i &&  !addStringToPad(scratchpad, ((str_delimiter*)delimiter)->infix)) goto err;
     if (end && !addStringToPad(scratchpad, ". ")) goto err;
-    return fmt_object(object);
+    return str_object(object);
 err:
     return flisp_static_error(io_error, &fmt_oom_message);    
 }
-Object *fmt_prefix_object(Object *object, void *delimiter)
+Object *str_prefix_object(Object *object, void *delimiter)
 {
-    if (!addStringToPad(scratchpad, ((fmt_delimiter*)delimiter)->prefix)) goto err;
+    if (!addStringToPad(scratchpad, ((str_delimiter*)delimiter)->prefix)) goto err;
     if (!addStringToPad(scratchpad, flisp_symbol_string(object->type->type.name)+strlen("type-"))) goto err;
     if (!addStringToPad(scratchpad, ":")) goto err;
     return nil;
 err:
     return flisp_static_error(io_error, &fmt_oom_message);
 }
-Object *fmt_prefix_other(Object *object, void *delimiter)
+Object *str_prefix_other(Object *object, void *delimiter)
 {
-    if (addStringToPad(scratchpad, ((fmt_delimiter*)delimiter)->prefix)) return nil;
+    if (addStringToPad(scratchpad, ((str_delimiter*)delimiter)->prefix)) return nil;
     return flisp_static_error(io_error, &fmt_oom_message);
 }
-Object *fmt_add_string(char *s)
+Object *str_add_string(char *s)
 {
     if (!s) return flisp_static_error(invalid_value, &fmt_invalid_length);
     if (addStringToPad(scratchpad, s)) return nil;
     return flisp_static_error(io_error, &fmt_oom_message);
 }
-Object *fmt_string_object(Object *object)
+Object *str_string_object(Object *object)
 {
     /* Obvious string representations */
     if (object->type == type_integer)
-        return fmt_add_string(fmtInteger(object->value, 10, flisp_integer_char_map, ' ', -1));
-    if (object->type == type_str) {
-        FLISP_CHECK_ERR(fmt_add_string("\""));
-        FLISP_CHECK_ERR(fmt_add_string(object->str));
-        return fmt_add_string("\"");
-    }
-    if (object->type == type_string) {
-        FLISP_CHECK_ERR(fmt_add_string("\""));
-        FLISP_CHECK_ERR(fmt_add_string(object->string));
-        return fmt_add_string("\"");
-    }
+        return str_add_string(fmtInteger(object->value, 10, flisp_integer_char_map, ' ', -1));
+    if (object->type == type_str)
+        return str_add_string(object->str);
+    if (object->type == type_string)
+        return str_add_string(object->string);
     if (object->type == type_ptr)
-        return fmt_add_string(fmtInteger(object->value, 16, flisp_integer_char_map, 'X', 0));
+        return str_add_string(fmtInteger(object->value, 16, flisp_integer_char_map, 'X', 0));
     if (object->type == type_symbol)
-        return fmt_add_string(flisp_symbol_string(object));
+        return str_add_string(flisp_symbol_string(object));
 
     if (object == flisp_empty_vector)
-        return fmt_add_string("[]");
+        return str_add_string("[]");
 
     return invalid_value;
 }
 /* Adds string representation of object to scratchpad, returns either error object, or result of iteration */
-Object *fmt_object(Object *object) {
-    fmt_delimiter delimiters = { "#<", ": ", ">" };;
-    PreFunc pre = fmt_prefix;
+Object *str_object(Object *object) {
+    str_delimiter delimiters = { "#<", ": ", ">" };;
+    PreFunc pre = str_prefix;
 
-    Object *s = fmt_string_object(object);
+    Object *s = str_string_object(object);
     if (s != invalid_value)  return s;
-    /* simple objects not covered by fmt_string_object() */
+    /* simple objects not covered by str_string_object() */
     if (!object->size) goto other;
 
     if (object->type == type_lambda) goto other;
@@ -2052,48 +2037,37 @@ Object *fmt_object(Object *object) {
     if (object->type == type_stream) goto other;
 
     if (object->type == type_cons)
-        delimiters = (fmt_delimiter){ "(", " ", ")" };
+        delimiters = (str_delimiter){ "(", " ", ")" };
     else if (object->type == type_vector)
-        delimiters = (fmt_delimiter){ "[", " ", "]" };
+        delimiters = (str_delimiter){ "[", " ", "]" };
     else if (object->type == type_type) {
         object = ((TypeObject*)object)->type.name;
-        pre = fmt_prefix_other;
+        pre = str_prefix_other;
     } else
-        pre = fmt_prefix_object;
-    return flisp_iterate(object, pre, fmt_infix, fmt_postfix, (void*) &delimiters);
-    
+        pre = str_prefix_object;
+    return flisp_iterate(object, pre, str_infix, str_postfix, (void*) &delimiters);
+
 other:
 /* cannot or do not want to fmt all contained objects */
-    return flisp_iterate(object->type->type.name, fmt_prefix_other, fmt_infix, fmt_postfix, (void*) &delimiters);
+    return flisp_iterate(object->type->type.name, str_prefix_other, str_infix, str_postfix, (void*) &delimiters);
 }
-char *flisp_fmt(Object *object, Object **error)
+char *flisp_str(Object *object, Object **error)
 {
     initPad(scratchpad);
-    *error = fmt_object(object);
+    *error = str_object(object);
     return scratchpad->string;
 }
 
-/* (fmt o[ arg..]) => string */
-Object *primitiveFmt(Object *interp, Object **args, Object **env, size_t nArgs)
+/* (str o) => string */
+Object *primitiveStr(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     CHECK_OOM(FLISP_ARG1);
     
-    Object *fmt = FLISP_ARG1->type->type.fmt;
-    if (fmt == nil) {
-        Object *error;
-        char *s = flisp_fmt(FLISP_ARG1, &error);
-        FLISP_CHECK_ERR(error);
-        return newString(interp, s);
-    }
-    if (!(fmt->type == type_lambda || fmt->type == type_primitive || fmt->type == type_macro))
-        return newError(interp, invalid_value, FLISP_ARG1, "(fmt o[ arg..]) - o no formatter for objects of this type");
-    GC_CHECKPOINT;
-    GC_TRACE(gcArgs, *args);
-    GC_TRACE(gcFmt, fmt);
-    GC_TRACE(gcCons, newCons(interp, gcFmt, gcArgs));
-    GC_RETURN(flisp_eval_object(interp, *gcCons));
+    Object *error;
+    char *s = flisp_str(FLISP_ARG1, &error);
+    FLISP_CHECK_ERR(error);
+    return newString(interp, s);
 }
-
 
 // Result assertion //
 /** flisp_not_same() - result assertion
@@ -2894,9 +2868,6 @@ Object *flisp_core_init(Object *interp, Object *extension)
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "lambda",                 1, -1, type_any, (LispEval) PRIMITIVE_LAMBDA /* special form */ ));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "macro",                  1, -1, type_any, (LispEval) PRIMITIVE_MACRO  /* special form */ ));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "macroexpand-1",          1,  2, type_any, (LispEval) PRIMITIVE_MACROEXPAND /* special form */ ));
-#if 0
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "catch",                  2,  2, type_any, (LispEval) PRIMITIVE_CATCH  /*special form */ ));
-#endif
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "null",                   1,  1, type_any,      primitiveNullP));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "type-of",                1,  1, type_any,      primitiveTypeOf));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "consp",                  1,  1, type_any,      primitiveConsP));
@@ -2910,7 +2881,7 @@ Object *flisp_core_init(Object *interp, Object *extension)
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "object-size",            1,  1, type_any,      primitiveObjectSize));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "object-length",          1,  1, type_any,      primitiveObjectLength));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "new",                    1, -1, type_any,      primitiveNew));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "fmt",                    1, -1, type_any,      primitiveFmt));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "str",                    1,  1, type_any,      primitiveStr));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "store",                  2, -1, type_any,      primitiveStore));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "elements",               1,  3, type_any,      primitiveElements));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "open",                   1,  2, type_string,   primitiveFopen));
@@ -2920,9 +2891,6 @@ Object *flisp_core_init(Object *interp, Object *extension)
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "eval",                   1,  1, type_any,      primitiveEval));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "error",                  2,  3, type_any,      primitiveError));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "values",                 0, -1, type_any,      primitiveValues));
-#if 0
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "throw",                  1,  2, type_any,      primitiveThrow));
-#endif
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "i+",                     2,  2, type_integer,  integerAdd));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "i-",                     2,  2, type_integer,  integerSubtract));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "i*",                     2,  2, type_integer,  integerMultiply));

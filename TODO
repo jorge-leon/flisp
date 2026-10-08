@@ -1,4 +1,6 @@
 + implement gc - memory readjustment
+- make stream a vector type
+- type-system: store length in type, if not zero do not request it for initializer.
 - Fix: new/values have gc problems: run test with interp-gc-always
 - Fix: test (fmt) thoroughly.
 - Fix: FLISP_DEFINE_STR() used with flisp_static_error() seems not to work correctly.

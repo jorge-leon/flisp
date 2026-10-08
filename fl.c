@@ -77,25 +77,22 @@ int main(int argc, char **argv)
     if (interactive) write_string(stdout, FL_NAME " " FL_VERSION "\n");
 
     Object *result = nil, *error = nil;
+    FILE *out;
     for (;;) {
-        if (interactive)  write_string(stdout, "> ");
+        out = stdout;
+        if (interactive)  write_string(out, "> ");
         fflush(NULL);
 
         result = flisp_eval_expr(interp, interactive ? nil : t);
         if (FLISP_IS_EOF(result)) {
-            if (interactive) write_string(stdout, "\n");
+            if (interactive) write_string(out, "\n");
             return 0;
         }
-        if (FLISP_IS_ERR(result)) {
-            fputs(flisp_fmt(result, &error), stderr);
-            if (FLISP_IS_ERR(error)) fatal("Failed to format error");
-            write_string(stderr, "\n");
-            if (!interactive)  return 1;
-        } else if (print) {
-            fputs(flisp_fmt(result, &error), stdout);
-            if (FLISP_IS_ERR(error)) fatal("Failed to format result");
-            write_string(stdout, "\n");
-        }
+        if (FLISP_IS_ERR(result))  out = stderr;
+        if (FLISP_IS_ERR(result) || print)  fputs(flisp_str(result, &error), out);
+        if (FLISP_IS_ERR(error)) fatal("Failed to format result");
+        write_string(out, "\n");
+        if (FLISP_IS_ERR(result) && !interactive)  return 1;
     }
 }
 

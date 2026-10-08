@@ -117,37 +117,13 @@
 	     (string-append "(symbol-name symbol) - symbol expected type-symbol, got " (type-name (type-of symbol)))
 	     symbol )))
 
-
-;; Convert argument to string.
-;; Common Lisp converts a single string, character or symbol to a string.
-;; Elisp converts a list of characters to a string - we don't have characters.
-;;
-;; We extend the functionality to convert any object into some
-;; string. This way we can used it for primitive
-;; debugging/introspection.
-;;
-(defun str (o)
-  (cond
-    ((null o) "")
-    ((integerp o) (ifmt o))
-    ((stringp o) o)
-    ((symbolp o) (symbol-name o))
-    ((consp o) (string-append (string (car o)) (string (cdr o))))
-    ((vectorp o) (string (elements o)))
-    ((same (type-of o) type-type) (type-name o))
-    (t (type-name (type-of o))) ))
-
-(defmacro string (o)
-  (list 'if (list 'errorp o) "type-error"
-	(list 'str o) ))
-
 ;; Concatenate all arguments to a string.
 ;; Elisp
 (defun concat args
   (cond
     ((null args) "")
-    ((null (cdr args)) (string (car args)))
-    (t (string-append (string (car args)) (concat (cdr args)))) ))
+    ((null (cdr args)) (str (car args)))
+    (t (string-append (str (car args)) (concat (cdr args)))) ))
 
 (defun numberp (o) (cond  ((integerp o)) ((doublep o))))
 
