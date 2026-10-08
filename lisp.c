@@ -477,6 +477,14 @@ Object *newPrimitive(Object *interp, Primitive* primitive)
     object->primitive = primitive;
     return object;
 }
+
+Object *newPtr(Object *interp, void *ptr)
+{
+    Object *object = newObject(interp, type_ptr, 0);
+    CHECK_OOM(object);
+    ((SimpleObject *)object)->ptr = ptr;
+    return object;
+}
 // Extended objects //
 
 Object *newCons(Object *interp, Object ** car, Object ** cdr)
@@ -883,13 +891,13 @@ Object *newStreamObject(Object *interp, FILE *fd, char *path)
 {
     GC_CHECKPOINT;
     GC_TRACE(gcPath, newString(interp, path));
-    Object *object = flisp_new(interp, type_stream, gcPath, 1,
-                                   sizeof(FILE*) +
+    GC_TRACE(gcFd, newPtr(interp, (void *)fd));
+    Object *object = flisp_new(interp, type_stream, gcPath, 2,
                                    sizeof(char*) +
                                    sizeof(size_t));
     GC_RELEASE;
     CHECK_OOM(object);
-    object->stream.fd = fd;
+    object->stream.fd = *gcFd;
     object->stream.buf = NULL;
     object->stream.len = 0;
 
@@ -1443,13 +1451,13 @@ Object *readExpr(Object *interp, FILE *fd)
 Object *primitiveRead(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     Object *eofv = nil;
-    FILE *fd = FLISP_STANDARD_INPUT.fd;
+    FILE *fd = FLISP_STANDARD_INPUT;
 
     GC_CHECKPOINT;
     if (nArgs) {
         if (FLISP_ARG1 != nil) {
             FLISP_ASSERT(FLISP_ARG1, type_stream, "(read[ stream[ eofv]]) - stream)");
-            fd = FLISP_ARG1->stream.fd;
+            fd = (FILE *)(FLISP_ARG1->stream.fd)->ptr;
         }
     }
     if (nArgs > 1)  eofv = FLISP_ARG2;
@@ -2477,11 +2485,16 @@ Object *integerFmt(Object *interp, Object **args, Object **env, size_t nArgs)
  */
 Object *file_outputMemStream(Object *interp)
 {
-    Object *object = newStreamObject(interp, NULL, ">STRING");
-    if (NULL == (object->stream.fd = open_memstream(&object->stream.buf, &object->stream.len)))
+    FILE *fd;
+
+    Object *stream = newStreamObject(interp, NULL, ">STRING");
+    FLISP_CHECK_ERR(stream);
+
+    if (NULL == (fd = open_memstream(&stream->stream.buf, &stream->stream.len)))
         return newError2(interp, out_of_memory, nil, "failed to open_memstream() for memory output stream: ", strerror(errno));
-    fflush(object->stream.fd); // Note: sets stream->buf and stream->len to initial values.
-    return object;
+    fflush(fd); // Note: sets buf and len to initial values.
+    stream->stream.fd->ptr = (void *)fd;
+    return stream;
 }
 /** file_inputMemStream - convert string to Lisp stream object
  *
@@ -2504,7 +2517,7 @@ Object *file_inputMemStream(Object *interp, char *string)
     CHECK_OOM(object);
     object->stream.buf = buf;
     object->stream.len = len;
-    if (NULL == (object->stream.fd = fmemopen(object->stream.buf, object->stream.len, "r"))) {
+    if (NULL == (object->stream.fd->ptr = (void *)fmemopen(object->stream.buf, object->stream.len, "r"))) {
         free(object->stream.buf);
         return newError2(interp, out_of_memory, nil, "failed to fmemopen string for memory input stream: ", strerror(errno));
     }
@@ -2608,9 +2621,9 @@ Object *primitiveFopen(Object *interp, Object **args, Object **env, size_t nArgs
  */
 int file_fclose(Object *interp, Object *object)
 {
-    fflush(object->stream.fd);
-    int result = fclose(object->stream.fd) ? errno : 0;
-    object->stream.fd = NULL;
+    fflush((FILE*)object->stream.fd->ptr);
+    int result = fclose((FILE*)object->stream.fd) ? errno : 0;
+    object->stream.fd->ptr = NULL;
     if (object->stream.buf != NULL) {
         free(object->stream.buf);
         object->stream.buf = NULL;
@@ -2641,7 +2654,7 @@ Object *primitiveFinfo(Object *interp, Object **args, Object **env, size_t nArgs
 {
     GC_CHECKPOINT;
     GC_TRACE(gcObject, (FLISP_ARG1->stream.fd == NULL) ?
-             nil : newInteger(interp, (int64_t)fileno(FLISP_ARG1->stream.fd)));
+             nil : newInteger(interp, (int64_t)fileno((FILE*)FLISP_ARG1->stream.fd->ptr)));
     *gcObject = newCons(interp, gcObject, &nil);
     GC_TRACE(gcBuffer, (FLISP_ARG1->stream.buf == NULL) ? nil : newString(interp, FLISP_ARG1->stream.buf));
     *gcObject = newCons(interp, gcBuffer, gcObject);
@@ -3113,7 +3126,7 @@ void flisp_destroy(Object *interp)
 
 Object *flisp_read_expr(Object *interp)
 {
-    return readExpr(interp, FLISP_STANDARD_INPUT.fd);
+    return readExpr(interp, FLISP_STANDARD_INPUT);
 }
 Object *flisp_eval_object(Object *interp, Object *object)
 {

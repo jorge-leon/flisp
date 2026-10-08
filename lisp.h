@@ -103,7 +103,7 @@ typedef struct ErrorExt {
 
 typedef struct StreamExt {
     Object *path;
-    FILE *fd;
+    Object *fd;
     char *buf;
     size_t len;
 } StreamExt;
@@ -148,6 +148,7 @@ struct Object {
         /* convenience */
         Primitive * primitive;
         char *str;
+        void *ptr;
     };
     union {
         Object *objects[1];                      // Vector
@@ -344,8 +345,7 @@ extern bool flisp_is_error(Object **, Object *);
                          "", "", "")
 
 #define FLISP_INTERP interp->self
-#define FLISP_STANDARD_INPUT  interp->self.input->stream
-#define FLISP_STDERR          interp->self.stderr->stream
+#define FLISP_STANDARD_INPUT  (FILE*)(interp->self.input->stream.fd)->ptr
 #endif
 
 /*

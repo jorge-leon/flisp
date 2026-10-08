@@ -28,7 +28,7 @@ Object *posixFputs(Object *interp, Object **args, Object **env, size_t nArgs)
     FILE *fd = stdout;
     if (nArgs > 1) {
         FLISP_ASSERT(FLISP_ARG2, type_stream, "(fputs s[ stream]) - stream");
-        fd = FLISP_ARG2->stream.fd;
+        fd = (FILE*)FLISP_ARG2->stream.fd->ptr;
     }
     if (EOF == fputs(FLISP_ARG1->string, fd))
         return newError2(interp, io_error, (nArgs > 1) ? FLISP_ARG2 : nil, "(fputs s[ stream]) failed: ", strerror(errno));
@@ -54,7 +54,7 @@ Object *posixFflush(Object *interp, Object** args, Object **env, size_t nArgs)
             FLISP_ASSERT(FLISP_ARG1, type_stream,  "(fflush[ stream]) - stream");
             if (FLISP_ARG1->stream.fd == NULL)
                 return newError(interp, invalid_value, FLISP_ARG1, "(fflush[ stream]) - stream already closed");
-            fd = FLISP_ARG1->stream.fd;
+            fd = (FILE*)FLISP_ARG1->stream.fd->ptr;
         }
     else if (fd == NULL)
         return newError(interp, invalid_value, FLISP_ARG1, "(fflush[ stream]) - output stream not set");
@@ -94,11 +94,11 @@ Object *posixFseek(Object *interp, Object** args, Object **env, size_t nArgs)
         whence = SEEK_CUR;
     else if (FLISP_ARG2->value < 0)
         whence = SEEK_END;
-    result = fseeko(object->stream.fd, FLISP_ARG2->value, whence);
+    result = fseeko((FILE*)object->stream.fd->ptr, FLISP_ARG2->value, whence);
     if (result == -1)
         return newError2(interp, io_error, object, "(fseek stream offset) - fseeko() failed: ", strerror(errno));
 
-    if ((pos = ftello(object->stream.fd)) == -1)
+    if ((pos = ftello((FILE*)object->stream.fd->ptr)) == -1)
         return newError2(interp, io_error, object, "(fseek stream offset) - ftello() failed: ", strerror(errno));
 
     return newInteger(interp, pos);
@@ -124,7 +124,7 @@ Object *posixFtell(Object *interp, Object** args, Object **env, size_t nArgs)
     if (object->stream.fd == NULL)
         return newError(interp, invalid_value, object, "(ftell[ stream]) - stream already closed");
 
-    if ((pos = ftello(object->stream.fd)) == -1)
+    if ((pos = ftello((FILE*)object->stream.fd->ptr)) == -1)
         return newError2(interp, io_error, object, "(ftell[ stream]) - ftello() failed: ", strerror(errno));
 
     return newInteger(interp, pos);
@@ -144,7 +144,7 @@ Object *posixFeof(Object *interp, Object** args, Object **env, size_t nArgs)
     if (object->stream.fd == NULL)
         return newError(interp, invalid_value, object, "(feof[ stream]) - stream already closed");
 
-    return (feof(object->stream.fd)) ? end_of_file : nil;
+    return (feof((FILE*)object->stream.fd->ptr)) ? end_of_file : nil;
 }
 /** (fgetc[ stream]) - read one character from stream or input
  *
@@ -163,9 +163,9 @@ Object *posixFgetc(Object *interp, Object** args, Object **env, size_t nArgs)
             return newError(interp, invalid_value, object, "(fgetc[ stream]) - stream already closed");
     }
 
-    c = fgetc(object->stream.fd);
+    c = fgetc((FILE*)object->stream.fd->ptr);
     if (c == EOF) {
-        if (ferror(object->stream.fd))
+        if (ferror((FILE*)object->stream.fd->ptr))
             return newError2(interp, io_error, object, "(fgetc[ stream]) - stream I/O error: ", strerror(errno));
         return end_of_file;
     }
@@ -204,7 +204,7 @@ Object *posixFungetc(Object *interp, Object** args, Object **env, size_t nArgs)
     if (object->stream.fd == NULL)
         return newError(interp, invalid_value, object, "(fungetc char [ stream]) - stream already closed");
 
-    c = ungetc(c, object->stream.fd);
+    c = ungetc(c, (FILE*)object->stream.fd->ptr);
     if (c == EOF)
         return newError(interp, io_error, object, "(fungetc char [ stream]) - ungetc() failed");
 
@@ -240,13 +240,13 @@ Object *posixFgets(Object *interp, Object** args, Object **env, size_t nArgs)
 
     *input = '\0';
 
-    if(fgets(input, INPUT_FMT_BUFSIZ, object->stream.fd) != NULL) {
+    if(fgets(input, INPUT_FMT_BUFSIZ, (FILE*)object->stream.fd->ptr) != NULL) {
         string = newString(interp, input);
         free(input);
         return string;
     }
     free(input);
-    if (!feof(object->stream.fd))
+    if (!feof((FILE*)object->stream.fd->ptr))
         return newError2(interp, io_error, object, "fgets() failed: ", strerror(errno));
     return end_of_file;
 }
@@ -363,9 +363,9 @@ Object *posixFstat(Object *interp, Object** args, Object **env, size_t nArgs)
  */
 Object *posixFttyP(Object *interp, Object** args, Object **env, size_t nArgs)
 {
-    FILE* fd = FLISP_INTERP.input->stream.fd;
+    FILE* fd = (FILE*)FLISP_INTERP.input->stream.fd->ptr;
     if (nArgs)
-        fd = FLISP_ARG1->stream.fd;
+        fd = (FILE*)FLISP_ARG1->stream.fd->ptr;
     return (isatty(fileno(fd))) ? t : nil;
 }
 /** (fmkdir path[ mode]) - create directory
@@ -458,7 +458,7 @@ Object *posixPopen(Object *interp, Object** args, Object **env, size_t nArgs)
  */
 Object *posixPclose(Object *interp, Object** args, Object **env, size_t nArgs)
 {
-    int result = pclose(FLISP_ARG1->stream.fd);
+    int result = pclose((FILE*)FLISP_ARG1->stream.fd->ptr);
 
     if (result == -1)
         return newError2(interp, io_error, FLISP_ARG1, "pclose() failed: ", strerror(errno));
