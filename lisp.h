@@ -67,7 +67,6 @@ typedef struct SimpleObject {
         /* Extensions */
         void *ptr;       /* generic pointer */
         char *str;       /* pointer to byte array */
-        size_t index;    /* index into (byte) array */
         uint64_t flags;  /* bit array */
     };
 } SimpleObject;
@@ -104,8 +103,8 @@ typedef struct ErrorExt {
 typedef struct StreamExt {
     Object *path;
     Object *fd;
-    char *buf;
-    size_t len;
+    Object *buf;
+    Object *len;
 } StreamExt;
 
 /* Internal */

@@ -84,6 +84,7 @@ FLISP_DEFINE_TYPE(moved);
 
 /* Constant Objects */
 Object *flisp_integer_zero = (Object*)&(SimpleObject) { .type = &type_integer_obj, .size =  0, .value = 0 };
+Object *flisp_empty_str    = (Object*)&(SimpleObject) { .type = &type_str_obj,     .size =  0, .length = 0, .str = "\0" };
 Object *flisp_empty_string =                &(Object) { .type = &type_string_obj,  .size =  1, .length = 0, .string = "\0" };
 Object *flisp_empty_vector = (Object*)&(SimpleObject) { .type = &type_vector_obj,  .size =  0, .length = 0  };
 
@@ -892,14 +893,15 @@ Object *newStreamObject(Object *interp, FILE *fd, char *path)
     GC_CHECKPOINT;
     GC_TRACE(gcPath, newString(interp, path));
     GC_TRACE(gcFd, newPtr(interp, (void *)fd));
-    Object *object = flisp_new(interp, type_stream, gcPath, 2,
-                                   sizeof(char*) +
-                                   sizeof(size_t));
+//    GC_TRACE(gcBuf, newStr(interp, ""));
+    GC_TRACE(gcLen, newInteger(interp, 0));
+    Object *object = flisp_new(interp, type_stream, gcPath, 4, 0);
     GC_RELEASE;
     CHECK_OOM(object);
     object->stream.fd = *gcFd;
-    object->stream.buf = NULL;
-    object->stream.len = 0;
+    object->stream.buf = flisp_empty_str;
+//    object->stream.buf = *gcBuf;
+    object->stream.len = *gcLen;
 
     return object;
 }
@@ -2490,7 +2492,7 @@ Object *file_outputMemStream(Object *interp)
     Object *stream = newStreamObject(interp, NULL, ">STRING");
     FLISP_CHECK_ERR(stream);
 
-    if (NULL == (fd = open_memstream(&stream->stream.buf, &stream->stream.len)))
+    if (NULL == (fd = open_memstream(&stream->stream.buf->str, &stream->stream.len->length)))
         return newError2(interp, out_of_memory, nil, "failed to open_memstream() for memory output stream: ", strerror(errno));
     fflush(fd); // Note: sets buf and len to initial values.
     stream->stream.fd->ptr = (void *)fd;
@@ -2515,9 +2517,9 @@ Object *file_inputMemStream(Object *interp, char *string)
     buf[len] = '\0';
     Object *object = newStreamObject(interp, NULL, "<STRING");
     CHECK_OOM(object);
-    object->stream.buf = buf;
-    object->stream.len = len;
-    if (NULL == (object->stream.fd->ptr = (void *)fmemopen(object->stream.buf, object->stream.len, "r"))) {
+    object->stream.buf->str = buf;
+    object->stream.len->length = len;
+    if (NULL == (object->stream.fd->ptr = (void *)fmemopen(object->stream.buf, object->stream.len->length, "r"))) {
         free(object->stream.buf);
         return newError2(interp, out_of_memory, nil, "failed to fmemopen string for memory input stream: ", strerror(errno));
     }
@@ -2627,7 +2629,7 @@ int file_fclose(Object *interp, Object *object)
     if (object->stream.buf != NULL) {
         free(object->stream.buf);
         object->stream.buf = NULL;
-        object->stream.len = 0;
+        object->stream.len->length = 0;
     }
     return result;
 }
@@ -2656,7 +2658,7 @@ Object *primitiveFinfo(Object *interp, Object **args, Object **env, size_t nArgs
     GC_TRACE(gcObject, (FLISP_ARG1->stream.fd == NULL) ?
              nil : newInteger(interp, (int64_t)fileno((FILE*)FLISP_ARG1->stream.fd->ptr)));
     *gcObject = newCons(interp, gcObject, &nil);
-    GC_TRACE(gcBuffer, (FLISP_ARG1->stream.buf == NULL) ? nil : newString(interp, FLISP_ARG1->stream.buf));
+    GC_TRACE(gcBuffer, (FLISP_ARG1->stream.buf == NULL) ? nil : newString(interp, FLISP_ARG1->stream.buf->str));
     *gcObject = newCons(interp, gcBuffer, gcObject);
     GC_RETURN(newCons(interp, &FLISP_ARG1->stream.path, gcObject));
 }
