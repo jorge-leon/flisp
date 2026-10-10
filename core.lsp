@@ -123,7 +123,7 @@
   (cond
     ((null args) "")
     ((null (cdr args)) (str (car args)))
-    (t (string-append (str (car args)) (concat (cdr args)))) ))
+    (t (string-append (str (car args)) (concat  (cdr args)))) ))
 
 (defun numberp (o) (cond  ((integerp o)) ((doublep o))))
 

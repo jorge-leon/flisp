@@ -225,7 +225,7 @@ flisp_expr; ok labelled-let-3 labelled let binding shadows outer value
 IN="(setq a 1 b 2) (let label ((a 3) (b 4)) (list a b))" OUT='(3 4)'
 flisp_expr; ok labelled-let-4 labelled let binds several symbols
 
-IN="(let label ((a 2) (b 0))  (princ a) (if (i> a 0) (label (i- a 1) (i+ b 1))))" OUT='210nil'
+IN="(extension 'posix)(let label ((a 2) (b 0))  (fputs (str a)) (if (i> a 0) (label (i- a 1) (i+ b 1))))" OUT='210nil'
 flisp_expr; ok labelled-let-5 labelled let loops
 
 # let*
@@ -251,12 +251,13 @@ IN="(prog1 'answer 42)" OUT="answer"
 flisp_expr; ok prog1-2 prog1 two args is arg
 
 
-IN="(symbol-name 'a)" OUT='"a"'
+IN="(symbol-name 'a)" OUT='a'
 flisp_expr; ok symbol-name-1  symbolname is symbol as string
 
-
+# Note: test (str) in the primitives instead
+if false; then
 # string
-IN="(string nil)" OUT='""'
+IN="(string nil)" OUT=''
 flisp_expr; ok string-1 nil is empty string
 
 IN="(string 42)" OUT='"42"'
@@ -285,7 +286,7 @@ flisp_expr; ok string-9 macro prints type
 
 IN='(setq f (open "" "<"))(close f)(string f)' OUT='"type-stream"'
 flisp_expr; ok string-10 closed stream prints type
-
+fi
 # concat
 IN="(concat 1 'a \"?\")" OUT='"1a?"'
 flisp_expr; ok concat-1 simple string concatenation

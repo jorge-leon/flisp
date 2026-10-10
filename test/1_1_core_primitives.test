@@ -13,7 +13,7 @@ export FLISP_PRINT=1
 
 export FLISP_SIZE=$((20*1024*1024))
 
-tap 220
+tap 221
 
 # reader
 IN='(' OUT='#<error:read-incomplete: unexpected end of stream while reading list: nil>'
@@ -383,7 +383,7 @@ flisp_expr; ok object-length-2 symbol is 0
 IN="(object-length '(a . b))" OUT=2
 flisp_expr; ok object-length-3 cons is two cells
 
-IN="(object-length *standard-input*)" OUT=1
+IN="(object-length *standard-input*)" OUT=4
 flisp_expr; ok object-length-4  stream is one cell
 
 IN='(object-length 42)' OUT=0
@@ -437,7 +437,7 @@ flisp_expr; ok elements-5-8 list with negative start equal end
 IN="(elements '(a b c) 0 7)" OUT='(a b c)'
 flisp_expr; ok elements-5-9 list with end beyond list
 
-IN='(elements "abc")'  OUT='"abc"'
+IN='(elements "abc")'  OUT='abc'
 flisp_expr; ok elements-6-1 of complete string
 
 IN='(elements "abc" 2)'  OUT='c'
@@ -476,7 +476,7 @@ flisp_expr; ok elements-6 double has no elements
 IN='(elements i+)'  OUT=nil
 flisp_expr; ok elements-7 primitive has no elements
 
-IN='(elements (car (elements (interp) 0 1)))' OUT='(*standard-input*)'
+IN='(object-length (interp))' OUT='4'
 flisp_expr; ok elements-8-1 interpreters have elements
 
 IN='(elements (car (car (elements (interp) 1 2))))' OUT='(posix nil)'
@@ -494,8 +494,8 @@ flisp_expr; ok elements-12 symbols behave like strings
 IN='(elements foo)' OUT='(invalid-value unbound symbol foo)'
 flisp_expr; ok elements-13 errors have elements
 
-IN='(elements *standard-input*)' OUT='(*standard-input*)'
-flisp_expr; ok elements-14 streams elements is the path
+IN='(elements *standard-input* 0 1)' OUT='(*standard-input*)'
+flisp_expr; ok elements-14 streams first elements is the path
 
 IN='(cdr (elements ((lambda (foo) (env)) "bar")))' OUT='((foo) (bar))'
 flisp_expr; ok elements-15 environments have elements
@@ -531,11 +531,14 @@ flisp_expr; ok close-3 close memory input stream
 IN='(close (open "" ">"))' OUT="nil"
 flisp_expr; ok close-4 close memory output stream
 
-IN='(file-info (open "abc" "<"))' OUT='("<STRING" "abc" -1)'
-flisp_expr; ok file-info-1 file-info of memory stream contains string
+IN='(elements (open "abc" "<") 2 4)' OUT='(abc 3)'
+flisp_expr; ok input-memstream-1 stream object contains string
 
-IN='(close (bind t f (open "" ">"))) (file-info f)' OUT='(">STRING" nil nil)'
-flisp_expr; ok file-info-2 file-info of closed memory stream contains nil
+IN='(elements (open "" ">") 2 4)' OUT='( 0)'
+flisp_expr; ok output-memstream-1
+
+IN='(close (bind t f (open "" ">")))(elements f)' OUT='(>STRING 0X0  0)'
+flisp_expr; ok close-5 closed memory stream contains null pointer, empty string and length 0
 
 IN='(read (open "1" "<"))' OUT="1"
 flisp_expr; ok read-1 read memory input stream

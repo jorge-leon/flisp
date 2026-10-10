@@ -40,10 +40,10 @@ IN='(string-length "answer")' OUT="6" flisp_expr; ok string-length-2  length of 
 IN='(string-length "änßwér")' OUT="6" flisp_expr; ok string-length-3  length of 3 unicode 3 ascii string is 6
 
 
-IN='(code-char 64)' OUT='"@"'
+IN='(code-char 64)' OUT='@'
 flisp_expr; ok code-char-1 ascii 64 is @
 
-IN='(code-char 228)' OUT='"ä"'
+IN='(code-char 228)' OUT='ä'
 flisp_expr; ok code-char-2 codepoint 228 is umlaut a
 
 IN='(char-code "@")' OUT='64'

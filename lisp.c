@@ -2519,7 +2519,7 @@ Object *file_inputMemStream(Object *interp, char *string)
     CHECK_OOM(object);
     object->stream.buf->str = buf;
     object->stream.len->length = len;
-    if (NULL == (object->stream.fd->ptr = (void *)fmemopen(object->stream.buf, object->stream.len->length, "r"))) {
+    if (NULL == (object->stream.fd->ptr = (void *)fmemopen(object->stream.buf->str, object->stream.len->length, "r"))) {
         free(object->stream.buf);
         return newError2(interp, out_of_memory, nil, "failed to fmemopen string for memory input stream: ", strerror(errno));
     }
@@ -2624,11 +2624,11 @@ Object *primitiveFopen(Object *interp, Object **args, Object **env, size_t nArgs
 int file_fclose(Object *interp, Object *object)
 {
     fflush((FILE*)object->stream.fd->ptr);
-    int result = fclose((FILE*)object->stream.fd) ? errno : 0;
+    int result = fclose((FILE*)object->stream.fd->ptr) ? errno : 0;
     object->stream.fd->ptr = NULL;
-    if (object->stream.buf != NULL) {
-        free(object->stream.buf);
-        object->stream.buf = NULL;
+    if (object->stream.buf->str != flisp_empty_str->str) {
+        free(object->stream.buf->str);
+        object->stream.buf->str = flisp_empty_str->str;
         object->stream.len->length = 0;
     }
     return result;
@@ -2650,17 +2650,6 @@ Object *primitiveFclose(Object *interp, Object**args, Object **env, size_t nArgs
     if ((result = file_fclose(interp, FLISP_ARG1)))
         return newError2(interp, io_error, FLISP_ARG1, "(fclose stream) - failed to close: ", strerror(result));
     return nil;
-}
-
-Object *primitiveFinfo(Object *interp, Object **args, Object **env, size_t nArgs)
-{
-    GC_CHECKPOINT;
-    GC_TRACE(gcObject, (FLISP_ARG1->stream.fd == NULL) ?
-             nil : newInteger(interp, (int64_t)fileno((FILE*)FLISP_ARG1->stream.fd->ptr)));
-    *gcObject = newCons(interp, gcObject, &nil);
-    GC_TRACE(gcBuffer, (FLISP_ARG1->stream.buf == NULL) ? nil : newString(interp, FLISP_ARG1->stream.buf->str));
-    *gcObject = newCons(interp, gcBuffer, gcObject);
-    GC_RETURN(newCons(interp, &FLISP_ARG1->stream.path, gcObject));
 }
 
 /* Strings */
@@ -2901,7 +2890,6 @@ Object *flisp_core_init(Object *interp, Object *extension)
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "elements",               1,  3, type_any,      primitiveElements));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "open",                   1,  2, type_string,   primitiveFopen));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "close",                  1,  1, type_stream,   primitiveFclose));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "file-info",              1,  1, type_stream,   primitiveFinfo));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "read",                   0,  2, type_any,      primitiveRead));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "eval",                   1,  1, type_any,      primitiveEval));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "error",                  2,  3, type_any,      primitiveError));
