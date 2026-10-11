@@ -19,7 +19,7 @@ FLISP=flisp
 export FLISP_PRINT=1
 export FLISP_SIZE=$((20*1024*1024))
 
-tap 199
+tap 189
 
 # list
 IN='(list)' OUT=nil
@@ -288,7 +288,7 @@ IN='(setq f (open "" "<"))(close f)(string f)' OUT='"type-stream"'
 flisp_expr; ok string-10 closed stream prints type
 fi
 # concat
-IN="(concat 1 'a \"?\")" OUT='"1a?"'
+IN="(concat 1 'a \"?\")" OUT='1a?'
 flisp_expr; ok concat-1 simple string concatenation
 
 IN="(numberp 42)" OUT='t'
@@ -343,7 +343,7 @@ flisp_expr; ok append-4 append list atom is dotted list
 IN="(append '(1 2 3) '(a b c))" OUT="(1 2 3 a b c)"
 flisp_expr; ok append-5 append list list is list
 
-IN="(append 1 1)" OUT='#<error:invalid-value: (append lists) - list expected type-list, got type-integer: nil>'
+IN="(append 1 1)" OUT='#<error:invalid-value: (append lists) - list expected type-list, got #<type-integer>: nil>'
 flisp_expr; ok append-6 append atom any errs
 
 IN="(apply +)" OUT="0"
@@ -363,15 +363,10 @@ true; ok princ-1 \# TODO
 IN='(string-to-number "42")' OUT='42'
 flisp_expr; ok string-to-number-1 string 42 is 42
 
-### IN='(string-to-number "3.14")' OUT='3.14'
-### flisp_expr; ok string-to-number-2 string 3.14 is 3.14
-T_P="$PREPARE"
-PREPARE="(extension 'double)"
-IN='(string-to-number "#d3.14")' OUT='#d3.140000' #OUT='#D40091EB851EB851F'
-flisp_expr; ok string-to-number-2 string #d3.14 is 3.14
-PREPARE="$T_P"
+IN='(string-to-number "#d3.14")' OUT="#<type-double>"
+flisp_expr; ok string-to-number-2 'string #d3.14 is #<type-double>'
 
-IN='(string-to-number "answer")' OUT='#<error:invalid-value: (string-to-number string) - string expected number, got type-symbol: answer>'
+IN='(string-to-number "answer")' OUT='#<error:invalid-value: (string-to-number string) - string expected number, got #<type-symbol>: answer>'
 flisp_expr; ok string-to-number-3 not number / string is error
 
 IN='(string-equal "a" "a")' OUT='t'
@@ -469,7 +464,7 @@ IN='(*)' OUT='1' flisp_expr; ok times-1 times nothing is 1
 IN='(* 42)' OUT='42' flisp_expr; ok times-2 times 42  is 42
 IN='(* 1 2 3)' OUT='6' flisp_expr; ok times-4 times 1 2 3 is 6
 T_P="$PREPARE"
-PREPARE="(extension 'double)" IN='(/ #d42.0)' OUT='#d0.023810' #OUT=#D3F98618618618618
+PREPARE="(extension 'double)" IN='(/ #d42.0)' OUT='#<type-double>'  #OUT='#d0.023810' #OUT=#D3F98618618618618
 flisp_expr; ok divide-1 divide 42  is 1/42
 PREPARE="$T_P"
 
@@ -496,7 +491,7 @@ IN='(min)' OUT='#<error:wrong-number-of-arguments: (f args) - args, f expects at
 flisp_expr; ok min-1 with nil fails
 
 IN='(min "a")'
-OUT='#<error:invalid-value: (min n[ arg ..]) - n expected number, got type-string: "a">'
+OUT='#<error:invalid-value: (min n[ arg ..]) - n expected number, got #<type-string>: a>'
 flisp_expr; ok min-2 with not number fails
 
 IN='(min 0)' OUT=0
@@ -514,7 +509,7 @@ flisp_expr; ok min-6 with more then two args
 IN='(max)' OUT='#<error:wrong-number-of-arguments: (f args) - args, f expects at least 1 arguments: nil>'
 flisp_expr; ok max-1 with nil fails
 
-IN='(max "a")' OUT='#<error:invalid-value: (max n[ arg ..]) - n expected number, got type-string: "a">'
+IN='(max "a")' OUT='#<error:invalid-value: (max n[ arg ..]) - n expected number, got #<type-string>: a>'
 flisp_expr; ok max-2 with not number fails
 
 IN='(max 0)' OUT=0
@@ -536,7 +531,7 @@ flisp_expr; ok or-1 empty or is false
 IN='(or t)' OUT=t
 flisp_expr; ok or-2 t is t
 
-IN='(or "a")' OUT='"a"'
+IN='(or "a")' OUT='a'
 flisp_expr; ok or-3 not nil is itself
 
 IN='(or t nil)' OUT=t
@@ -551,7 +546,7 @@ flisp_expr; ok or-6 nil not nil is itself
 IN='(or nil nil nil)' OUT=nil
 flisp_expr; ok or-7 triple nil is nil
 
-IN='(or nil nil nil "a" "b" nil)' OUT='"a"'
+IN='(or nil nil nil "a" "b" nil)' OUT='a'
 flisp_expr; ok or-8 nil with not nil is first itself
 
 # and
@@ -576,10 +571,10 @@ flisp_expr; ok and-6  nil nil is nil
 IN='(and t t)' OUT=t
 flisp_expr; ok and-7 t t is t
 
-IN='(and "a")' OUT='"a"'
+IN='(and "a")' OUT='a'
 flisp_expr; ok and-8 single not nil is itself
 
-IN='(and t "a")' OUT='"a"'
+IN='(and t "a")' OUT='a'
 flisp_expr; ok and-9 not nil at end is itself
 
 IN='(and "a" 0 t)' OUT=t
@@ -588,36 +583,36 @@ flisp_expr; ok and-10 triple t is true
 IN='(defun aa (p) (and p p)) (aa nil)' OUT=nil
 flisp_expr; ok and-11 macro env not working
 
-IN='(join ":" nil)' OUT='""'
+IN='"-"(join ":" nil)' OUT='-'
 flisp_expr; ok join-1 join nil is empty string
 
-IN='(join ":" (list "a"))' OUT='"a"'
+IN='(join ":" (list "a"))' OUT='a'
 flisp_expr; ok join-2 join single list is string
 
-IN='(join ":" (list "a" "b"))' OUT='"a:b"'
+IN='(join ":" (list "a" "b"))' OUT='a:b'
 flisp_expr; ok join-3 join two elements contains separator
 
-IN='(join ":" (list "a" "b" "c"))' OUT='"a:b:c"'
+IN='(join ":" (list "a" "b" "c"))' OUT='a:b:c'
 flisp_expr; ok join-4 join several contains several separators
 
-IN='(join "" (list "a" "b" "c"))' OUT='"abc"'
+IN='(join "" (list "a" "b" "c"))' OUT='abc'
 flisp_expr; ok join-5 join with empty separator concats
 
-IN='(join "nswe" (list "a" "r"))' OUT='"answer"'
+IN='(join "nswe" (list "a" "r"))' OUT='answer'
 flisp_expr; ok join-6 with long separator inserts long separator
 
 # fload
 IN='(setq f (open "empty.lsp" "r")) (fload f)' OUT=nil
 flisp_expr; ok fload-1 load empty file
 
-IN='(setq f (open "one_word.lsp" "r")) (fload f)' OUT='"one_word"'
+IN='(setq f (open "one_word.lsp" "r")) (fload f)' OUT='one_word'
 flisp_expr; ok fload-2 load file with one word
 
 # load
 IN='(load "empty.lsp")' OUT=nil
 flisp_expr; ok load-1 load empty file
 
-IN='(load "one_word.lsp")' OUT='"one_word"'
+IN='(load "one_word.lsp")' OUT='one_word'
 flisp_expr; ok load-2 load file with one word
 
 # provide

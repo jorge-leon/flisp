@@ -14,37 +14,37 @@ export FLISP_PRINT=1
 
 tap 44
 
-IN='(substring "")' OUT='""'
+IN='"-"(substring "")' OUT='-'
 flisp_expr; ok substring-1 substring empty is empty
 
-IN='(substring "answer")' OUT='"answer"'
+IN='(substring "answer")' OUT='answer'
 flisp_expr; ok substring-2 substring answer is answer
 
-IN='(substring "answer" 3)' OUT='"wer"'
+IN='(substring "answer" 3)' OUT='wer'
 flisp_expr; ok substring-3 substring answer 3 wer
 
-IN='(substring "answer" -2)' OUT='"er"'
+IN='(substring "answer" -2)' OUT='er'
 flisp_expr; ok substring-4 substring answer -2 er
 
-IN='(substring "answer" 1 3)' OUT='"ns"'
+IN='(substring "answer" 1 3)' OUT='ns'
 flisp_expr; ok substring-5 substring answer 1 3 ns
 
-IN='(substring "answer" 1 -3)' OUT='"ns"'
+IN='(substring "answer" 1 -3)' OUT='ns'
 flisp_expr; ok substring-6 substring answer 1 -3 ns
 
-IN='(substring "answer" -3 -1)' OUT='"we"'
+IN='(substring "answer" -3 -1)' OUT='we'
 flisp_expr; ok substring-7 substring answer -3 -1 we
 
-IN='(substring "änßwér" -3 -1)' OUT='"wé"'
+IN='(substring "änßwér" -3 -1)' OUT='wé'
 flisp_expr; ok substring-7-1 substring in 3 unicode 2 ascii string
 
-IN='(substring "answer" 7)' OUT='""'
+IN='"-"(substring "answer" 7)' OUT='-'
 flisp_expr; ok substring-8 substring answer  start beyond end is empty string
 
-IN='(substring "answer" -7)' OUT='"answer"'
+IN='(substring "answer" -7)' OUT='answer'
 flisp_expr; ok substring-9 substring answer start before start is complete string
 
-IN='(substring "answer" 1 7)' OUT='"nswer"'
+IN='(substring "answer" 1 7)' OUT='nswer'
 flisp_expr; ok substring-10 substring answer end beyond end is rest
 
 # Note -7 get's mapped to 0 by (elements)
@@ -55,51 +55,51 @@ IN='(substring "answer" 2 1)' OUT='#<error:range-error: (elements object[ start[
 flisp_expr; ok substring-12 substring answer 2 1 range-error
 
 
-IN='(string-trim-front "")' OUT='""'
+IN='"-"(string-trim-front "")' OUT='-'
 flisp_expr; ok string-trim-front-1 emtpy string is itself
 
-IN='(string-trim-front "abc ")' OUT='"abc "'
+IN='(string-trim-front "abc ")' OUT='abc '
 flisp_expr; ok string-trim-front-2 string is itself
 
-IN='(string-trim-front " abc ")' OUT='"abc "'
+IN='(string-trim-front " abc ")' OUT='abc '
 flisp_expr; ok string-trim-front-3  single space prefixed string is trimmed
 
-IN='(string-trim-front "   abc ")' OUT='"abc "'
+IN='(string-trim-front "   abc ")' OUT='abc '
 flisp_expr; ok string-trim-front-4  triple space prefixed string is trimmed
 
 
-IN='(string-trim-back "")' OUT='""'
+IN='"-"(string-trim-back "")' OUT='-'
 flisp_expr; ok string-trim-back-1 emtpy string is itself
 
-IN='(string-trim-back " abc")' OUT='" abc"'
+IN='(string-trim-back " abc")' OUT=' abc'
 flisp_expr; ok string-trim-back-2 string is itself
 
-IN='(string-trim-back " abc ")' OUT='" abc"'
+IN='(string-trim-back " abc ")' OUT=' abc'
 flisp_expr; ok string-trim-back-3  single space postfixed string is trimmed
 
-IN='(string-trim-back " abc   ")' OUT='" abc"'
+IN='(string-trim-back " abc   ")' OUT=' abc'
 flisp_expr; ok string-trim-back-4  triple space postfixed string is trimmed
 
 
-IN='(string-trim "")' OUT='""'
+IN='"-"(string-trim "")' OUT='-'
 flisp_expr; ok string-trim-1 emtpy string is itself
 
-IN='(string-trim "abc")' OUT='"abc"'
+IN='(string-trim "abc")' OUT='abc'
 flisp_expr; ok string-trim-2 string is itself
 
-IN='(string-trim "  abc  ")' OUT='"abc"'
+IN='(string-trim "  abc  ")' OUT='abc'
 flisp_expr; ok string-trim-3 string with spaces is trimmed
 
-IN='(string-ref "abcde" 0)' OUT='"a"'
+IN='(string-ref "abcde" 0)' OUT='a'
 flisp_expr; ok string-ref-1 index 0 is a
 
-IN='(string-ref "abcde" 2)' OUT='"c"'
+IN='(string-ref "abcde" 2)' OUT='c'
 flisp_expr; ok string-ref-2 index 2 is c
 
-IN='(string-ref "abcde" 4)' OUT='"e"'
+IN='(string-ref "abcde" 4)' OUT='e'
 flisp_expr; ok string-ref-3 index 4 is e
 
-IN='(string-ref "" 0)' OUT='""'
+IN='"-"(string-ref "" 0)' OUT='-'
 flisp_expr; ok string-ref-4 emtpy string 0 is empty string
 
 
@@ -115,28 +115,28 @@ flisp_expr; ok string-startswith-3 string starts with start string is t
 IN='(string-startswith "abcde" "cd")' OUT='nil'
 flisp_expr; ok string-startswith-4 string starts not with start string is nil
 
-IN='(string-shrink-right "")' OUT='""'
+IN='"-"(string-shrink-right "")' OUT='-'
 flisp_expr; ok string-shrink-right-1 drop from empty string is empty string
 
-IN='(string-shrink-right "abcde")' OUT='"bcde"'
+IN='(string-shrink-right "abcde")' OUT='bcde'
 flisp_expr; ok string-shrink-right-2 drop from string is on char less
 
-IN='(string-shrink-left "")' OUT='""'
+IN='"-"(string-shrink-left "")' OUT='-'
 flisp_expr; ok string-string-shrink-left-1 string-shrink-left from empty string is empty string
 
-IN='(string-shrink-left "abcde")' OUT='"abcd"'
+IN='(string-shrink-left "abcde")' OUT='abcd'
 flisp_expr; ok string-string-shrink-left-2 string-shrink-left from string is one char less
 
-IN='(string-first-char "answer")' OUT='"a"'
+IN='(string-first-char "answer")' OUT='a'
 flisp_expr; ok string-first-char-1 first char of answer is a
 
-IN='(string-first-char "")' OUT='""'
+IN='"-"(string-first-char "")' OUT='-'
 flisp_expr; ok string-first-char-2 first char of empty string is empty string
 
-IN='(string-last-char "answer")' OUT='"r"'
+IN='(string-last-char "answer")' OUT='r'
 flisp_expr; ok string-last-char-1 last char of answer is r
 
-IN='(string-last-char "")' OUT='""'
+IN='"-"(string-last-char "")' OUT='-'
 flisp_expr; ok string-last-char-2 last char of empty string is empty string
 
 IN='(string-empty-p "answer")' OUT='nil'
@@ -145,11 +145,11 @@ flisp_expr; ok string-empty-p-1 answer is not empty
 IN='(string-empty-p "")' OUT='t'
 flisp_expr; ok string-empty-p-2 empty string is t
 
-IN='(string-split "a" "ansaawera")' OUT='("" "ns" "" "wer" "")'
+IN='(string-split "a" "ansaawera")' OUT='( ns  wer )'
 flisp_expr; ok string-split-1 on single character with repetitions gives list with empty strings
 
-IN='(string-split "" "answer")' OUT='("a" "n" "s" "w" "e" "r")'
+IN='(string-split "" "answer")' OUT='(a n s w e r)'
 flisp_expr; ok string-split-2 split with empty string gives list of all characters
 
-IN='(string-split "sw" "answer")' OUT='("an" "er")'
+IN='(string-split "sw" "answer")' OUT='(an er)'
 flisp_expr; ok string-split-3 split with string cuts out string

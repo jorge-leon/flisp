@@ -119,11 +119,11 @@
 
 ;; Concatenate all arguments to a string.
 ;; Elisp
-(defun concat args
+(defmacro concat args
   (cond
     ((null args) "")
-    ((null (cdr args)) (str (car args)))
-    (t (string-append (str (car args)) (concat  (cdr args)))) ))
+    ((null (cdr args)) (list 'str (car args)))
+    (t (list 'string-append (list 'str (car args)) (cons 'concat (cdr args)))) ))
 
 (defun numberp (o) (cond  ((integerp o)) ((doublep o))))
 
