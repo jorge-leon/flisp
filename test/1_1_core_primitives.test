@@ -10,7 +10,6 @@ export FLISP_DEBUG=../f.log
 export FLISP_PRINT=1
 #export PREPARE="(interp-gc-always t)"
 
-
 export FLISP_SIZE=$((20*1024*1024))
 
 tap 221
@@ -458,16 +457,16 @@ flisp_expr; ok elements-6-6 string with negative start index before string
 IN='(elements "abc" -2 -1)'  OUT='b'
 flisp_expr; ok elements-6-7 string with negative start and end index within string
 
-IN='(elements "abc" 1 1)'  OUT=''
+IN='"-"(elements "abc" 1 1)'  OUT='-'
 flisp_expr; ok elements-6-8 string with start equal end
 
-IN='(elements "abc" -2 -2)'  OUT=''
+IN='"-"(elements "abc" -2 -2)'  OUT='-'
 flisp_expr; ok elements-6-9 string with negative start equal end
 
 IN='(elements "abc" 0 7)'  OUT='abc'
 flisp_expr; ok elements-6-10 string with end beyond string
 
-IN='(elements "abc" 0 0)'  OUT=''
+IN='"-"(elements "abc" 0 0)'  OUT='-'
 flisp_expr; ok elements-6-11 string range 0 0 is empty string
 
 IN='(elements #d3.14)'  OUT=nil

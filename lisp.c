@@ -318,9 +318,10 @@ void gc(Object *interp, bool shrink)
     size_t i;
 
     FLISP_INTERP.memory->toOffset = 0;
-    for (object = FLISP_INTERP.gcTop; object != nil; object = CDR(object)) {
+
+    for (object = FLISP_INTERP.gcTop; object != nil; object = CDR(object))
         CAR(object) = gcMoveObject(interp, CAR(object), &stats);
-    }
+
     for (i = 0; i < interp->length; i++)
         interp->objects[i] = gcMoveObject(interp, interp->objects[i], &stats);
 
@@ -633,28 +634,30 @@ Object *cloneList(Object *interp, Object *list, Object *end)
 
 /* If vals is a simple list just check max/min args.
  * If vals contain (values), splice them in recursively
+ * param is the - potential empty - parameter list of a function call.
 */
-Object *checkParams(Object *interp, Object *param, Object** vals, size_t nArgs)
+Object *checkParams(Object *interp, Object *params, Object** vals, size_t nArgs)
 {
     Object *prev = nil, *val = *vals;
     bool check = true;
 
     for (;;) {
-        if (param == nil && val == nil) break;
+        if (params == nil && val == nil) break;
 
         if (val != nil && val->type != type_cons)
             return newErrorI(interp, wrong_type_argument, val, "(f args) - args[", nArgs, "] is not a list");
 
-        check = !(param != nil && param->type == type_symbol);
+        check = !(params != nil && params->type == type_symbol);
 
         if (check) {
-            if (param == nil && val != nil)
+            if (params == nil && val != nil)
                 return newErrorI(interp, wrong_number_of_arguments, *vals, "(f args) - args, f expects at most ", nArgs, " arguments");
-            if (param != nil && val == nil) {
-                for (; param->type == type_cons; param = CDR(param), ++nArgs);
+            if (params != nil && val == nil) {
+                for (; params->type == type_cons; params = CDR(params), ++nArgs);
                 return newErrorI(interp, wrong_number_of_arguments, *vals, "(f args) - args, f expects at least ", nArgs, " arguments");
             }
-        } else if (val == nil) break;
+        } else
+            if (val == nil) break;
         if (CAR(val)->type == type_values) {
             if (CDR(val) == nil) {
                 /* Special case, if values is at end of parameter list */
@@ -681,7 +684,7 @@ Object *checkParams(Object *interp, Object *param, Object** vals, size_t nArgs)
             }
             continue;
         }
-        if (check)  param = CDR(param);
+        if (check)  params = CDR(params);
         prev = val;
         val = CDR(val);
         ++nArgs;
@@ -691,18 +694,21 @@ Object *checkParams(Object *interp, Object *param, Object** vals, size_t nArgs)
 
 Object *newEnv(Object *interp, Object ** func, Object ** vals)
 {
-    Object *environment = newObject(interp, type_env, sizeof(Object*[3]));
+    if ((*func) == nil)
+        return flisp_new(interp, type_env, &nil, 3, 0);
+
+    GC_CHECKPOINT;
+    GC_TRACE(gcFunc, *func);
+    GC_TRACE(gcVals, *vals);
+    Object *environment = flisp_new(interp, type_env, &nil, 3, 0);
+    GC_RELEASE;
     CHECK_OOM(environment);
     environment->length = 3;
-    if ((*func) == nil) {
-        environment->env.parent = environment->env.vars = environment->env.vals = nil;
-        return environment;
-    }
 
-    FLISP_CHECK_ERR(checkParams(interp, (*func)->closure.params, vals, 0));
-    environment->env.parent = (*func)->closure.env;
-    environment->env.vars = (*func)->closure.params;
-    environment->env.vals = *vals;
+    FLISP_CHECK_ERR(checkParams(interp, (*gcFunc)->closure.params, gcVals, 0));
+    environment->env.parent = (*gcFunc)->closure.env;
+    environment->env.vars = (*gcFunc)->closure.params;
+    environment->env.vals = *gcVals;
     return environment;
 }
 
@@ -814,7 +820,7 @@ Object *newError(Object *interp, Object *error_type, Object *culprit, char *mess
     GC_TRACE(gcErrorType, error_type);
     GC_TRACE(gcCulprit, culprit);
     GC_TRACE(gcMessage, newString(interp, message));
-    GC_CHECK_ERR(*gcMessage);
+    GC_CHECK_OOM(*gcMessage);
     Object *error = flisp_new(interp, type_error, gcErrorType, 3, 0);
     GC_RELEASE;
     CHECK_OOM(error);
@@ -893,14 +899,12 @@ Object *newStreamObject(Object *interp, FILE *fd, char *path)
     GC_CHECKPOINT;
     GC_TRACE(gcPath, newString(interp, path));
     GC_TRACE(gcFd, newPtr(interp, (void *)fd));
-//    GC_TRACE(gcBuf, newStr(interp, ""));
     GC_TRACE(gcLen, newInteger(interp, 0));
     Object *object = flisp_new(interp, type_stream, gcPath, 4, 0);
     GC_RELEASE;
     CHECK_OOM(object);
     object->stream.fd = *gcFd;
     object->stream.buf = flisp_empty_str;
-//    object->stream.buf = *gcBuf;
     object->stream.len = *gcLen;
 
     return object;
@@ -969,7 +973,7 @@ Object *envAdd(Object *interp, Object ** var, Object ** val, Object **env)
     GC_TRACE(gcVar, *var);
     GC_TRACE(gcVal, *val);
     GC_TRACE(gcVars, newCons(interp, gcVar, &nil));
-    GC_CHECK_ERR(*gcVars);
+    GC_CHECK_OOM(*gcVars);
     Object *vals = newCons(interp, gcVal, &nil);
     GC_RELEASE;
     CHECK_OOM(vals);
@@ -1001,9 +1005,7 @@ Object *envSet(Object *interp, Object ** var, Object ** val, Object **env, bool 
         }
 
         if ((*env)->env.parent == nil || !top) {
-            GC_CHECKPOINT;
-            GC_TRACE(gcEnv, *env);
-            GC_RETURN(envAdd(interp, var, val, gcEnv));
+            return envAdd(interp, var, val, env);
         } else
             *env = (*env)->env.parent;
     }
@@ -1510,8 +1512,8 @@ Object *evalBind(Object *interp, Object **args, Object **env)
             GC_RETURN(newError(interp, invalid_value, *args, "(bind p s[ o] ..) - s, arguments are not a proper list"));
         FLISP_ASSERT((*gcArg)->car, type_symbol, "(bind p s[ o] ..) - s");
         if (!gcCollectableObject(interp, (*gcArg)->car))
-            return newError(interp, wrong_type_argument, (*gcArg)->car,
-                            "(bind p s[ o[ s[ ..]]]) - s is a constant and cannot be redefined");
+            GC_RETURN(newError(interp, wrong_type_argument, (*gcArg)->car,
+                               "(bind p s[ o[ s[ ..]]]) - s is a constant and cannot be redefined"));
         object = (*gcArg)->cdr;
         if (object == nil)
             *gcVal = nil;
@@ -1576,8 +1578,8 @@ Object *evalCond(Object *interp, Object **args, Object **env)
         GC_CHECK_ERR(CLAUSE);
 
         if (CLAUSE->type != type_cons)
-            return newError(interp, wrong_type_argument, CLAUSE,
-                            "(cond clause ..) - clause is not a list");
+            GC_RETURN(newError(interp, wrong_type_argument, CLAUSE,
+                               "(cond clause ..) - clause is not a list"));
 
         if (ACTION != nil && ACTION->type != type_cons)
             GC_RETURN(newError(interp, wrong_type_argument, CLAUSE, "(cond (pred action) ..) action is not a list"));
@@ -1658,8 +1660,9 @@ Object *evalList(Object *interp, Object **args, Object **env)
     GC_TRACE(gcObject, evalExpr(interp, &(*args)->car, gcEnv));
     GC_CHECK_OOM(*gcObject);
     *gcCdr = evalList(interp, gcCdr, gcEnv);
-    GC_CHECK_OOM(*gcCdr);
-    GC_RETURN(newCons(interp, gcObject, gcCdr));
+    GC_RELEASE;
+    CHECK_OOM(*gcCdr);
+    return newCons(interp, gcObject, gcCdr);
 }
 
 // Special forms handled by evalExpr.
@@ -1686,7 +1689,7 @@ Object *evalExpr(Object *interp, Object ** object, Object **env)
 
     for (;;) {
         if (FLISP_INTERP.countdown && !--FLISP_INTERP.countdown)
-            return newError(interp, trap_countdown, *gcObject, "Trap: countdown reached");
+            GC_RETURN(newError(interp, trap_countdown, *gcObject, "Trap: countdown reached"));
 
         if ((*gcObject)->type == type_symbol)
             GC_RETURN(envLookup(interp, *gcObject, *gcEnv));
@@ -1755,16 +1758,16 @@ Object *evalExpr(Object *interp, Object ** object, Object **env)
                     if (args->type != type_cons) {
                         d = fmtInteger(nArgs, 10, flisp_integer_char_map, ' ', -1);
                         /* Note: !d does not work: 0 = OOM which does not occur, -1 -2 would be formatting errors, but we need to coerce */
-                        if (!d) return flisp_static_error(out_of_memory, &fmt_oom_message);
-                        return newError8(interp, wrong_type_argument, args,
-                                         "(", primitive->name, " args) - args is not a list, arg ", d, "", "", "", "");
+                        if (!d) GC_RETURN(flisp_static_error(out_of_memory, &fmt_oom_message));
+                        GC_RETURN(newError8(interp, wrong_type_argument, args,
+                                            "(", primitive->name, " args) - args is not a list, arg ", d, "", "", "", ""));
                     }
                     if (args->car->type == type_moved || args->cdr->type == type_moved) {
                         /* Note: ditto */
                         d = fmtInteger(nArgs, 10, flisp_integer_char_map, '0', -1);
-                        if (!d) return flisp_static_error(out_of_memory, &fmt_oom_message);
-                        return newError8(interp, gc_error, args->car,
-                                         "(", primitive->name, " args) - arg ", d, " is already disposed off", "", "", "");
+                        if (!d) GC_RETURN(flisp_static_error(out_of_memory, &fmt_oom_message));
+                        GC_RETURN(newError8(interp, gc_error, args->car,
+                                            "(", primitive->name, " args) - arg ", d, " is already disposed off", "", "", ""));
                     }
                     if (args->car->type == type_values) {
                         if (args->cdr == nil) {
@@ -1796,26 +1799,26 @@ Object *evalExpr(Object *interp, Object ** object, Object **env)
                     if (primitive->argsType != type_any && args->car->type != primitive->argsType) {
                         /* Note: looks very similar to FLISP_ASSERT() */
                         char *d = fmtInteger(nArgs+1, 10, flisp_integer_char_map, ' ', -1);
-                        if (!d) return flisp_static_error(out_of_memory, &fmt_oom_message);
-                        return newError8(interp, wrong_type_argument, args->car,
-                                         "(", primitive->name, " args) - arg ", d,
-                                         " expected ", flisp_symbol_string(primitive->argsType->type.name),
-                                         "  got ", flisp_symbol_string(args->car->type->type.name));
+                        if (!d) GC_RETURN(flisp_static_error(out_of_memory, &fmt_oom_message));
+                        GC_RETURN(newError8(interp, wrong_type_argument, args->car,
+                                            "(", primitive->name, " args) - arg ", d,
+                                            " expected ", flisp_symbol_string(primitive->argsType->type.name),
+                                            "  got ", flisp_symbol_string(args->car->type->type.name)));
                     }
                 }
                 if (nArgs < primitive->nMinArgs)
-                    return newErrorI(interp, wrong_number_of_arguments, *gcFunc,
-                                     "expects at least ", primitive->nMinArgs, " arguments");
+                    GC_RETURN(newErrorI(interp, wrong_number_of_arguments, *gcFunc,
+                                        "expects at least ", primitive->nMinArgs, " arguments"));
                 if (nArgs > primitive->nMaxArgs && primitive->nMaxArgs >= 0)
-                    return newErrorI(interp, wrong_number_of_arguments, *gcFunc,
-                                     "expects at most ", primitive->nMaxArgs, " arguments");
+                    GC_RETURN(newErrorI(interp, wrong_number_of_arguments, *gcFunc,
+                                        "expects at most ", primitive->nMaxArgs, " arguments"));
                 if (primitive->nMaxArgs < 0 && nArgs % -primitive->nMaxArgs)
-                    return newErrorI(interp, wrong_number_of_arguments, *gcFunc,
-                                     "expects a multiple of ", -primitive->nMaxArgs, " arguments");
+                    GC_RETURN(newErrorI(interp, wrong_number_of_arguments, *gcFunc,
+                                        "expects a multiple of ", -primitive->nMaxArgs, " arguments"));
                 GC_RETURN(primitive->eval(interp, gcArgs, gcEnv, nArgs));
             }
         } else {
-            return newError(interp, wrong_type_argument, *gcFunc, "is not a function");
+            GC_RETURN(newError(interp, wrong_type_argument, *gcFunc, "is not a function"));
         }
     }
 }
@@ -2297,7 +2300,7 @@ Object *primitiveElements(Object *interp, Object **args, Object **env, size_t nA
 }
 Object *primitiveCons(Object *interp, Object **args, Object **env, size_t nArgs)
 {
-    return flisp_new(interp, type_cons, args, 2, 0);
+    return newCons(interp, &FLISP_ARG1, &FLISP_ARG2);
 }
 Object *primitiveNreverse(Object *interp, Object **args, Object **env, size_t nArgs)
 {
@@ -2313,30 +2316,14 @@ Object *primitiveError(Object *interp, Object **args, Object **env, size_t nArgs
 Object *primitiveValues(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     Object *object;
-//    if (nArgs) {
-        GC_CHECKPOINT;
-        GC_TRACE(gcList, *args);
-        object = newObject(interp, type_values, 0);
-        GC_RELEASE;
-        CHECK_OOM(object);
-        object->values = *gcList;
-//    } else {
-//        object = newObject(interp, type_values, 0);
-//        object->values = nil;
-//    }
+    GC_CHECKPOINT;
+    GC_TRACE(gcList, *args);
+    object = newObject(interp, type_values, 0);
+    GC_RELEASE;
+    CHECK_OOM(object);
+    object->values = *gcList;
     return object;
 }
-
-#if 0
-__attribute__((noreturn))
-Object *primitiveThrow(Object *interp, Object **args, Object **env, size_t nArgs)
-{
-    FLISP_INTERP.exception = *args;
-    do {
-        longjmp(*FLISP_INTERP.catch, 2);
-    } while(0);
-}
-#endif
 
 // Integer Math //////
 
