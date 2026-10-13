@@ -8,9 +8,9 @@
 export FLISP=../fl
 export FLISP_DEBUG=../f.log
 export FLISP_PRINT=1
-#export PREPARE="(interp-gc-always t)"
+export PREPARE="(interp-gc-always t)"
 
-export FLISP_SIZE=$((20*1024*1024))
+#export FLISP_SIZE=$((20*1024*1024))
 
 tap 221
 
@@ -561,8 +561,9 @@ fi
 # (error..)
 true; ok error-1 \# TODO
 
-# values
+if true; then
 
+# values
 IN='(new type-vector 0 (values))' OUT='[]'
 flisp_expr; ok values-p-1_1 empty values alone disappears
 
@@ -593,6 +594,9 @@ flisp_expr; ok values-p-3 triple values in between gets inserted
 IN='(elements (new type-vector 0 1 (values 2 3 4) 5))' OUT='(1 2 3 4 5)'
 flisp_expr; ok values-p-4 values reproduce themself
 
+fi
+
+if true; then
 
 IN='((lambda args args) (values))' OUT='nil'
 flisp_expr; ok values-c-1_1 empty values alone disappears
@@ -623,6 +627,8 @@ flisp_expr; ok values-c-3 triple values in between gets inserted
 
 IN='((lambda args args) (values 1 2 3))' OUT='(1 2 3)'
 flisp_expr; ok values-c-4 values reproduce themself
+
+fi
 
 ## Integer arithmetic
 

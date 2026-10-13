@@ -1746,64 +1746,61 @@ Object *evalExpr(Object *interp, Object ** object, Object **env)
                 if (nArgs > 2)
                     GC_RETURN(newError(interp, wrong_number_of_arguments, *gcArgs, "macroexpand-1 expects at most 2 arguments"));
                 GC_RETURN(evalMacroExpand(interp, gcArgs, gcEnv));
-#if 0
-            case PRIMITIVE_CATCH:
-                GC_RETURN(evalCatch(interp, gcArgs, gcEnv));
-#endif
             default:
                 *gcArgs = evalList(interp, gcArgs, gcEnv);
-                Object *args = *gcArgs;
                 char *d;
-                for (Object *prev = nil; args != nil; prev = args, args = args->cdr, nArgs++) {
-                    if (args->type != type_cons) {
+                GC_TRACE(gcPrev, nil);
+                GC_TRACE(gcArg, *gcArgs);
+                for (; *gcArg != nil; *gcPrev = *gcArg, *gcArg = CDR(*gcArg), nArgs++) {
+                    if ((*gcArg)->type != type_cons) {
                         d = fmtInteger(nArgs, 10, flisp_integer_char_map, ' ', -1);
                         /* Note: !d does not work: 0 = OOM which does not occur, -1 -2 would be formatting errors, but we need to coerce */
                         if (!d) GC_RETURN(flisp_static_error(out_of_memory, &fmt_oom_message));
-                        GC_RETURN(newError8(interp, wrong_type_argument, args,
+                        GC_RETURN(newError8(interp, wrong_type_argument, *gcArg,
                                             "(", primitive->name, " args) - args is not a list, arg ", d, "", "", "", ""));
                     }
-                    if (args->car->type == type_moved || args->cdr->type == type_moved) {
+                    if (CAR(*gcArg)->type == type_moved || CDR(*gcArg)->type == type_moved) {
                         /* Note: ditto */
                         d = fmtInteger(nArgs, 10, flisp_integer_char_map, '0', -1);
                         if (!d) GC_RETURN(flisp_static_error(out_of_memory, &fmt_oom_message));
-                        GC_RETURN(newError8(interp, gc_error, args->car,
+                        GC_RETURN(newError8(interp, gc_error, CAR(*gcArg),
                                             "(", primitive->name, " args) - arg ", d, " is already disposed off", "", "", ""));
                     }
-                    if (args->car->type == type_values) {
-                        if (args->cdr == nil) {
+                    if (CAR(*gcArg)->type == type_values) {
+                        if (CDR(*gcArg) == nil) {
                             /* Special case, if values is at end of parameter list */
-                            if (args->car->values == nil) break;
+                            if (CAR(*gcArg)->values == nil) break;
                             /* destructively insert its arguments and restart checking */
-                            if (prev == nil) /* at start of args list and no more arguments, a single values */
-                                *gcArgs = args = args->car->values;
+                            if (*gcPrev == nil) /* at start of args list and no more arguments, a single values */
+                                *gcArgs = *gcArg = CAR(*gcArg)->values;
                             else
-                                prev->cdr = args = args->car->values;
+                                CDR(*gcPrev) = *gcArg = CAR(*gcArg)->values;
                         } else {
                             /* splice in a copy of the values list */
-                            if (prev == nil) { /* at start of args list with more arguments*/
-                                if (args->car->values == nil)
-                                    *gcArgs = args = args->cdr;
+                            if (*gcPrev == nil) { /* at start of args list with more arguments*/
+                                if (CAR(*gcArg)->values == nil)
+                                    *gcArgs = *gcArg = CDR(*gcArg);
                                 else
-                                    *gcArgs = args = cloneList(interp, args->car->values, args->cdr);
+                                    *gcArgs = *gcArg = cloneList(interp, CAR(*gcArg)->values, CDR(*gcArg));
                             } else { /* values in between arguments */
-                                if (args->car->values == nil)
-                                    prev->cdr = args = args->cdr;
+                                if (CAR(*gcArg)->values == nil)
+                                    CDR(*gcPrev) = *gcArg = CDR(*gcArg);
                                 else
-                                    prev->cdr = args = cloneList(interp, args->car->values, args->cdr);
+                                    CDR(*gcPrev) = *gcArg = cloneList(interp, CAR(*gcArg)->values, CDR(*gcArg));
                             }
-                            GC_CHECK_OOM(args);
+                            GC_CHECK_OOM(*gcArg);
                         }
                         continue;
                     }
 
-                    if (primitive->argsType != type_any && args->car->type != primitive->argsType) {
+                    if (primitive->argsType != type_any && CAR(*gcArg)->type != primitive->argsType) {
                         /* Note: looks very similar to FLISP_ASSERT() */
                         char *d = fmtInteger(nArgs+1, 10, flisp_integer_char_map, ' ', -1);
                         if (!d) GC_RETURN(flisp_static_error(out_of_memory, &fmt_oom_message));
-                        GC_RETURN(newError8(interp, wrong_type_argument, args->car,
+                        GC_RETURN(newError8(interp, wrong_type_argument, CAR(*gcArg),
                                             "(", primitive->name, " args) - arg ", d,
                                             " expected ", flisp_symbol_string(primitive->argsType->type.name),
-                                            "  got ", flisp_symbol_string(args->car->type->type.name)));
+                                            "  got ", flisp_symbol_string(CAR(*gcArg)->type->type.name)));
                     }
                 }
                 if (nArgs < primitive->nMinArgs)
@@ -2048,6 +2045,7 @@ Object *str_object(Object *object) {
     if (object->type == type_lambda) goto other;
     if (object->type == type_macro) goto other;
     if (object->type == type_stream) goto other;
+    if (object->type == type_values) goto other;
 
     if (object->type == type_cons)
         delimiters = (str_delimiter){ "(", " ", ")" };
@@ -2318,7 +2316,7 @@ Object *primitiveValues(Object *interp, Object **args, Object **env, size_t nArg
     Object *object;
     GC_CHECKPOINT;
     GC_TRACE(gcList, *args);
-    object = newObject(interp, type_values, 0);
+    object = flisp_new(interp, type_values, &nil, 1, 0);
     GC_RELEASE;
     CHECK_OOM(object);
     object->values = *gcList;

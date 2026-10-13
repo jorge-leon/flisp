@@ -61,7 +61,7 @@ typedef struct SimpleObject {
         int64_t value;
         double number;
         Primitive *primitive;
-        Object *values;
+//        Object *values;
         Object *forward;
         size_t length;   /* (byte) length */
         /* Extensions */
@@ -139,7 +139,7 @@ struct Object {
     size_t size;
     union {
         size_t length;
-        Object *values;
+        //Object *values;
         Object *forward;
         /* assure compatibilty with simple object */
         int64_t value;
@@ -152,6 +152,7 @@ struct Object {
     union {
         Object *objects[1];                      // Vector
         struct { Object *car;    Object *cdr; }; // Cons
+        Object *values;
         char string[sizeof(InterpreterExt)];     // String, Symbol
         ConsExt cons;
         EnvExt env;
