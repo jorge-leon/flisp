@@ -61,13 +61,11 @@ typedef struct SimpleObject {
         int64_t value;
         double number;
         Primitive *primitive;
-//        Object *values;
-        Object *forward;
-        size_t length;   /* (byte) length */
-        /* Extensions */
-        void *ptr;       /* generic pointer */
         char *str;       /* pointer to byte array */
-        uint64_t flags;  /* bit array */
+        void *ptr;       /* generic pointer */
+        /* convenience so we don't need to cast from object */
+        size_t length;   /* (byte) length */
+        Object *forward; /* garbage collector */
     };
 } SimpleObject;
 
@@ -139,12 +137,11 @@ struct Object {
     size_t size;
     union {
         size_t length;
-        //Object *values;
         Object *forward;
         /* assure compatibilty with simple object */
         int64_t value;
         double number;
-        /* convenience */
+        /* convenience so we don't need to cast from simple object */
         Primitive * primitive;
         char *str;
         void *ptr;
@@ -152,8 +149,8 @@ struct Object {
     union {
         Object *objects[1];                      // Vector
         struct { Object *car;    Object *cdr; }; // Cons
-        Object *values;
         char string[sizeof(InterpreterExt)];     // String, Symbol
+        Object *values;
         ConsExt cons;
         EnvExt env;
         ClosureExt closure; /* Lambda, Macro */
@@ -168,11 +165,6 @@ typedef struct TypeObject {
     SimpleObject self;
     TypeExt type;
 } TypeObject;
-
-typedef struct ConsObject {
-    SimpleObject self;
-    ConsExt cons;
-} ConsObject;
 
 typedef struct Scratchpad {
     char *string;

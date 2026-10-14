@@ -610,25 +610,25 @@ int64_t flisp_list_length(Object *list)
  */
 Object *cloneList(Object *interp, Object *list, Object *end)
 {
-    //FLISP_ASSERT(list, type_cons, "(cloneList list end) - list");
-    if (end != nil) FLISP_ASSERT(end, type_cons, "(cloneList list end) - end");
+    FLISP_ASSERT(list, type_cons, "(list-append list end) - list");
 
     GC_CHECKPOINT;
     GC_TRACE(gcList, list);
     GC_TRACE(gcEnd, end);
-    GC_TRACE(gcCons, newCons(interp, &CAR(*gcList), &nil));
-    GC_CHECK_OOM(*gcCons);
-    GC_TRACE(gcNew, *gcCons);
-    while(CDR(*gcList)->type == type_cons) {
-        (*gcList) = CDR(*gcList);
-        CDR(*gcCons) = newCons(interp, &CAR(*gcList), &nil);
-        GC_CHECK_OOM(*gcCons);
-        *gcCons = CDR(*gcCons);
+    GC_TRACE(gcObjO, *gcList);
+    GC_TRACE(gcNew, newCons(interp, &CAR(*gcObjO), &nil));
+    GC_CHECK_OOM(*gcNew);
+    GC_TRACE(gcObjN, *gcNew);
+    while(CDR(*gcObjO)->type == type_cons) {
+        *gcObjO = CDR(*gcObjO);
+        CDR(*gcObjN) = newCons(interp, &CAR(*gcObjO), &nil);
+        GC_CHECK_OOM(*gcObjN);
+        *gcObjN = CDR(*gcObjN);
     }
     GC_RELEASE;
-    if (CDR(*gcList) != nil)
-        return newError(interp, invalid_value, list, "(cloneList list end) - list is not a proper list");
-    CDR(*gcCons) = *gcEnd;
+    if (CDR(*gcObjO) != nil)
+        return newError(interp, invalid_value, list, "(list-append list end) - list is not a proper list");
+    CDR(*gcObjN) = *gcEnd;
     return *gcNew;
 }
 
@@ -636,28 +636,24 @@ Object *cloneList(Object *interp, Object *list, Object *end)
  * If vals contain (values), splice them in recursively
  * param is the - potential empty - parameter list of a function call.
 */
-Object *checkParams(Object *interp, Object *params, Object** vals, size_t nArgs)
+Object *checkParams(Object *interp, Object **params, Object** vals)
 {
-    Object *prev = nil, *val = *vals;
-    bool check = true;
+    Object *param = *params, *prev = nil, *val = *vals;
 
-    for (;;) {
-        if (params == nil && val == nil) break;
+    for (size_t n = 0;; n++) {
 
         if (val != nil && val->type != type_cons)
-            return newErrorI(interp, wrong_type_argument, val, "(f args) - args[", nArgs, "] is not a list");
+            return newErrorI(interp, wrong_type_argument, val, "(f args) - args[", n, "] is not a list");
 
-        check = !(params != nil && params->type == type_symbol);
+        if (val == nil && param->type == type_cons) {
+            for (; param->type == type_cons; param = CDR(param), ++n);
+            return newErrorI(interp, wrong_number_of_arguments, *vals, "(f args) - args, f expects at least ", n, " arguments");
+        }
+        if (param == nil && val != nil)
+            return newErrorI(interp, wrong_number_of_arguments, *vals, "(f args) - args, f expects at most ", n, " arguments");
 
-        if (check) {
-            if (params == nil && val != nil)
-                return newErrorI(interp, wrong_number_of_arguments, *vals, "(f args) - args, f expects at most ", nArgs, " arguments");
-            if (params != nil && val == nil) {
-                for (; params->type == type_cons; params = CDR(params), ++nArgs);
-                return newErrorI(interp, wrong_number_of_arguments, *vals, "(f args) - args, f expects at least ", nArgs, " arguments");
-            }
-        } else
-            if (val == nil) break;
+        if (val == nil) break;
+        
         if (CAR(val)->type == type_values) {
             if (CDR(val) == nil) {
                 /* Special case, if values is at end of parameter list */
@@ -684,10 +680,9 @@ Object *checkParams(Object *interp, Object *params, Object** vals, size_t nArgs)
             }
             continue;
         }
-        if (check)  params = CDR(params);
+        if (param->type == type_cons) param = CDR(param);
         prev = val;
         val = CDR(val);
-        ++nArgs;
     }
     return nil;
 }
@@ -701,11 +696,11 @@ Object *newEnv(Object *interp, Object ** func, Object ** vals)
     GC_TRACE(gcFunc, *func);
     GC_TRACE(gcVals, *vals);
     Object *environment = flisp_new(interp, type_env, &nil, 3, 0);
+    GC_CHECK_OOM(environment);
+    GC_TRACE(gcParams, (*gcFunc)->closure.params);
+    
+    GC_CHECK_ERR(checkParams(interp, gcParams, gcVals));
     GC_RELEASE;
-    CHECK_OOM(environment);
-    environment->length = 3;
-
-    FLISP_CHECK_ERR(checkParams(interp, (*gcFunc)->closure.params, gcVals, 0));
     environment->env.parent = (*gcFunc)->closure.env;
     environment->env.vars = (*gcFunc)->closure.params;
     environment->env.vals = *gcVals;
@@ -2119,11 +2114,11 @@ Object *primitiveConsP(Object *interp, Object **args, Object **env, size_t nArgs
 }
 Object *primitiveAppend(Object *interp, Object **args, Object **env, size_t nArgs)
 {
-    Object *l1 = nil;
-    FLISP_ASSERT(FLISP_ARG1, type_cons, "(append list[ l) - list");
-    if (nArgs > 1)
-        l1 = FLISP_ARG2;
-    return cloneList(interp, FLISP_ARG1, l1);
+//    Object *l2 = nil;
+//    FLISP_ASSERT(FLISP_ARG1, type_cons, "(append list[ l) - list");
+//    if (nArgs > 1)
+//        l2 = FLISP_ARG2;
+    return cloneList(interp, FLISP_ARG1, nArgs ? FLISP_ARG2 : nil);
 }
 Object *primitiveIntern(Object *interp, Object **args, Object **env, size_t nArgs)
 {

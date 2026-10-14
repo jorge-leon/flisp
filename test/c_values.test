@@ -1,0 +1,47 @@
+#!./test.sh # -*- mode: sh -*-
+#
+# fLisp - test values expansion in closures
+#
+# leg20261014, CC0 1.0
+#
+
+export FLISP=../fl
+export FLISP_DEBUG=../f.log
+export FLISP_PRINT=1
+export PREPARE="(interp-gc-always t)"
+
+#export FLISP_SIZE=$((20*1024*1024))
+
+tap 10
+
+
+IN='((lambda args args) (values))' OUT='nil'
+flisp_expr; ok values-c-1_1 empty values alone disappears
+
+IN='((lambda args args) 1 (values))' OUT='(1)'
+flisp_expr; ok values-c-1_2 empty values at end disappears
+
+IN='((lambda args args) (values) 1)' OUT='(1)'
+flisp_expr; ok values-c-1_3 empty values at start disappears
+
+IN='((lambda args args) 1 (values) 2)' OUT='(1 2)'
+flisp_expr; ok values-c-1_4 empty values in between disappears
+
+IN='((lambda args args) (values 1))' OUT='(1)'
+flisp_expr; ok values-c-2_1 single values alone gets inserted
+
+IN='((lambda args args) 1 (values 2))' OUT='(1 2)'
+flisp_expr; ok values-c-2_2 single values at end gets inserted
+
+IN='((lambda args args) (values 1) 2)' OUT='(1 2)'
+flisp_expr; ok values-c-2_3 single values at start gets inserted
+
+IN='((lambda args args) 1 (values 2) 3)' OUT='(1 2 3)'
+flisp_expr; ok values-c-2_3 single values in between gets inserted
+
+IN='((lambda args args) 1 (values 2 3 4) 5)' OUT='(1 2 3 4 5)'
+flisp_expr; ok values-c-3 triple values in between gets inserted
+
+IN='((lambda args args) (values 1 2 3))' OUT='(1 2 3)'
+flisp_expr; ok values-c-4 values reproduce themself
+
