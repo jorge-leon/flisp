@@ -615,20 +615,21 @@ Object *cloneList(Object *interp, Object *list, Object *end)
     GC_CHECKPOINT;
     GC_TRACE(gcList, list);
     GC_TRACE(gcEnd, end);
-    GC_TRACE(gcObjO, *gcList);
-    GC_TRACE(gcNew, newCons(interp, &CAR(*gcObjO), &nil));
+    GC_TRACE(gcNew, newCons(interp, &CAR(*gcList), gcEnd));
     GC_CHECK_OOM(*gcNew);
-    GC_TRACE(gcObjN, *gcNew);
-    while(CDR(*gcObjO)->type == type_cons) {
-        *gcObjO = CDR(*gcObjO);
-        CDR(*gcObjN) = newCons(interp, &CAR(*gcObjO), &nil);
-        GC_CHECK_OOM(*gcObjN);
-        *gcObjN = CDR(*gcObjN);
+    *gcList = CDR(*gcList);
+    GC_TRACE(gcLast, *gcNew);
+    Object *o;
+    while((*gcList)->type == type_cons) {
+        o = newCons(interp, &CAR(*gcList), gcEnd); 
+        GC_CHECK_OOM(o);
+        CDR(*gcLast) = o;
+        *gcLast = o;
+        *gcList = CDR(*gcList);
     }
     GC_RELEASE;
-    if (CDR(*gcObjO) != nil)
+    if ((*gcList) != nil)
         return newError(interp, invalid_value, list, "(list-append list end) - list is not a proper list");
-    CDR(*gcObjN) = *gcEnd;
     return *gcNew;
 }
 
