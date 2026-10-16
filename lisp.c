@@ -622,7 +622,7 @@ Object *cloneList(Object *interp, Object *list, Object *end)
     GC_TRACE(gcLast, *gcNew);
     Object *o;
     while((*gcList)->type == type_cons) {
-        o = newCons(interp, &CAR(*gcList), gcEnd); 
+        o = newCons(interp, &CAR(*gcList), gcEnd);
         GC_CHECK_OOM(o);
         CDR(*gcLast) = o;
         *gcLast = o;
@@ -634,77 +634,65 @@ Object *cloneList(Object *interp, Object *list, Object *end)
     return *gcNew;
 }
 
-/* If vals is a simple list just check max/min args.
- * If vals contain (values), splice them in recursively
- * param is the - potential empty - parameter list of a function call.
-*/
-Object *checkParams(Object *interp, Object **params, Object** vals)
+/* Create a new environment for func/macro, where parameters are bound to the given values */
+Object *newEnv(Object *interp, Object *params, Object *vals)
 {
-    Object *param = *params, *prev = nil, *val = *vals;
+    GC_CHECKPOINT;
+    GC_TRACE(gcParam, params);
+    GC_TRACE(gcVals, vals);
+    GC_TRACE(gcVal, vals);
+    GC_TRACE(gcPrev, nil);
 
     for (size_t n = 0;; n++) {
 
-        if (val != nil && val->type != type_cons)
-            return newErrorI(interp, wrong_type_argument, val, "(f args) - args[", n, "] is not a list");
+        if (*gcVal != nil && TYPE(*gcVal) != type_cons)
+            GC_RETURN(newErrorI(interp, wrong_type_argument, *gcVal, "(f args) - args[", n, "] is not a list"));
 
-        if (val == nil && param->type == type_cons) {
-            for (; param->type == type_cons; param = CDR(param), ++n);
-            return newErrorI(interp, wrong_number_of_arguments, *vals, "(f args) - args, f expects at least ", n, " arguments");
+        if (*gcVal == nil && TYPE(*gcParam) == type_cons) {
+            for (; TYPE(*gcParam) == type_cons; *gcParam = CDR(*gcParam), ++n);
+            GC_RETURN(newErrorI(interp, wrong_number_of_arguments, *gcVals, "(f args) - args, f expects at least ", n, " arguments"));
         }
-        if (param == nil && val != nil)
-            return newErrorI(interp, wrong_number_of_arguments, *vals, "(f args) - args, f expects at most ", n, " arguments");
+        if (*gcParam == nil && *gcVal != nil)
+            GC_RETURN(newErrorI(interp, wrong_number_of_arguments, *gcVals, "(f args) - args, f expects at most ", n, " arguments"));
 
-        if (val == nil) break;
-        
-        if (CAR(val)->type == type_values) {
-            if (CDR(val) == nil) {
+        if (*gcVal == nil) break;
+
+        if (TYPE(CAR(*gcVal)) == type_values) {
+            if (CDR(*gcVal) == nil) {
                 /* Special case, if values is at end of parameter list */
                 /* Destructively insert its arguments and restart checking */
-                if (prev == nil)
-                    *vals = val = CAR(val)->values;
+                if (*gcPrev == nil)
+                    *gcVals = *gcVal = CAR(*gcVal)->values;
                 else
-                    CDR(prev) = val = CAR(val)->values;
-                if (CAR(val)->values == nil)  break;
+                    CDR(*gcPrev) = *gcVal = CAR(*gcVal)->values;
+                if (CAR(*gcVal)->values == nil)  break;
             } else {
                /* splice in a copy of vals */
-                if (prev == nil)  { /* at start of args list with more arguments*/
-                    if (CAR(val)->values == nil)
-                        *vals = val = CDR(val);
-                    else
-                        *vals = val = cloneList(interp, CAR(val)->values, CDR(val));
+                if (*gcPrev == nil)  { /* at start of args list with more arguments*/
+                    if (CAR(*gcVal)->values == nil)
+                        *gcVals = *gcVal = CDR(*gcVal);
+                    else {
+                        *gcVals = *gcVal = cloneList(interp, CAR(*gcVal)->values, CDR(*gcVal));
+                    }
                 } else { /* values in between arguments */
-                    if (CAR(val)->values == nil)
-                        CDR(prev) = val = CDR(val);
+                    if (CAR(*gcVal)->values == nil)
+                        CDR(*gcPrev) = *gcVal = CDR(*gcVal);
                     else
-                        CDR(prev) = val = cloneList(interp, CAR(val)->values, CDR(val));
+                        CDR(*gcPrev) = *gcVal = cloneList(interp, CAR(*gcVal)->values, CDR(*gcVal));
                 }
-                CHECK_OOM(val);
+                CHECK_OOM(*gcVal);
             }
             continue;
         }
-        if (param->type == type_cons) param = CDR(param);
-        prev = val;
-        val = CDR(val);
+        if (TYPE(*gcParam) == type_cons) *gcParam = CDR(*gcParam);
+        *gcPrev = *gcVal;
+        *gcVal = CDR(*gcVal);
     }
-    return nil;
-}
 
-Object *newEnv(Object *interp, Object ** func, Object ** vals)
-{
-    if ((*func) == nil)
-        return flisp_new(interp, type_env, &nil, 3, 0);
-
-    GC_CHECKPOINT;
-    GC_TRACE(gcFunc, *func);
-    GC_TRACE(gcVals, *vals);
     Object *environment = flisp_new(interp, type_env, &nil, 3, 0);
     GC_CHECK_OOM(environment);
-    GC_TRACE(gcParams, (*gcFunc)->closure.params);
-    
-    GC_CHECK_ERR(checkParams(interp, gcParams, gcVals));
+
     GC_RELEASE;
-    environment->env.parent = (*gcFunc)->closure.env;
-    environment->env.vars = (*gcFunc)->closure.params;
     environment->env.vals = *gcVals;
     return environment;
 }
@@ -1607,8 +1595,10 @@ Object *expandMacro(Object *interp, Object ** macro, Object **args)
 {
     GC_CHECKPOINT;
     GC_TRACE(gcBody, (*macro)->closure.body);
-    GC_TRACE(gcEnv, newEnv(interp, macro, args));
+    GC_TRACE(gcEnv, newEnv(interp, (*macro)->closure.params, *args));
     GC_CHECK_ERR(*gcEnv);
+    (*gcEnv)->env.parent = (*macro)->closure.env;
+    (*gcEnv)->env.vars = (*macro)->closure.params;
     GC_TRACE(gcObject, evalProgn(interp, gcBody, gcEnv));
     GC_CHECK_ERR(*gcObject);
     GC_RETURN(evalExpr(interp, gcObject, gcEnv));
@@ -1682,7 +1672,6 @@ Object *evalExpr(Object *interp, Object ** object, Object **env)
 
     GC_TRACE(gcFunc, nil);
     GC_TRACE(gcArgs, nil);
-    GC_TRACE(gcBody, nil);
 
     for (;;) {
         if (FLISP_INTERP.countdown && !--FLISP_INTERP.countdown)
@@ -1698,15 +1687,15 @@ Object *evalExpr(Object *interp, Object ** object, Object **env)
 
         *gcFunc = evalExpr(interp, gcFunc, gcEnv);
         GC_CHECK_ERR(*gcFunc);
-        *gcBody = nil;
 
         if ((*gcFunc)->type == type_lambda) {
-            *gcBody = (*gcFunc)->closure.body;
             *gcArgs = evalList(interp, gcArgs, gcEnv);
             GC_CHECK_ERR(*gcArgs);
-            *gcEnv = newEnv(interp, gcFunc, gcArgs);
+            *gcEnv = newEnv(interp, (*gcFunc)->closure.params, *gcArgs);
             GC_CHECK_ERR(*gcEnv);
-            *gcObject = evalProgn(interp, gcBody, gcEnv);
+            (*gcEnv)->env.parent = (*gcFunc)->closure.env;
+            (*gcEnv)->env.vars = (*gcFunc)->closure.params;
+            *gcObject = evalProgn(interp, &(*gcFunc)->closure.body, gcEnv);
             GC_CHECK_ERR(*gcArgs);
         } else if ((*gcFunc)->type == type_macro) {
             *gcObject = expandMacroTo(interp, gcFunc, gcArgs);
@@ -1980,7 +1969,7 @@ Object *str_prefix(Object *object, void *delimiter)
 Object *str_postfix(Object *object, void *delimiter)
 {
     if (addStringToPad(scratchpad, ((str_delimiter*)delimiter)->postfix)) return nil;
-    return flisp_static_error(io_error, &fmt_oom_message);    
+    return flisp_static_error(io_error, &fmt_oom_message);
 }
 Object *str_infix(Object *object, void *delimiter, size_t i, bool end)
 {
@@ -1988,7 +1977,7 @@ Object *str_infix(Object *object, void *delimiter, size_t i, bool end)
     if (end && !addStringToPad(scratchpad, ". ")) goto err;
     return str_object(object);
 err:
-    return flisp_static_error(io_error, &fmt_oom_message);    
+    return flisp_static_error(io_error, &fmt_oom_message);
 }
 Object *str_prefix_object(Object *object, void *delimiter)
 {
@@ -2070,7 +2059,7 @@ char *flisp_str(Object *object, Object **error)
 Object *primitiveStr(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     CHECK_OOM(FLISP_ARG1);
-    
+
     Object *error;
     char *s = flisp_str(FLISP_ARG1, &error);
     FLISP_CHECK_ERR(error);
@@ -3029,7 +3018,7 @@ Object *flisp_interpreter(size_t size, char **argv, FILE *input)
     FLISP_INTERP.gcTop = nil;
     do {
         FLISP_UNLESS_ERR(FLISP_INTERP.symbols = newCons(interp, &nil, &nil));
-        FLISP_UNLESS_ERR(FLISP_INTERP.global = newEnv(interp, &nil, &nil));
+        FLISP_UNLESS_ERR(FLISP_INTERP.global = flisp_new(interp, type_env, &nil, 3, 0));
         FLISP_WHILE_OK(initRootEnv(interp));
 
         /* input stream */
