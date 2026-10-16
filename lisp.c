@@ -202,6 +202,7 @@ char *fmtInteger(int64_t integer, int64_t base, char *map, char pad_char, size_t
 
 #define CAR(OBJECT) (OBJECT)->cons.car
 #define CDR(OBJECT) (OBJECT)->cons.cdr
+#define TYPE(OBJECT) (OBJECT)->type
 
 
 // GARBAGE COLLECTION /////////////////////////////////////////////////////////
@@ -286,7 +287,7 @@ Object *gcMoveObject(Object *interp, Object *object, gcStats *stats)
         return object;
     }
     // if the object has already been moved, return its new location
-    if (object->type == type_moved) {
+    if (TYPE(object) == type_moved) {
         stats->skipped++;
         return object->forward;
     }
@@ -299,7 +300,7 @@ Object *gcMoveObject(Object *interp, Object *object, gcStats *stats)
     FLISP_INTERP.memory->toOffset += size;
 
     // mark object as moved and set forwarding pointer
-    object->type = type_moved;
+    TYPE(object) = type_moved;
     object->forward = forward;
 
     return object->forward;
@@ -421,7 +422,7 @@ allocateObject:
     ;
     /* Allocate object in from-space */
     Object *object = (Object *) ((char *)FLISP_INTERP.memory->fromSpace + FLISP_INTERP.memory->fromOffset);
-    object->type = type;
+    TYPE(object) = type;
     FLISP_INTERP.memory->fromOffset += size;
 
     return object;
@@ -516,7 +517,7 @@ Object *flisp_store_object(Object *interp, Object *object, Object *list, size_t 
     Object *o = list;
 
     for (; index < object->length && o != nil; o = CDR(o))
-        if (o->type == type_cons)
+        if (TYPE(o) == type_cons)
             object->objects[index++] = CAR(o);
         else {
             object->objects[index++] = o;
@@ -564,7 +565,7 @@ Object *newClosure(Object *interp, TypeObject *type, Object ** args, Object **en
     Object *o;
 
     /* Covers: (closure (a b ..) body) and (closure (a b . ?) body) */
-    for (o = CAR(*args); o->type == type_cons;  o = CDR(o)) {
+    for (o = CAR(*args); TYPE(o) == type_cons;  o = CDR(o)) {
         if (CAR(o)->type != type_symbol)
             return newError2(interp, wrong_type_argument, CAR(o),
                                (type == type_lambda) ? "(lambda" : "(macro",
