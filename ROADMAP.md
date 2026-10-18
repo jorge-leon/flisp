@@ -6,13 +6,12 @@
 - Make cloneList() available to Lisp as (list-append) and use e.g. in (append).
   - or implement append already in C.
 - Make memory allocator parametrizable, allocate constants in separate mmap.
-- Add "trim" parameter to gc call: add or increase allocated memory.
 - Add "which" parameter to gc call, so we can have more then one space.
 - Add gc stat fields to interp object
 
 ## Future
 
-- Implement addIntegerToPad() and use it for object formatting, et. al.
+- Implement vector reading via square bracket notation.
 - ! don't! Remove argv0 and argv from flisp_interpreter(), inject them at startup <- or maybe not.
 - Clean up and document internal and exported flisp_* functions and FLISP_* macros.
 - Namespace support for faster (?) symbol lookup with bigger programs
@@ -66,6 +65,7 @@
   - cons -> eval *new: this allows to override
 - CAR() CDR() Macro: use it consistently
 - Remove global variables (except argv, argv0) - they are covered by (interp-[input|output|debug).
++ Add optional flag to gc call to shrink memory to minimum.
 
 
 ## fLisp 0.17

@@ -723,13 +723,12 @@ list, string or object. If any of them is negative they are counted from
 the end of the list, string or object.
 
 `(object-size «o»)`  
-Returns the size property of *o*.  
- 
+Returns the size property of *o*.
 
 `(object-length «o»)`  
 Returns the length property of *o*.
 
-`(new «type» «length»[ «arg» ..])`  
+`(new «type» «length»[ «arg» ..])`  
 Creates an object of the specified *type* with *length* embeded objects.
 Objects *arg* .. are stored sequentially in the new object. If there are
 more then *length* *arg*'s the rest is ignored, if there are less the
@@ -879,12 +878,12 @@ all *then* terms in a `progn`.
 If *pred* is not `nil` evaluate and return all *then* terms in a
 `progn`, otherwise return `nil`.
 
-`(unless «pred»[ «then»..])` ⇒ `nil`*\|then<sub>n</sub>*  
+`(unless «pred»[ «then»..])` ⇒ `nil`*\|then<sub>n</sub>*  
 If *pred* is `nil` evaluate and return all *then* terms in a `progn`,
 otherwise return `nil`.
 
 `(defun «name» «params» «body»)` ⇒ *lambda*  
-Defines and returns a lambda and binds it to the global symbol *name*.
+Defines and returns a lambda and binds it to the global symbol *name*.
 
 `(cadr '(a «b»[ «c»..]))` ⇒ *b*  
  
@@ -909,11 +908,14 @@ Return first element of first element of first element of list.
 `(cdaar '(((«a» «b))»[ «c»..]))` ⇒ *b*  
 Return rest (cdr) of first element of first element of list.
 
-`(setq «symbol» «value»[ «symbol» «value»..])` ⇒ *value*  
+`(setq «symbol» «value»[ «symbol» «value»..])` ⇒ *value* <u>D</u>  
 Create or update named objects: If *symbol* is the name of an existing
 named object in the current or a parent environment the named object is
 set to *value*, if no symbol with this name exists, a new one is created
 in the top level environment. `setq` returns the last *value*.
+
+If the last *value* is not given the symbol is bound to `nil`; this is
+different then from other Lisp implementations.
 
 `(curry «func» «a»)` ⇒ *lambda*  
 Returns a lambda with one parameter *b*. The lambda evaluates
