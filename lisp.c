@@ -1689,14 +1689,11 @@ Object *evalExpr(Object *interp, Object ** object, Object **env)
         GC_CHECK_ERR(*gcFunc);
 
         if ((*gcFunc)->type == type_lambda) {
-            *gcArgs = evalList(interp, gcArgs, gcEnv);
-            GC_CHECK_ERR(*gcArgs);
-            *gcEnv = newEnv(interp, (*gcFunc)->closure.params, *gcArgs);
-            GC_CHECK_ERR(*gcEnv);
+            GC_CHECK_ERR(*gcArgs = evalList(interp, gcArgs, gcEnv));
+            GC_CHECK_ERR(*gcEnv = newEnv(interp, (*gcFunc)->closure.params, *gcArgs));
             (*gcEnv)->env.parent = (*gcFunc)->closure.env;
             (*gcEnv)->env.vars = (*gcFunc)->closure.params;
-            *gcObject = evalProgn(interp, &(*gcFunc)->closure.body, gcEnv);
-            GC_CHECK_ERR(*gcArgs);
+            GC_CHECK_ERR(*gcObject = evalProgn(interp, &(*gcFunc)->closure.body, gcEnv));
         } else if ((*gcFunc)->type == type_macro) {
             *gcObject = expandMacroTo(interp, gcFunc, gcArgs);
             GC_CHECK_ERR(*gcObject);
