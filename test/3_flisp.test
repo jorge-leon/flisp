@@ -5,11 +5,14 @@
 # leg20231129, CC 1.0
 #
 
-tap 26
+PREPARE=
+PREPARE="(interp-gc-always t)$PREPARE"
+
+tap 25
 
 export FLISP_SIZE=$((200*1024*1024))
 flisp () {
-    { cat ../core.lsp ../flisp.lsp ; cat -; } | FLISP_QUIET=1 ../fl
+    { cat ../core.lsp ../flisp.lsp ; echo $PREPARE; cat -; } | FLISP_QUIET=1 ../fl
 }
 FLISP=flisp
 export FLISP_PRINT=1
@@ -28,11 +31,11 @@ IN="(listp '(a 0))" OUT=t
 flisp_expr; ok listp-4 two element list is list
 
 
-# Math
+IN="(fold-right i- 0 '(1 2 3 4))" OUT="-2"
+flisp_expr; ok fold-right-1 map i- 0 on 1 2 3 4 is -2
 
-true; ok fold-right-1 \# TODO
-
-true; ok unfold-1 \# TODO unfold is tested by its application in iota
+# Note: unfold is tested by its application in iota
+#true; ok unfold-1 
 
 IN="(iota 5)" OUT="(0 1 2 3 4)"
 flisp_expr; ok iota-1 iota count gives count
@@ -57,7 +60,8 @@ flisp_expr; ok prop-get-3 prop-get last w/o value is nil
 IN="(prop-get '(a 1 b 2 c 3) 'c)" OUT="3"
 flisp_expr; ok prop-get-4 prop-get last with value is last
 
-true; ok prop-get-5 \# TODO prop-get with predicate
+IN="(prop-get '(1 a 2 b 3 c) 2 i=)" OUT=b
+flisp_expr; ok prop-get-5 prop-get with predicate
 
 # atom
 IN='(atom 0)' OUT=t
@@ -83,17 +87,23 @@ IN='(zerop 1)' OUT=nil
 flisp_expr; ok zerop-2 1 is not zero
 
 # equal
-true; ok equal \# TODO
+IN="(equal '(1 2) '(1 2))" OUT=t
+flisp_expr; ok equal-1 same list structure is equal
 
 # vector
 IN="(vector 1 2 3)" OUT="[1 2 3]"
 flisp_expr; ok vector-1 vector of 3
 
-# quasiquote-splice
-true; ok quasiquote-splice \# TODO
+# quasiquote
+IN='`(1 2 3)' OUT='(1 2 3)'
+flisp_expr; ok quasiquote-1 simple quasiquote is quote
+
 
 # quasiquote-unquote
-true; ok quasiquote-unquote \# TODO
+IN='`(1 2 ,(i+ 1 2))' OUT='(1 2 3)'
+flisp_expr; ok quasiquote-unquote-1 unquote inserts value
 
-# quasiquote
-true; ok quasiquote \# TODO
+# quasiquote-splice
+IN='`(1 ,@(list 2 3))' OUT='(1 2 3)'
+flisp_expr; ok quasiquote-splice-1 splice inserts list
+

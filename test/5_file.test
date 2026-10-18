@@ -3,11 +3,14 @@
 # fLisp test file library
 #
 
+PREPARE=
+PREPARE="(interp-gc-always t)$PREPARE"
+
 tap 21
 
 export FLISP_SIZE=$((200*1024*1024))
 flisp () {
-    cat ../core.lsp ../string.lsp ../file.lsp - | FLISP_QUIET=1 ../fl
+    { cat ../core.lsp ../string.lsp ../file.lsp; echo $PREPARE; cat -; } | FLISP_QUIET=1 ../fl
 }
 FLISP=flisp
 export FLISP_PRINT=1

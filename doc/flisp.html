@@ -654,11 +654,10 @@
       the list, string or object.</p>
     </dd>
     <dt><code>(object-size <var>o</var>)</code></dt>
-    <dt>Returns the size property of <var>o</var>.</dt>
-    <dd>&nbsp;</dd>
+    <dd>Returns the size property of <var>o</var>.</dd>
     <dt><code>(object-length <var>o</var>)</code></dt>
     <dd>Returns the length property of <var>o</var>.</dd>
-    <dt><code>(new&nbsp;<var>type</var>&nbsp;<var>length</var>[&nbsp;<var>arg</var> ..])</code></dt>
+    <dt><code>(new <var>type</var> <var>length</var>[ <var>arg</var> ..])</code></dt>
     <dd>Creates an object of the specified <var>type</var> with <var>length</var> embeded objects. Objects
     <var>arg</var> .. are stored sequentially in the new object. If there are more then <var>length</var>
     <var>arg</var>'s the rest is ignored, if there are less the length <var>arg</var>'s the rest is if filled with
@@ -779,14 +778,14 @@
         <p>If <var>pred</var> is not <code>nil</code> evaluate and return all <var>then</var> terms in a
         <code>progn</code>, otherwise return <code>nil</code>.</p>
       </dd>
-      <dt><code>(unless&nbsp;<var>pred</var>[ <var>then</var>..])</code> ⇒
+      <dt><code>(unless <var>pred</var>[ <var>then</var>..])</code> ⇒
       <code>nil</code><i>|then<sub>n</sub></i></dt>
       <dd>
         <p>If <var>pred</var> is <code>nil</code> evaluate and return all <var>then</var> terms in a
         <code>progn</code>, otherwise return <code>nil</code>.</p>
       </dd>
       <dt><code>(defun <var>name</var> <var>params</var> <var>body</var>)</code> ⇒ <i>lambda</i></dt>
-      <dd>Defines and returns a lambda&nbsp;and binds it to the global symbol <var>name</var>.</dd>
+      <dd>Defines and returns a lambda and binds it to the global symbol <var>name</var>.</dd>
       <dt><code>(cadr '(a <var>b</var>[ <var>c</var>..]))</code> ⇒ <var>b</var></dt>
       <dd>&nbsp;</dd>
       <dd>Return second element of a list.</dd>
@@ -804,11 +803,14 @@
       <dt><code>(cdaar '(((<var>a</var> <var>b))</var>[ <var>c</var>..]))</code> ⇒ <i>b</i></dt>
       <dd>Return rest (cdr) of first element&nbsp;of first element of list.</dd>
       <dt><code>(setq <var>symbol</var> <var>value</var>[ <var>symbol</var> <var>value</var>..])</code> ⇒
-      <i>value</i></dt>
+      <i>value</i> <u>D</u></dt>
       <dd>
         <p>Create or update named objects: If <var>symbol</var> is the name of an existing named object in the current
         or a parent environment the named object is set to <var>value</var>, if no symbol with this name exists, a new
-        one is created in the top level environment. <code>setq</code> returns the last <var>value</var>.</p>
+          one is created in the top level environment. <code>setq</code> returns the last <var>value</var>.</p>
+	<p>If the last <var>value</var> is not given the symbol is bound to <code>nil</code>; this is different then
+	  from other Lisp implementations.
+	</p>
       </dd>
       <dt><code>(curry <var>func</var> <var>a</var>)</code> ⇒ <i>lambda</i></dt>
       <dd>Returns a lambda with one parameter <var>b</var>. The lambda evaluates

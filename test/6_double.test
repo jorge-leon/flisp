@@ -1,0 +1,42 @@
+#!./test.sh # -*- mode: sh -*-
+#
+# fLisp test double arithmetic in the core library
+#
+# leg20261018, CC 1.0
+#
+
+PREPARE=
+PREPARE="(interp-gc-always t)"
+
+flisp () {
+    { echo '(bind t script_dir "..")';
+      echo "(extension 'double) $PREPARE"
+      cat ../core.lsp
+      echo "$IN"
+    } |  ../fl
+}
+FLISP=flisp
+export FLISP_PRINT=1
+#export FLISP_SIZE=$((20*1024*1024))
+
+tap 1
+
+
+IN='(/ #d42.0)' OUT='#D3F98618618618618'
+flisp_expr; ok divide-1 divide 42  is 1/42
+
+# IN='(= 42)' OUT='t' flisp_expr; ok arith-equal-1 arith-equal 42  is t
+# IN='(= 7 7 7)' OUT='t' flisp_expr; ok arith-equal-3 arith-equal 7 7 7 is t
+# IN='(= 7 7 8)' OUT='nil' flisp_expr; ok arith-equal-4 arith-equal 7 7 8 is nil
+# IN='(< 42)' OUT='t' flisp_expr; ok less-1 less 42  is t
+# IN='(< 7 7 7)' OUT='nil' flisp_expr; ok less-3 less 7 7 7 is nil
+# IN='(< 1 2 3)' OUT='t' flisp_expr; ok less-4 less 1 2 3 is t
+# IN='(<= 42)' OUT='t' flisp_expr; ok less-equal-1 less-equal 42  is t
+# IN='(<= 7 7 7)' OUT='t' flisp_expr; ok less-equal-3 less-equal 7 7 7 is t
+# IN='(<= 7 7 6)' OUT='nil' flisp_expr; ok less-equal-4 less-equal 7 7 6 is nil
+# IN='(> 42)' OUT='t' flisp_expr; ok greater-1 greater 42  is t
+# IN='(> 7 7 7)' OUT='nil' flisp_expr; ok greater-3 greater 7 7 7 is nil
+# IN='(> 7 7 6)' OUT='nil' flisp_expr; ok greater-4 greater 7 7 6 is nil
+# IN='(>= 42)' OUT='t' flisp_expr; ok greater-equal-1 greater-equal 42  is t
+# IN='(>= 7 7 7)' OUT='t' flisp_expr; ok greater-equal-3 greater-equal 7 7 7 is t
+# IN='(>= 7 7 6)' OUT='t' flisp_expr; ok greater-equal-4 greater-equal 7 7 6 is t

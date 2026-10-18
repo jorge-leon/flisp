@@ -6,7 +6,7 @@
 #
 
 PREPARE=
-#PREPARE="(interp-gc-always t)"
+PREPARE="(interp-gc-always t)"
 
 flisp () {
     { echo '(bind t script_dir "..")';
@@ -17,9 +17,9 @@ flisp () {
 }
 FLISP=flisp
 export FLISP_PRINT=1
-export FLISP_SIZE=$((20*1024*1024))
+#export FLISP_SIZE=$((20*1024*1024))
 
-tap 189
+tap 199
 
 # list
 IN='(list)' OUT=nil
@@ -94,10 +94,10 @@ IN="(setq var 'val) var" OUT="val"
 flisp_expr; ok setq-2 var evaluates to val
 
 IN='(setq)' OUT=nil
-flisp_expr; ok setq-3 no args evaluate to nil \# TODO not standard
+flisp_expr; ok setq-3 no args evaluate to nil
 
 IN='(setq var1)' OUT=nil
-flisp_expr; ok setq-4 one arg fails  \TODO not standard
+flisp_expr; ok setq-4 one arg is nil
 
 EXPR="(setq var1 'val1  var2 'val2)"
 IN="$EXPR" OUT=val2
@@ -154,8 +154,18 @@ flisp_expr; ok streamp-1  streamp stream is t
 IN="(streamp streamp)" OUT='nil'
 flisp_expr; ok streamp-2  streamp lambda is nil
 
-true; ok errorp-1 \# TODO
-true; ok vectorp-1 \# TODO
+IN="(errorp (1))" OUT='t'
+flisp_expr; ok errorp-1  errorp error is t
+
+IN="(errorp errorp)" OUT='nil'
+flisp_expr; ok errorp-2  errorp lambda is nil
+
+IN="(vectorp (new type-vector 0))" OUT=t
+flisp_expr; ok vectorp-1 vectorp vector is t
+
+IN="(vectorp vectorp)" OUT=nil
+flisp_expr; ok vectorp-2 vectorp lambda is nil
+
 
 ###IN='(nthcdr -1 nil)' OUT='#<error:range-error: negative index: -1>'
 ###flisp_expr; ok nthcdr-1 negativ index fails
@@ -358,8 +368,6 @@ flisp_expr; ok apply-3 apply n-ary + to list 7 4 is 11
 IN="(apply + 3 4 '(7 4))" OUT="18"
 flisp_expr; ok apply-4 apply n-ary + to 3 4  and final list 7 4 is 18
 
-true; ok princ-1 \# TODO
-
 IN='(string-to-number "42")' OUT='42'
 flisp_expr; ok string-to-number-1 string 42 is 42
 
@@ -437,6 +445,7 @@ T_P="$PREPARE"
 PREPARE="(extension 'string)"
 IN="(length 'änswer)" OUT="6"
 flisp_expr; ok length-7 length of symbol with string extension is string length
+PREPARE="$T_P"
 
 # memq
 IN="(memq 'a (list 0 'a 3))" OUT="(a 3)"
@@ -451,12 +460,17 @@ flisp_expr; ok memq-3 find nil object in list
 IN="(map + '(1 2) '(2 3) '(3 4 5))" OUT="(6 9)"
 flisp_expr; ok map-1 map + on three lists of unequal length processes the arguments up to shortest list
 
-true; ok nfold \# TODO is tested by dynamic typed arithmetic
-true; ok coerce \# TODO is tested by dynamic typed arithmetic
-true; ok coercec \# TODO is tested by dynamic typed arithmetic
-true; ok fold-leftp \# TODO is tested by dynamic typed arithmetic
+# Note: nfold and fold-leftp are specifically designed for n-ary
+#   arithmetic and tested together with the arithmetic operators
+# true; ok nfold \# TODO is tested by dynamic typed arithmetic
+# true; ok fold-leftp \# TODO is tested by dynamic typed arithmetic
 
-true; ok arith \# TODO  test all of integer, double and misc arith.
+# Note: coercion is only defined and tested with double extension
+#   loaded: upon request test in a separate suite together with double
+#   and mixed arithmetic.
+# true; ok coerce \# TODO is tested by dynamic typed arithmetic
+# true; ok coercec \# TODO is tested by dynamic typed arithmetic
+
 IN='(+)' OUT='0' flisp_expr; ok add-1 add nothing is 0
 IN='(+ 42)' OUT='42' flisp_expr; ok add-2 add 42  is 42
 IN='(+ 1 2 3)' OUT='6' flisp_expr; ok add-4 add 1 2 3 is 6
@@ -466,29 +480,25 @@ IN='(- 1 2 3)' OUT='-4' flisp_expr; ok minus-4 minus 1 2 3 is -4
 IN='(*)' OUT='1' flisp_expr; ok times-1 times nothing is 1
 IN='(* 42)' OUT='42' flisp_expr; ok times-2 times 42  is 42
 IN='(* 1 2 3)' OUT='6' flisp_expr; ok times-4 times 1 2 3 is 6
-T_P="$PREPARE"
-PREPARE="(extension 'double)" IN='(/ #d42.0)' OUT='#D3F98618618618618'
-flisp_expr; ok divide-1 divide 42  is 1/42
-PREPARE="$T_P"
 
 IN='(/ 42 7 6)' OUT='1' flisp_expr; ok divide-3 divide 42 7 6 is 1
 IN='(% 42)' OUT='1' flisp_expr; ok mod-1 mod 42  is 1
 IN='(% 11 6 3)' OUT='2' flisp_expr; ok mod-3 mod 11 6 3 is 2
-# IN='(= 42)' OUT='t' flisp_expr; ok arith-equal-1 arith-equal 42  is t
-# IN='(= 7 7 7)' OUT='t' flisp_expr; ok arith-equal-3 arith-equal 7 7 7 is t
-# IN='(= 7 7 8)' OUT='nil' flisp_expr; ok arith-equal-4 arith-equal 7 7 8 is nil
-# IN='(< 42)' OUT='t' flisp_expr; ok less-1 less 42  is t
-# IN='(< 7 7 7)' OUT='nil' flisp_expr; ok less-3 less 7 7 7 is nil
-# IN='(< 1 2 3)' OUT='t' flisp_expr; ok less-4 less 1 2 3 is t
-# IN='(<= 42)' OUT='t' flisp_expr; ok less-equal-1 less-equal 42  is t
-# IN='(<= 7 7 7)' OUT='t' flisp_expr; ok less-equal-3 less-equal 7 7 7 is t
-# IN='(<= 7 7 6)' OUT='nil' flisp_expr; ok less-equal-4 less-equal 7 7 6 is nil
-# IN='(> 42)' OUT='t' flisp_expr; ok greater-1 greater 42  is t
-# IN='(> 7 7 7)' OUT='nil' flisp_expr; ok greater-3 greater 7 7 7 is nil
-# IN='(> 7 7 6)' OUT='nil' flisp_expr; ok greater-4 greater 7 7 6 is nil
-# IN='(>= 42)' OUT='t' flisp_expr; ok greater-equal-1 greater-equal 42  is t
-# IN='(>= 7 7 7)' OUT='t' flisp_expr; ok greater-equal-3 greater-equal 7 7 7 is t
-# IN='(>= 7 7 6)' OUT='t' flisp_expr; ok greater-equal-4 greater-equal 7 7 6 is t
+IN='(= 42)' OUT='t' flisp_expr; ok arith-equal-1 arith-equal 42  is t
+IN='(= 7 7 7)' OUT='t' flisp_expr; ok arith-equal-3 arith-equal 7 7 7 is t
+IN='(= 7 7 8)' OUT='nil' flisp_expr; ok arith-equal-4 arith-equal 7 7 8 is nil
+IN='(< 42)' OUT='t' flisp_expr; ok less-1 less 42  is t
+IN='(< 7 7 7)' OUT='nil' flisp_expr; ok less-3 less 7 7 7 is nil
+IN='(< 1 2 3)' OUT='t' flisp_expr; ok less-4 less 1 2 3 is t
+IN='(<= 42)' OUT='t' flisp_expr; ok less-equal-1 less-equal 42  is t
+IN='(<= 7 7 7)' OUT='t' flisp_expr; ok less-equal-3 less-equal 7 7 7 is t
+IN='(<= 7 7 6)' OUT='nil' flisp_expr; ok less-equal-4 less-equal 7 7 6 is nil
+IN='(> 42)' OUT='t' flisp_expr; ok greater-1 greater 42  is t
+IN='(> 7 7 7)' OUT='nil' flisp_expr; ok greater-3 greater 7 7 7 is nil
+IN='(> 7 7 6)' OUT='nil' flisp_expr; ok greater-4 greater 7 7 6 is nil
+IN='(>= 42)' OUT='t' flisp_expr; ok greater-equal-1 greater-equal 42  is t
+IN='(>= 7 7 7)' OUT='t' flisp_expr; ok greater-equal-3 greater-equal 7 7 7 is t
+IN='(>= 7 7 6)' OUT='t' flisp_expr; ok greater-equal-4 greater-equal 7 7 6 is t
 
 IN='(min)' OUT='#<error:wrong-number-of-arguments: (f args) - args, f expects at least 1 arguments: nil>'
 flisp_expr; ok min-1 with nil fails
