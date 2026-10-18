@@ -363,8 +363,11 @@ true; ok princ-1 \# TODO
 IN='(string-to-number "42")' OUT='42'
 flisp_expr; ok string-to-number-1 string 42 is 42
 
-IN='(string-to-number "#d3.14")' OUT="#<type-double>"
-flisp_expr; ok string-to-number-2 'string #d3.14 is #<type-double>'
+T_P="$PREPARE"
+PREPARE="(extension 'double)"
+IN='(string-to-number "#d3.14")' OUT="#D40091EB851EB851F"
+flisp_expr; ok string-to-number-2 'string #d3.14 is #D40091EB851EB851F'
+PREPARE="$T_P"
 
 IN='(string-to-number "answer")' OUT='#<error:invalid-value: (string-to-number string) - string expected number, got #<type-symbol>: answer>'
 flisp_expr; ok string-to-number-3 not number / string is error
@@ -464,7 +467,7 @@ IN='(*)' OUT='1' flisp_expr; ok times-1 times nothing is 1
 IN='(* 42)' OUT='42' flisp_expr; ok times-2 times 42  is 42
 IN='(* 1 2 3)' OUT='6' flisp_expr; ok times-4 times 1 2 3 is 6
 T_P="$PREPARE"
-PREPARE="(extension 'double)" IN='(/ #d42.0)' OUT='#<type-double>'  #OUT='#d0.023810' #OUT=#D3F98618618618618
+PREPARE="(extension 'double)" IN='(/ #d42.0)' OUT='#D3F98618618618618'
 flisp_expr; ok divide-1 divide 42  is 1/42
 PREPARE="$T_P"
 

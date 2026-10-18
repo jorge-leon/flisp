@@ -44,7 +44,7 @@ IN="0x10" OUT='16'
 flisp_expr; ok reader-4-4 read integer hex 10 is 16
 
 # Note: We just test the reader here,type-double is handled in the double extension.
-IN="#d.1" OUT='#<type-double>'
+IN="#d.1" OUT='#D3FB999999999999A'
 flisp_expr; ok reader-4-5 read double is type
 
 IN="t" OUT='t'

@@ -165,7 +165,10 @@ bool addStringToPad(Scratchpad *pad, char *string)
  * @param base     .. Number base to use
  * @param map      .. Conversion map to use
  * @param pad_char .. Character to use for left-padding the integer string: eq.: ' ', 0, x, X, b, B
- * @param length   .. Max length of output string, -1 for no padding, 0 to add a '0' before first pad char.
+ * @param length   .. Max length of output string,
+ *                    -1 for no padding,
+ *                    -2 to add '#' before first pad char,
+ *                     0 to add a '0' before first pad char.
  *
  * @return: index to first digit within pad or error: NULL = OOM, -1, -2  range error for base or length.
  */
@@ -194,9 +197,10 @@ char *fmtInteger(int64_t integer, int64_t base, char *map, char pad_char, size_t
 
     if (negative)  *--i = '-';
 
-    if (length == -1)  return i;
-    if (length == 0) { i-=2; *i = '0'; return i; }
-    if (length <= 67)  return &pad[67-length];
+    if (length == -1) return i;
+    if (length == -2) { i-=2; *i = '#'; return i; }
+    if (length == 0)  { i-=2; *i = '0'; return i; }
+    if (length <= 67) return &pad[67-length];
     return (char *)-2;
 }
 
@@ -2001,6 +2005,8 @@ Object *str_string_object(Object *object)
     /* Obvious string representations */
     if (object->type == type_integer)
         return str_add_string(fmtInteger(object->value, 10, flisp_integer_char_map, ' ', -1));
+    if (object->type == type_double)
+        return str_add_string(fmtInteger(object->value, 16, flisp_integer_char_map, 'D', -2));
     if (object->type == type_str)
         return str_add_string(object->str);
     if (object->type == type_string)
