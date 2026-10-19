@@ -370,7 +370,7 @@ flisp_expr; ok object-size-2 integer is zero
 IN="(object-size '(a . b))" OUT=$((2*8)) # Note: 8 is size of pointer on architecture
 flisp_expr; ok object-size-3 cons is two times pointer
 
-IN="(object-size *standard-input*)" OUT=$((4*8))
+IN="(object-size (interp-input))" OUT=$((4*8))
 flisp_expr; ok object-size-4  stream is two cells plus two pointers
 
 IN='(object-length "abc")' OUT=0
@@ -382,7 +382,7 @@ flisp_expr; ok object-length-2 symbol is 0
 IN="(object-length '(a . b))" OUT=2
 flisp_expr; ok object-length-3 cons is two cells
 
-IN="(object-length *standard-input*)" OUT=4
+IN="(object-length (interp-input))" OUT=4
 flisp_expr; ok object-length-4  stream is one cell
 
 IN='(object-length 42)' OUT=0
@@ -493,7 +493,7 @@ flisp_expr; ok elements-12 symbols behave like strings
 IN='(elements foo)' OUT='(invalid-value unbound symbol foo)'
 flisp_expr; ok elements-13 errors have elements
 
-IN='(elements *standard-input* 0 1)' OUT='(*standard-input*)'
+IN='(elements (interp-input) 0 1)' OUT='(*standard-input*)'
 flisp_expr; ok elements-14 streams first elements is the path
 
 IN='(cdr (elements ((lambda (foo) (env)) "bar")))' OUT='((foo) (bar))'
@@ -542,7 +542,7 @@ flisp_expr; ok close-5 closed memory stream contains null pointer, empty string 
 IN='(read (open "1" "<"))' OUT="1"
 flisp_expr; ok read-1 read memory input stream
 
-IN="(read *standard-input* 'EOF)" OUT="EOF"
+IN="(read (interp-input) 'EOF)" OUT="EOF"
 flisp_expr; ok read-2 read with eof marker
 
 IN='(eval 1)' OUT='1'

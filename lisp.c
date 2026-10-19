@@ -3026,8 +3026,6 @@ Object *flisp_interpreter(size_t size, char **argv, FILE *input)
 
         /* input stream */
         FLISP_UNLESS_ERR(FLISP_INTERP.input = newStreamObject(interp, input, "*standard-input*"));
-        FLISP_UNLESS_ERR(var = newSymbol(interp, "*standard-input*"));
-        FLISP_UNLESS_ERR(envSet(interp, &var, &FLISP_INTERP.input, &FLISP_INTERP.global, true));
 
         /* declare and load the core primitives */
         FLISP_INTERP.extensions = nil;

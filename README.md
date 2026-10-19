@@ -45,6 +45,7 @@ Size by version:
 	0.18α1   94056  116936   4575/3080/10           742/178/5 (princ, not counted in, 183/141/2)
 	0.18α1   97792  116856   4752/3227/10           745/178/5
 	0.18α1   97264  116888   4732/3204/10           721/178/5 (str)
+	0.18α1   98032  116888   4697/3171/10           721/178/5 values fix, append, apply
 
 The statically compiled `fl` measures 1.1M.
 
