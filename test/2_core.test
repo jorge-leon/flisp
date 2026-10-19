@@ -19,7 +19,7 @@ FLISP=flisp
 export FLISP_PRINT=1
 #export FLISP_SIZE=$((20*1024*1024))
 
-tap 199
+tap 200
 
 # list
 IN='(list)' OUT=nil
@@ -353,14 +353,19 @@ flisp_expr; ok append-4 append list atom is dotted list
 IN="(append '(1 2 3) '(a b c))" OUT="(1 2 3 a b c)"
 flisp_expr; ok append-5 append list list is list
 
-IN="(append 1 1)" OUT='#<error:invalid-value: (append lists) - list expected type-list, got #<type-integer>: nil>'
+IN="(append 1 1)"
+##OUT='#<error:invalid-value: (append lists) - list expected type-list, got #<type-integer>: nil>'
+OUT='#<error:wrong-type-argument: (list-append list end) - list expected type-cons got type-integer: 1>'
 flisp_expr; ok append-6 append atom any errs
 
 IN="(apply +)" OUT="0"
 flisp_expr; ok apply-1 apply n-ary + to nothing is 0
 
-IN="(apply + 7)" OUT="7"
-flisp_expr; ok apply-2 apply n-ary + to 7 is 7
+IN="(apply + '7)" OUT="#<error:wrong-type-argument: (f args) - args[0] is not a list: 7>"
+flisp_expr; ok apply-2-1 apply n-ary + to 7 is 7
+
+IN="(apply + '(7))" OUT="7"
+flisp_expr; ok apply-2-2 apply n-ary + to list 7 is 7
 
 IN="(apply + '(7 4))" OUT="11"
 flisp_expr; ok apply-3 apply n-ary + to list 7 4 is 11

@@ -3,28 +3,20 @@
 # ROADMAP
 
 ## Next
-- Make cloneList() available to Lisp as (list-append) and use e.g. in (append).
-  - or implement append already in C.
-- Make memory allocator parametrizable, allocate constants in separate mmap.
-- Add "which" parameter to gc call, so we can have more then one space.
-- Add gc stat fields to interp object
 
 ## Future
 
+- Implement breakpoint callback in evalExpr(): can be used in fl to re-implement debugging
+  w/o pushing it to the core. can be interactive with introspection.
 - Implement vector reading via square bracket notation.
-- ! don't! Remove argv0 and argv from flisp_interpreter(), inject them at startup <- or maybe not.
 - Clean up and document internal and exported flisp_* functions and FLISP_* macros.
 - Namespace support for faster (?) symbol lookup with bigger programs
   - each namespace has its own symbols tree
   - when searching first the namespace is determined: prefix before '-', then
 	the namespace is looked up, if found the symbols w/o prefix and '-' is
 	looked up. If the namespace is not found, search the global namespace.
-- consider StreamObject and use it for interpreter streams.
 - Remove stdio.h from core:
   - read(0,1,&inbuf) ~= getc, need a single char ungetc only.
-  - object fmt should not use printf anymore
-  - debug output: remoe printf also
-- expose the write(fmt)_* functions in lisp.h, so extensions writes can use them
 - Make symbol names huffman or algorithmic compressed int64_6 arrays for
   speedier lookups.
 - Add line , character and column counter to input stream
@@ -35,8 +27,6 @@
 - Re-order symbols on the fly so that heavier ones float to the bottom.
 - Objects host their reader (?) and are pluggable.
 - RPN micro reader
-- Remove all printf, make own buffering and remove stdio <- not a goal anymore:
-  simplify to standard.
 - Size reduction:
   - Reduce binary operators to 'and' and 'xor' and write needed rest in Lisp.
 - Tap the potential of the in code documentation via Doxygen.
@@ -51,21 +41,25 @@
 	(r).
 - Test more then one interpreter.
 - ? CSP between interpreters?
+- Make memory allocator parametrizable, allocate constants in separate mmap.
+- Add "which" parameter to gc call, so we can have more then one space.
+- Add gc stat fields to interp object
 
 
 ## fLisp 0.18
 - object: move write out of core, replace with fmt.
   - instead of writer slot have a fmt slot in the type object.
-  - consider eliminating readably formatting from core.
-  - fl: read, eval, fmt, puts()
+  + readably formatting is removed from core.
+  + fl: read, eval, fmt, puts()
   - rationale: embedded operation most likely doesn't want to print neither fmt.
 - object: new and fmt slot contain either:
   + nil -> fallback operation
   + primitive -> execute
   - cons -> eval *new: this allows to override
-- CAR() CDR() Macro: use it consistently
-- Remove global variables (except argv, argv0) - they are covered by (interp-[input|output|debug).
+- CAR() CDR() TYPE() Macro: use it consistently
++ Remove global variables (except argv, argv0) - they are covered by (interp-[input|output|debug).
 + Add optional flag to gc call to shrink memory to minimum.
++ Make cloneList() available to Lisp as (list-append) and use e.g. in (append).
 
 
 ## fLisp 0.17

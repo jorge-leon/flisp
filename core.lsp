@@ -145,24 +145,24 @@
 (defun flip (func)  (lambda (o1 o2) (func o2 o1)))
 (defun reverse (l)  (fold-left (flip cons) nil l))
 
-;;; https://www.scheme.com/tspl2d/objects.html#g2052
-(defun append lists
-  (let f ((ls nil) (lists lists))
-       (if (null lists)  ls
-	   (let g ((ls ls))
-		(if (null ls)  (f (car lists) (cdr lists))
-		    (if (consp ls) ls
-			(error invalid-value
-			  (concat "(append lists) - list expected type-list, got " (type-of ls)) ))
-		    (cons (car ls) (g (cdr ls))) )))))
-
+(defmacro append args
+  (cond
+    ((null args)  nil)
+    ((null (cdr args))  (car args))
+    ((null (car args)) (cons 'append (cdr args)))
+    ((null (cadr args)) (cons 'append (cons (car args) (cddr args))))
+    ((consp (cadr args))
+     (list 'list-append (car args) (cons 'append (cdr args)) ))
+    (t  (cons 'list-append args) )))
 
 (defun apply (f . args)
-  (if  (null args)  (f)
-       (let ((rev (reverse args)))
+  (cond
+    ((null args)  (f))
+    ((null (cdr args)) (eval (cons f  (car args))))
+    (t (let ((rev (reverse args)))
 	 ;; if last element is list splice it
 	 (if (consp (car rev))  (eval (cons f (append (reverse (cdr rev)) (car rev))))
-	     (f . args)) )))
+	     (f . args)) ))))
 
 (defun string-to-number (string)
   (let* ((f (open string "<"))
