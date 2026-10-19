@@ -1,4 +1,6 @@
 # α1
+- (list-append l e) shall accept nil as first argument and return e in this case.
+  - this should simplify (append) and maybe (apply)
 - Fix: storing lambda in slot 2 of type-string makes type-string (or so) segfault
 - object: new and fmt slot contain either:
   + nil -> fallback operation
@@ -30,3 +32,4 @@
   - use in applicable scenarios
   - document
 - Give memory struct to gc() as parameter.
+- consider (spread l): flatten last element in list l, last element must be list. Note: seems only be used in(apply).
