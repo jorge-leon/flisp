@@ -91,7 +91,7 @@ int main(int argc, char **argv)
         if (FLISP_IS_ERR(result))  out = stderr;
         if (FLISP_IS_ERR(result) || print)  fputs(flisp_str(result, &error), out);
         if (FLISP_IS_ERR(error)) fatal("Failed to format result");
-        if (interactive) write_string(out, "\n");
+        if (print) write_string(out, "\n");
         if (FLISP_IS_ERR(result) && !interactive)  return 1;
     }
 }

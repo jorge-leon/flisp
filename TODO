@@ -2,6 +2,11 @@
 - (list-append l e) shall accept nil as first argument and return e in this case.
   - this should simplify (append) and maybe (apply)
 - Fix: storing lambda in slot 2 of type-string makes type-string (or so) segfault
+  - this holds (probably) for any constant vector object.
+  - modify flisp_store_object() to take this into account (err if dangerous)
+  - remove check in primitiveStore()
+  - remove (wrap) test primitive
+  - expand/prepare fmt.c e.g. to print strings readably.
 - object: new and fmt slot contain either:
   + nil -> fallback operation
   + primitive -> execute

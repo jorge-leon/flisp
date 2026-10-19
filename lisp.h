@@ -30,14 +30,13 @@
 /* Lisp objects */
 
 typedef struct Object Object;
-typedef struct TypeObject TypeObject;
 typedef Object *(*LispEval) (Object *, Object **, Object **, size_t);
 typedef Object *(*ExtensionInit) (Object *, Object *);
 
 typedef struct Primitive {
     char *name;
     int nMinArgs, nMaxArgs;
-    TypeObject *argsType;
+    Object *argsType;
     LispEval eval;
 } Primitive;
 
@@ -54,7 +53,7 @@ typedef struct Primitive {
  * - value(s) stored in extension union
  */
 typedef struct SimpleObject {
-    TypeObject *type;
+    Object *type;
     size_t size;
     union {
         /* Flisp */
@@ -133,7 +132,7 @@ typedef struct ExtensionExt {
 } ExtensionExt;
 
 struct Object {
-    TypeObject *type;
+    Object *type;
     size_t size;
     union {
         size_t length;
@@ -151,6 +150,7 @@ struct Object {
         struct { Object *car;    Object *cdr; }; // Cons
         char string[sizeof(InterpreterExt)];     // String, Symbol
         Object *values;
+        TypeExt t;
         ConsExt cons;
         EnvExt env;
         ClosureExt closure; /* Lambda, Macro */
@@ -160,11 +160,6 @@ struct Object {
         InterpreterExt self;
     };
 };
-
-typedef struct TypeObject {
-    SimpleObject self;
-    TypeExt type;
-} TypeObject;
 
 typedef struct Scratchpad {
     char *string;
@@ -191,7 +186,7 @@ extern int file_fclose(Object *, Object *);
 extern int64_t flisp_list_length(Object*);
 
 extern SimpleObject nil_obj;
-extern TypeObject type_primitive_obj;
+extern Object type_primitive_obj;
 extern SimpleObject flisp_init_invalid;
 
 /* Candidates
@@ -210,8 +205,8 @@ extern SimpleObject flisp_init_invalid;
 extern Object *flisp_register_extension(Object *, Object *, ExtensionInit);
 
 extern Object *flisp_register_constant(Object *, Object *, Object *);
-extern Object *flisp_register_primitive(Object *, char *, int, int, TypeObject *, LispEval);
-extern Object *flisp_register_type(Object *, char *, TypeObject *, Object *, Object *);
+extern Object *flisp_register_primitive(Object *, char *, int, int, Object *, LispEval);
+extern Object *flisp_register_type(Object *, char *, Object *, Object *, Object *);
 
 
 // PROGRAMMING INTERFACE ////////////////////////////////////////////////
@@ -221,25 +216,25 @@ extern Object *flisp_register_type(Object *, char *, TypeObject *, Object *, Obj
 extern Object *nil;
 extern Object *t;
 /* Types */
-extern TypeObject *type_integer;
-extern TypeObject *type_primitive;
+extern Object *type_integer;
+extern Object *type_primitive;
 /* extensible */
-extern TypeObject *type_vector;
-extern TypeObject *type_cons;
-extern TypeObject *type_lambda;
-extern TypeObject *type_macro;
-extern TypeObject *type_env;
-extern TypeObject *type_type;
-extern TypeObject *type_string;
-extern TypeObject *type_symbol;
-extern TypeObject *type_error;
-extern TypeObject *type_stream;
+extern Object *type_vector;
+extern Object *type_cons;
+extern Object *type_lambda;
+extern Object *type_macro;
+extern Object *type_env;
+extern Object *type_type;
+extern Object *type_string;
+extern Object *type_symbol;
+extern Object *type_error;
+extern Object *type_stream;
 /* embedding */
-extern TypeObject *type_extension; /* opaque object */
-extern TypeObject *type_str; /* C string / ASCII or UTF-8 */
-extern TypeObject *type_ptr; /* C pointer */
+extern Object *type_extension; /* opaque object */
+extern Object *type_str; /* C string / ASCII or UTF-8 */
+extern Object *type_ptr; /* C pointer */
 
-#define type_any (TypeObject*)&nil_obj
+#define type_any (Object*)&nil_obj
 
 /* Exceptions */
 extern Object *end_of_file;
@@ -261,9 +256,9 @@ extern Object *flisp_empty_string;
 extern Object *flisp_integer_zero;
 extern Object *flisp_empty_vector;
 
-extern Object *flisp_new(Object *, TypeObject *, Object **, size_t, size_t);
+extern Object *flisp_new(Object *, Object *, Object **, size_t, size_t);
 /* Note: flisp_' ify these names */
-extern Object *newObject(Object *, TypeObject *, size_t);
+extern Object *newObject(Object *, Object *, size_t);
 extern Object *newInteger(Object *, int64_t);
 extern Object *newStringWithLength(Object *, char *, size_t);
 extern Object *newString(Object *, char *);
@@ -280,7 +275,7 @@ extern void resetBuf(Object *);
 extern bool addCharToBuf(Object *, int);
 
 
-extern TypeObject type_symbol_obj, type_type_obj, type_str_obj, type_string_obj;
+extern Object type_symbol_obj, type_type_obj, type_str_obj, type_string_obj;
 
 /* Constants */
 #define FLISP_DEFINE_CONSTANT(NAME,STRING)                                    \
@@ -289,15 +284,15 @@ extern TypeObject type_symbol_obj, type_type_obj, type_str_obj, type_string_obj;
 
 /* Types */
 #define FLISP_DEFINE_TYPE(NAME)                                         \
-    TypeObject type_##NAME##_obj = {                                    \
-        .self.type = &type_type_obj,                                    \
-        .self.size = sizeof(Object*[3]),                                \
-        .self.length = 3,                                               \
-        .type.name = (Object*)&(SimpleObject){ .type = &type_symbol_obj, .size = 0, .str = "type-" #NAME }, \
-        .type.new =  (Object*)&nil_obj,                                 \
-        .type.fmt =  (Object*)&nil_obj,                                 \
+    Object type_##NAME##_obj = {                                        \
+        .type   = &type_type_obj,                                       \
+        .size   = sizeof(Object*[3]),                                   \
+        .length = 3,                                                    \
+        .t.name = (Object*)&(SimpleObject){ .type = &type_symbol_obj, .size = 0, .str = "type-" #NAME }, \
+        .t.new  = (Object*)&nil_obj,                                    \
+        .t.fmt  = (Object*)&nil_obj,                                    \
     };                                                                  \
-    TypeObject *type_##NAME = &type_##NAME##_obj
+    Object *type_##NAME = &type_##NAME##_obj
 
 /* Garbage Collector */
 #define GC_PASTE1(name, id)  name ## id
@@ -331,9 +326,9 @@ extern bool flisp_is_error(Object **, Object *);
         return newError8(interp, wrong_type_argument, PARAM,            \
                          SIGNATURE,                                     \
                          " expected ",                                  \
-                         flisp_symbol_string((TYPE)->type.name),        \
+                         flisp_symbol_string((TYPE)->t.name),        \
                          " got ",                                       \
-                         flisp_symbol_string((PARAM)->type->type.name), \
+                         flisp_symbol_string((PARAM)->type->t.name), \
                          "", "", "")
 
 #define FLISP_INTERP interp->self

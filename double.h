@@ -11,7 +11,7 @@
 
 #define FLISP_DOUBLE_VERSION "0.1"
 
-extern TypeObject *type_double;
+extern Object *type_double;
 extern Object *extension_double;
 
 extern Object *flisp_double_init(Object *, Object *);

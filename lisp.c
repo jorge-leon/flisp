@@ -204,8 +204,8 @@ char *fmtInteger(int64_t integer, int64_t base, char *map, char pad_char, size_t
     return (char *)-2;
 }
 
-#define CAR(OBJECT) (OBJECT)->cons.car
-#define CDR(OBJECT) (OBJECT)->cons.cdr
+#define CAR(OBJECT)  (OBJECT)->cons.car
+#define CDR(OBJECT)  (OBJECT)->cons.cdr
 #define TYPE(OBJECT) (OBJECT)->type
 
 
@@ -288,6 +288,12 @@ Object *gcMoveObject(Object *interp, Object *object, gcStats *stats)
     /* Skip object if it is not within from-space, i.e. on the stack or a constant */
     if (!gcCollectableObject(interp, object)) {
         stats->constant++;
+        /* Note: this should account for objects stored in constant
+         * vector objects, but it seems not to have the desired
+         * effect. See primitiveStore. */
+        if (object->size != 0)
+            for (size_t i = 0; i < object->length; i++)
+                object->objects[i] = gcMoveObject(interp, object->objects[i], stats);
         return object;
     }
     // if the object has already been moved, return its new location
@@ -370,7 +376,7 @@ size_t memoryAlign(size_t size, size_t alignment)
  * are increased by a multiple of FLISP_MEMORY_INC_SIZE.
  *
  */
-Object *memoryAllocObject(Object *interp, TypeObject *type, size_t size)
+Object *memoryAllocObject(Object *interp, Object *type, size_t size)
 {
     size = memoryAlign(size, sizeof(void *));
     size_t blocks = (size / FLISP_MEMORY_INC_SIZE) + 1;
@@ -448,7 +454,7 @@ allocateObject:
  *
  * @returns New Object
  */
-Object *newObject(Object *interp, TypeObject *type, size_t size)
+Object *newObject(Object *interp, Object *type, size_t size)
 {
     Object *object = memoryAllocObject(interp, type, sizeof(SimpleObject)+size);
     CHECK_OOM(object);
@@ -520,6 +526,10 @@ Object *flisp_store_object(Object *interp, Object *object, Object *list, size_t 
 {
     Object *o = list;
 
+    /* Note: if object is not gcCollectable, we only can store
+     * constant objects inside. This should be checked here, so we
+     * can modify initializers and fmt'ers of builtin types */
+    
     for (; index < object->length && o != nil; o = CDR(o))
         if (TYPE(o) == type_cons)
             object->objects[index++] = CAR(o);
@@ -548,7 +558,7 @@ Object *flisp_store_object(Object *interp, Object *object, Object *list, size_t 
  * @returns Object
  *
  */
-Object *flisp_new(Object *interp, TypeObject *type, Object **list, size_t length, size_t extra)
+Object *flisp_new(Object *interp, Object *type, Object **list, size_t length, size_t extra)
 {
     if (type == type_vector && length == 0 && extra == 0)
         return flisp_empty_vector;
@@ -556,7 +566,7 @@ Object *flisp_new(Object *interp, TypeObject *type, Object **list, size_t length
     GC_CHECKPOINT;
     GC_TRACE(gcType, (Object *)type);
     GC_TRACE(gcObjs, *list);
-    Object *object = newObject(interp, (TypeObject *)*gcType, (sizeof(Object *) * length) + extra);
+    Object *object = newObject(interp, *gcType, (sizeof(Object *) * length) + extra);
     GC_RELEASE;
     CHECK_OOM(object);
     object->length = length;
@@ -564,7 +574,7 @@ Object *flisp_new(Object *interp, TypeObject *type, Object **list, size_t length
     return flisp_store_object(interp, object, *gcObjs, 0, true);
 }
 /* Both lambdas and macros are closures*/
-Object *newClosure(Object *interp, TypeObject *type, Object ** args, Object **env)
+Object *newClosure(Object *interp, Object *type, Object ** args, Object **env)
 {
     Object *o;
 
@@ -1786,8 +1796,8 @@ Object *evalExpr(Object *interp, Object ** object, Object **env)
                         if (!d) GC_RETURN(flisp_static_error(out_of_memory, &fmt_oom_message));
                         GC_RETURN(newError8(interp, wrong_type_argument, CAR(*gcArg),
                                             "(", primitive->name, " args) - arg ", d,
-                                            " expected ", flisp_symbol_string(primitive->argsType->type.name),
-                                            "  got ", flisp_symbol_string(CAR(*gcArg)->type->type.name)));
+                                            " expected ", flisp_symbol_string(primitive->argsType->t.name),
+                                            "  got ", flisp_symbol_string(CAR(*gcArg)->type->t.name)));
                     }
                 }
                 if (nArgs < primitive->nMinArgs)
@@ -1898,7 +1908,7 @@ Object *typeInitError(Object *interp, Object **args, Object **env, size_t nArgs)
     if (FLISP_ARG4->type != type_string && FLISP_ARG4->type != type_str)
         return newError2(interp, wrong_type_argument, FLISP_ARG4,
                          "(init-error type length error-type message[ culprit]) - message expected type-string or type-str got ",
-                         flisp_symbol_string(FLISP_ARG4->type->type.name));
+                         flisp_symbol_string(FLISP_ARG4->type->t.name));
     if (FLISP_ARG2->value != 3)
         return newError(interp, invalid_value, FLISP_ARG2, "(init-error type length[ ..]) - length expected: 3");
 
@@ -1983,7 +1993,7 @@ err:
 Object *str_prefix_object(Object *object, void *delimiter)
 {
     if (!addStringToPad(scratchpad, ((str_delimiter*)delimiter)->prefix)) goto err;
-    if (!addStringToPad(scratchpad, flisp_symbol_string(object->type->type.name)+strlen("type-"))) goto err;
+    if (!addStringToPad(scratchpad, flisp_symbol_string(object->type->t.name)+strlen("type-"))) goto err;
     if (!addStringToPad(scratchpad, ":")) goto err;
     return nil;
 err:
@@ -2041,7 +2051,7 @@ Object *str_object(Object *object) {
     else if (object->type == type_vector)
         delimiters = (str_delimiter){ "[", " ", "]" };
     else if (object->type == type_type) {
-        object = ((TypeObject*)object)->type.name;
+        object = (object)->t.name;
         pre = str_prefix_other;
     } else
         pre = str_prefix_object;
@@ -2049,7 +2059,7 @@ Object *str_object(Object *object) {
 
 other:
 /* cannot or do not want to fmt all contained objects */
-    return flisp_iterate(object->type->type.name, str_prefix_other, str_infix, str_postfix, (void*) &delimiters);
+    return flisp_iterate(object->type->t.name, str_prefix_other, str_infix, str_postfix, (void*) &delimiters);
 }
 char *flisp_str(Object *object, Object **error)
 {
@@ -2067,6 +2077,12 @@ Object *primitiveStr(Object *interp, Object **args, Object **env, size_t nArgs)
     char *s = flisp_str(FLISP_ARG1, &error);
     FLISP_CHECK_ERR(error);
     return newString(interp, s);
+}
+Object *wrapString(Object *interp, Object **args, Object **env, size_t nArgs)
+{
+    char pad[200] = "";
+    snprintf(pad, 200, "\"%s\"", FLISP_ARG1->string);
+    return newString(interp, pad);
 }
 
 // Result assertion //
@@ -2162,14 +2178,14 @@ Object *primitiveNew(Object *interp, Object **args, Object **env, size_t nArgs)
     if (FLISP_ARG2->value < 0)
         return newError(interp, range_error, FLISP_ARG2,  "(new type length[ arg ..]) - length must be positive)");
 
-    TypeObject *type = (TypeObject*)FLISP_ARG1;
-    Object *init = type->type.new;
+    Object *type = FLISP_ARG1;
+    Object *init = type->t.new;
 
     if (init == nil)
         return flisp_new(interp, type, &CDR(CDR(*args)), (FLISP_ARG2->value) ? (FLISP_ARG2->value) : nArgs-2, 0);
 
     if (init->type == type_primitive) {
-        Primitive *new = type->type.new->primitive;
+        Primitive *new = type->t.new->primitive;
         /* Note: this is ripped out of the evaluator for the specific use
          * case of init-cons. It is bad because:
          * - We should not repeat ourself.
@@ -2197,11 +2213,18 @@ Object *primitiveNew(Object *interp, Object **args, Object **env, size_t nArgs)
 /** (store obj index [..]) */
 Object *primitiveStore(Object *interp, Object **args, Object **env, size_t nArgs)
 {
+#if 0
+    /* Note: we expanded the garbage collector to collect also objects
+     * contained in constant vector types, but we still segfault when
+     * storing non constant objects. */
+    if (!gcCollectableObject(interp, FLISP_ARG1))
+         return newError(interp, invalid_value, FLISP_ARG1, "(store obj index[ ..] - obj is a constant and cannot be modified)");
+#endif
     FLISP_ASSERT(FLISP_ARG2, type_integer, "(store obj index [..]) - index");
     if (FLISP_ARG2->value < 0)
-        return newErrorI(interp, range_error, FLISP_ARG2, "(store obj index [..]) - index must be positive: ", FLISP_ARG2->value, "");
+        return newErrorI(interp, range_error, FLISP_ARG2, "(store obj index[ ..]) - index must be positive: ", FLISP_ARG2->value, "");
     if (FLISP_ARG2->value >= FLISP_ARG1->length)
-        return newErrorI(interp, range_error, FLISP_ARG2, "(store obj index [..]) - index out of range, max: ", FLISP_ARG1->length - 1, "");
+        return newErrorI(interp, range_error, FLISP_ARG2, "(store obj index[ ..]) - index out of range, max: ", FLISP_ARG1->length - 1, "");
     return flisp_store_object(interp, FLISP_ARG1, (*args)->cdr->cdr, FLISP_ARG2->value, false);
 }
 
@@ -2222,7 +2245,7 @@ Object *primitiveElements(Object *interp, Object **args, Object **env, size_t nA
     int64_t i = 0, j,  end;
 
     Object *o = FLISP_ARG1;
-    TypeObject *t = o->type;
+    Object *t = o->type;
     if (t == type_string || (t == type_symbol && o->size))
         end = o->size - 1;
     else if (t == type_symbol && ! o->size)
@@ -2774,10 +2797,10 @@ Object *primitiveInterpCountdown(Object *interp, Object **args, Object **env, si
 
 // MAIN ///////////////////////////////////////////////////////////////////////
 
-Object *flisp_register_type(Object *interp, char *name, TypeObject *type, Object *init, Object *formatter)
+Object *flisp_register_type(Object *interp, char *name, Object *type, Object *init, Object *formatter)
 {
-    type->type.new = init;
-    type->type.fmt = formatter;
+    type->t.new = init;
+    type->t.fmt = formatter;
     GC_CHECKPOINT;
     GC_TRACE(gcType, (Object *)type);
     GC_TRACE(gcSymbol, newSymbol(interp, name));
@@ -2806,7 +2829,7 @@ Object *flisp_register_constant(Object *interp, Object *symbol, Object *value)
 }
 
 Object *flisp_register_primitive(Object *interp, char *name,
-                                    int min_args, int max_args, TypeObject *args_type,
+                                    int min_args, int max_args, Object *args_type,
                                     LispEval func)
 {
     Primitive *primitive = malloc(sizeof(Primitive));
@@ -2860,6 +2883,7 @@ Object *flisp_core_init(Object *interp, Object *extension)
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "object-length",          1,  1, type_any,      primitiveObjectLength));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "new",                    1, -1, type_any,      primitiveNew));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "str",                    1,  1, type_any,      primitiveStr));
+        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "wrap",                   1,  1, type_string,   wrapString));        
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "store",                  2, -1, type_any,      primitiveStore));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "elements",               1,  3, type_any,      primitiveElements));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "open",                   1,  2, type_string,   primitiveFopen));
