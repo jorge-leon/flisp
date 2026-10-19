@@ -1,25 +1,32 @@
-+ implement gc - memory readjustment
-+ make stream a vector type
-- type-system: store length in type, if not zero do not request it for initializer.
-+ Fix: new/values have gc problems: run test with interp-gc-always
+# α1
+- Fix: storing lambda in slot 2 of type-string makes type-string (or so) segfault
+- object: new and fmt slot contain either:
+  + nil -> fallback operation
+  + primitive -> execute
+  - cons -> eval *new: this allows to override
 - Fix: test (fmt) thoroughly.
 - Fix: FLISP_DEFINE_STR() used with flisp_static_error() seems not to work correctly.
+- CAR() CDR() Macro: use it consistently
+- Introduce TYPE() macro.
+- Update documentation
 - Note: (setq x (interp)) crashes: when setting the global environment to a variable we get an infinite loop.
-+ implement flisp_iterate()
-  - use in applicable scenarios
-  - document
-- Give memory struct to gc() as parameter.
+- type-system: store length in type, if not zero do not request it for initializer.
++ implement gc - memory readjustment
++ make stream a vector type
++ Fix: new/values have gc problems: run test with interp-gc-always
 + object: move write out of core, replace with fmt.
   + instead of writer slot have a fmt slot in the type object.
   + consider eliminating readably formatting from core.
   + fl: read, eval, fmt, puts()
   + rationale: embedded operation most likely doesn't want to print neither fmt.
-- object: new and fmt slot contain either:
-  + nil -> fallback operation
-  + primitive -> execute
-  - cons -> eval *new: this allows to override
-- CAR() CDR() Macro: use it consistently
-- Introduce TYPE() macro.
 + Remove global variables (except argv, argv0) - they are covered by (interp-[input|output|debug).
+
+# α2
+- Works with femto
+
+# rethink
 - (iota 20000) segfaults -> Stack overflow
-- Update documentation
++ implement flisp_iterate()
+  - use in applicable scenarios
+  - document
+- Give memory struct to gc() as parameter.
