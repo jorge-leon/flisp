@@ -290,7 +290,7 @@ Object *gcMoveObject(Object *interp, Object *object, gcStats *stats)
         stats->constant++;
         /* Note: this should account for objects stored in constant
          * vector objects, but it seems not to have the desired
-         * effect. See primitiveStore. */
+         * effect. See provisions in flisp_store_object */
         if (object->size != 0)
             for (size_t i = 0; i < object->length; i++)
                 object->objects[i] = gcMoveObject(interp, object->objects[i], stats);
@@ -335,7 +335,6 @@ void gc(Object *interp, bool shrink)
 
     for (i = 0; i < interp->length; i++)
         interp->objects[i] = gcMoveObject(interp, interp->objects[i], &stats);
-
     // iterate over objects in to-space and move all objects they reference
     for (object = FLISP_INTERP.memory->toSpace;
          object < (Object *) ((char *)FLISP_INTERP.memory->toSpace + FLISP_INTERP.memory->toOffset);
@@ -521,24 +520,25 @@ Object *newCons(Object *interp, Object ** car, Object ** cdr)
  * @param list   .. List of initializer objects or single object. Dottet lists are flattened.
  * @param index  .. Slot index to start with.
  * @param all    .. If true fill all remaining slots with nil.
+ *
+ * Used in flisp_new() for initializing objects.
  */
 Object *flisp_store_object(Object *interp, Object *object, Object *list, size_t index, bool all)
 {
-    Object *o = list;
-
-    /* Note: if object is not gcCollectable, we only can store
-     * constant objects inside. This should be checked here, so we
-     * can modify initializers and fmt'ers of builtin types */
+    Object *o = list, *i;
+    bool check = !gcCollectableObject(interp, object);
     
-    for (; index < object->length && o != nil; o = CDR(o))
-        if (TYPE(o) == type_cons)
-            object->objects[index++] = CAR(o);
-        else {
-            object->objects[index++] = o;
-            break;
-        }
-    while(all && index < object->length)
+    for (; index < object->length && o != nil; o = CDR(o)) {
+        i = (TYPE(o) == type_cons) ? CAR(o) : o;
+        if (check && gcCollectableObject(interp, i))
+            return newError(interp, invalid_value, i , "(store obj index[ ..]) - index in constant object cannot be set to non constant object");
+
+        object->objects[index++] = i;
+        if (TYPE(o) != type_cons)  return object;
+    }
+    while(all && index < object->length) {
         object->objects[index++] = nil;
+    }
     return object;
 }
 
@@ -2210,22 +2210,15 @@ Object *primitiveNew(Object *interp, Object **args, Object **env, size_t nArgs)
     }
     return newError(interp, invalid_value, FLISP_ARG1, "(new type length[ arg ..]) - type no initializer for objects of this type");
 }
-/** (store obj index [..]) */
+/** (store index obj [..]) */
 Object *primitiveStore(Object *interp, Object **args, Object **env, size_t nArgs)
 {
-#if 0
-    /* Note: we expanded the garbage collector to collect also objects
-     * contained in constant vector types, but we still segfault when
-     * storing non constant objects. */
-    if (!gcCollectableObject(interp, FLISP_ARG1))
-         return newError(interp, invalid_value, FLISP_ARG1, "(store obj index[ ..] - obj is a constant and cannot be modified)");
-#endif
-    FLISP_ASSERT(FLISP_ARG2, type_integer, "(store obj index [..]) - index");
-    if (FLISP_ARG2->value < 0)
-        return newErrorI(interp, range_error, FLISP_ARG2, "(store obj index[ ..]) - index must be positive: ", FLISP_ARG2->value, "");
-    if (FLISP_ARG2->value >= FLISP_ARG1->length)
-        return newErrorI(interp, range_error, FLISP_ARG2, "(store obj index[ ..]) - index out of range, max: ", FLISP_ARG1->length - 1, "");
-    return flisp_store_object(interp, FLISP_ARG1, (*args)->cdr->cdr, FLISP_ARG2->value, false);
+    FLISP_ASSERT(FLISP_ARG1, type_integer, "(store index obj [..]) - index");
+    if (FLISP_ARG1->value < 0)
+        return newErrorI(interp, range_error, FLISP_ARG1, "(store index obj[ ..]) - index must be positive: ", FLISP_ARG1->value, "");
+    if (FLISP_ARG1->value >= FLISP_ARG2->length)
+        return newErrorI(interp, range_error, FLISP_ARG1, "(store obj index[ ..]) - index out of range, max: ", FLISP_ARG2->length - 1, "");
+    return flisp_store_object(interp, FLISP_ARG2, (*args)->cdr->cdr, FLISP_ARG1->value, false);
 }
 
 Object *firstConsElements(Object *interp, size_t n, Object *cons)

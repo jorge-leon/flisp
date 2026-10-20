@@ -51,7 +51,7 @@ Other documentation topics on *fLisp*:
     4.  [Environments, Functions, Evaluation](#evaluation)
     5.  [Error Handling](#errors)
     6.  [Global Variables](#globals)
-5.  [*fLisp* core Primitives](#primitives)
+5.  [*fLisp* core Primitives](#flisp_primitives)
     1.  [Lisp Language Operations](#lang_ops)
     2.  [Input / Output and Others](#in_out)
     3.  [Object Operations](#object_ops)
@@ -735,12 +735,16 @@ more then *length* *arg*'s the rest is ignored, if there are less the
 length *arg*'s the rest is if filled with `nil`. If *length* is zero,
 the length of the new object is the number of given *arg*'uments.
 
-`(store «object» «start» [«arg» ..])` ⇒`object'`  
+`(store «start» «object» [«arg» ..])` ⇒`object'` <u>f</u>  
 In the extended *object* start storing all consecutive *arg*'s, from
 index *start* onwards. If there are more *arg*'s then places available,
 the extra *arg*'s are discarded. If *start* is less then 0 or greater
 then the object length minus one, or if *object* is not an extended
 object an error is returned.
+
+Predefined (constant) objects like the builtin types cannot hold garbage
+collectable objects. `store` returns an error if this constellation
+arises.
 
 #### Arithmetic Operations
 

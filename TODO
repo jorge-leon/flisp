@@ -1,12 +1,6 @@
 # α1
 - (list-append l e) shall accept nil as first argument and return e in this case.
   - this should simplify (append) and maybe (apply)
-- Fix: storing lambda in slot 2 of type-string makes type-string (or so) segfault
-  - this holds (probably) for any constant vector object.
-  - modify flisp_store_object() to take this into account (err if dangerous)
-  - remove check in primitiveStore()
-  - remove (wrap) test primitive
-  - expand/prepare fmt.c e.g. to print strings readably.
 - object: new and fmt slot contain either:
   + nil -> fallback operation
   + primitive -> execute
@@ -18,6 +12,11 @@
 - Update documentation
 - Note: (setq x (interp)) crashes: when setting the global environment to a variable we get an infinite loop.
 - type-system: store length in type, if not zero do not request it for initializer.
++ Fix: storing lambda in slot 2 of type-string makes type-string (or so) segfault
+  + this holds (probably) for any constant vector object.
+  + modify flisp_store_object() to take this into account (err if dangerous)
+  + remove check in primitiveStore()
+  + remove (wrap) test primitive
 + implement gc - memory readjustment
 + make stream a vector type
 + Fix: new/values have gc problems: run test with interp-gc-always
@@ -38,3 +37,4 @@
   - document
 - Give memory struct to gc() as parameter.
 - consider (spread l): flatten last element in list l, last element must be list. Note: seems only be used in(apply).
+- expand/prepare fmt.c e.g. to print strings readably.
