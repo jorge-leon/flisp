@@ -2078,13 +2078,6 @@ Object *primitiveStr(Object *interp, Object **args, Object **env, size_t nArgs)
     FLISP_CHECK_ERR(error);
     return newString(interp, s);
 }
-Object *wrapString(Object *interp, Object **args, Object **env, size_t nArgs)
-{
-    char pad[200] = "";
-    snprintf(pad, 200, "\"%s\"", FLISP_ARG1->string);
-    return newString(interp, pad);
-}
-
 // Result assertion //
 /** flisp_not_same() - result assertion
  * @param e .. points to test object, normally nil.
@@ -2876,7 +2869,6 @@ Object *flisp_core_init(Object *interp, Object *extension)
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "object-length",          1,  1, type_any,      primitiveObjectLength));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "new",                    1, -1, type_any,      primitiveNew));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "str",                    1,  1, type_any,      primitiveStr));
-        FLISP_UNLESS_ERR(flisp_register_primitive(interp, "wrap",                   1,  1, type_string,   wrapString));        
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "store",                  2, -1, type_any,      primitiveStore));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "elements",               1,  3, type_any,      primitiveElements));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "open",                   1,  2, type_string,   primitiveFopen));
