@@ -580,7 +580,7 @@ Object *newClosure(Object *interp, Object *type, Object ** args, Object **env)
 
     /* Covers: (closure (a b ..) body) and (closure (a b . ?) body) */
     for (o = CAR(*args); TYPE(o) == type_cons;  o = CDR(o)) {
-        if (CAR(o)->type != type_symbol)
+        if (TYPE(CAR(o)) != type_symbol)
             return newError2(interp, wrong_type_argument, CAR(o),
                                (type == type_lambda) ? "(lambda" : "(macro",
                                " params body) - param is not a symbol");
@@ -591,7 +591,7 @@ Object *newClosure(Object *interp, Object *type, Object ** args, Object **env)
     }
 
     /* Cover: (closure a body) and (closure (a b . c) body) */
-    if (o != nil && o->type != type_symbol)
+    if (o != nil && TYPE(o) != type_symbol)
         return newError2(interp, invalid_value, CAR(o),
                          (type == type_lambda) ? "(lambda" : "(macro",
                          " params body) - param is not a symbol");
@@ -607,7 +607,7 @@ Object *newClosure(Object *interp, Object *type, Object ** args, Object **env)
 int64_t flisp_list_length(Object *list)
 {
     int64_t i;
-    for (i = 0; list->type == type_cons; list = CDR(list))  i++;
+    for (i = 0; TYPE(list) == type_cons; list = CDR(list))  i++;
     if (i)
         return (list == nil) ? i : ++i;
     return 0;
@@ -625,6 +625,8 @@ int64_t flisp_list_length(Object *list)
  */
 Object *cloneList(Object *interp, Object *list, Object *end)
 {
+    if (list == nil) return end;
+
     FLISP_ASSERT(list, type_cons, "(list-append list end) - list");
 
     GC_CHECKPOINT;
@@ -635,7 +637,7 @@ Object *cloneList(Object *interp, Object *list, Object *end)
     *gcList = CDR(*gcList);
     GC_TRACE(gcLast, *gcNew);
     Object *o;
-    while((*gcList)->type == type_cons) {
+    while(TYPE(*gcList) == type_cons) {
         o = newCons(interp, &CAR(*gcList), gcEnd);
         GC_CHECK_OOM(o);
         CDR(*gcLast) = o;
@@ -945,7 +947,7 @@ Object *flisp_find_value(Object *interp, Object *env, Object *var) {
     for (; env != nil; env = env->env.parent) {
         Object *vars = env->env.vars, *vals = env->env.vals;
 
-        for (; vars->type == type_cons; vars = CDR(vars), vals = CDR(vals))
+        for (; TYPE(vars) == type_cons; vars = CDR(vars), vals = CDR(vals))
             if (CAR(vars) == var)
                 return CAR(vals);
 
@@ -976,8 +978,8 @@ Object *envAdd(Object *interp, Object ** var, Object ** val, Object **env)
     Object *vals = newCons(interp, gcVal, &nil);
     GC_RELEASE;
     CHECK_OOM(vals);
-    (*gcVars)->cdr = (*gcEnv)->env.vars, (*gcEnv)->env.vars = *gcVars;
-    vals->cdr = (*gcEnv)->env.vals, (*gcEnv)->env.vals = vals;
+    CDR(*gcVars) = (*gcEnv)->env.vars, (*gcEnv)->env.vars = *gcVars;
+    CDR(vals) = (*gcEnv)->env.vals, (*gcEnv)->env.vals = vals;
 
     return *gcVal;
 }
@@ -996,11 +998,11 @@ Object *envSet(Object *interp, Object ** var, Object ** val, Object **env, bool 
     for (;;) {
         Object *vars = (*env)->env.vars, *vals = (*env)->env.vals;
 
-        for (; vars->type == type_cons; vars = vars->cdr, vals = vals->cdr) {
-            if (vars->car == *var)
-                return vals->car = *val;
-            if (vars->cdr == *var)
-                return vals->cdr = *val;
+        for (; TYPE(vars) == type_cons; vars = CDR(vars), vals = CDR(vals)) {
+            if (CAR(vars) == *var)
+                return CAR(vals) = *val;
+            if (CDR(vars) == *var)
+                return CDR(vals) = *val;
         }
 
         if ((*env)->env.parent == nil || !top) {
@@ -1041,11 +1043,11 @@ Object *flisp_nreverse(Object *interp, Object *list)
     Object *object = nil;
 
     while (list != nil) {
-        if (list->type != type_cons)
+        if (TYPE(list) != type_cons)
             return newError(interp, invalid_value, list,  "(nreverse list) - list not a proper list");
         Object *swap = list;
-        list = list->cdr;
-        swap->cdr = object;
+        list = CDR(list);
+        CDR(swap) = object;
         object = swap;
     }
 
@@ -1280,7 +1282,7 @@ Object *readList(Object *interp, FILE *fd)
                     return newError(interp, invalid_read_syntax, nil, "unexpected object at end of dotted list");
                 (void)skipToNext(interp, fd);
                 list = flisp_nreverse(interp, *gcList);
-                (*gcList)->cdr = last;
+                CDR(*gcList) = last;
                 return list;
             }
         } else {
@@ -2117,10 +2119,6 @@ Object *primitiveConsP(Object *interp, Object **args, Object **env, size_t nArgs
 }
 Object *primitiveAppend(Object *interp, Object **args, Object **env, size_t nArgs)
 {
-//    Object *l2 = nil;
-//    FLISP_ASSERT(FLISP_ARG1, type_cons, "(append list[ l) - list");
-//    if (nArgs > 1)
-//        l2 = FLISP_ARG2;
     return cloneList(interp, FLISP_ARG1, nArgs ? FLISP_ARG2 : nil);
 }
 Object *primitiveIntern(Object *interp, Object **args, Object **env, size_t nArgs)

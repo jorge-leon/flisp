@@ -1,17 +1,16 @@
 # α1
-- (list-append l e) shall accept nil as first argument and return e in this case.
-  - this should simplify (append) and maybe (apply)
 - object: new and fmt slot contain either:
   + nil -> fallback operation
   + primitive -> execute
   - cons -> eval *new: this allows to override
 - Fix: test (fmt) thoroughly.
 - Fix: FLISP_DEFINE_STR() used with flisp_static_error() seems not to work correctly.
-- CAR() CDR() Macro: use it consistently
-- Introduce TYPE() macro.
+- CAR() CDR() TYPE() Macro: use it consistently
 - Update documentation
 - Note: (setq x (interp)) crashes: when setting the global environment to a variable we get an infinite loop.
 - type-system: store length in type, if not zero do not request it for initializer.
++ (list-append l e) shall accept nil as first argument and return e in this case.
+  + this should simplify (append) and maybe (apply)
 + Fix: storing lambda in slot 2 of type-string makes type-string (or so) segfault
   + this holds (probably) for any constant vector object.
   + modify flisp_store_object() to take this into account (err if dangerous)

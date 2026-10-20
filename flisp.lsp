@@ -4,8 +4,6 @@
 
 (require 'core)
 
-(defun listp (o) (cond ((null o)) ((consp o))))
-
 (defun fold-right (f o l)
   (cond
     ((null l) o)

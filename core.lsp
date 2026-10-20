@@ -145,13 +145,13 @@
 (defun flip (func)  (lambda (o1 o2) (func o2 o1)))
 (defun reverse (l)  (fold-left (flip cons) nil l))
 
+(defun listp (o) (cond ((null o)) ((consp o))))
+
 (defmacro append args
   (cond
     ((null args)  nil)
     ((null (cdr args))  (car args))
-    ((null (car args)) (cons 'append (cdr args)))
-    ((null (cadr args)) (cons 'append (cons (car args) (cddr args))))
-    ((consp (cadr args))
+    ((listp (cadr args))
      (list 'list-append (car args) (cons 'append (cdr args)) ))
     (t  (cons 'list-append args) )))
 
@@ -160,7 +160,7 @@
     ((null args)  (f))
     ((null (cdr args)) (eval (cons f  (car args))))
     (t (let ((rev (reverse args)))
-	 ;; if last element is list splice it
+	 ;; if last element is list spread it
 	 (if (consp (car rev))  (eval (cons f (append (reverse (cdr rev)) (car rev))))
 	     (f . args)) ))))
 
