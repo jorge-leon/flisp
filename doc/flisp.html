@@ -122,10 +122,8 @@
           <a href="#posix">POSIX Extension</a>
         </li>
         <li>
-          <a href="#double">Double Extension</a>
-        </li>
-        <li>
-          <a href="#princ"><code>princ</code> Extension</a>
+          <a href="#double">Double Extension</a><br />
+          &nbsp;
         </li>
       </ol>
     </li>
@@ -227,8 +225,7 @@
   <p>The embeddable <i>fLisp</i> interpreter core implements a Lisp reader and a Lisp evaluator. Both return a Lisp
   object, which can be either the requested result or an error object.</p>
   <p>Traditional Lisp REPL's can be built, like demonstrated in the provided <a href="#flisp">Command Line
-  Interpreters</a>. They use the simple <a href="#princ">princ</a> formatter extension to implement the Lisp
-  Printer.</p>
+  Interpreters</a>. They use the <a href="#str"><code>str</code></a> primitive&nbsp;to implement the Lisp Printer.</p>
   <p>When embedding the interpreter in other applications a Lisp printer might not be necesary or required. The result
   or error object can be introspected directly.</p>
   <h4 id="syntax">Syntax</h4>
@@ -577,12 +574,6 @@
     </dd>
     <dt><code>(close <var>stream</var>)</code> ⇒ <var>integer</var> <u>S</u></dt>
     <dd>Close <var>stream</var> object. Returns the value of the systems <code>close()</code> function as integer.</dd>
-    <dt><code>(file-info <var>stream</var>)</code> ⇒ <var>info</var> <u>f</u></dt>
-    <dd>
-      <p>Returns <code>(<var>path</var>&nbsp;<var>buf</var>&nbsp;<var>fd</var>)</code> for <var>stream</var>.
-      <var>buf</var> is either <code>nil</code> or the text buffer of a memory stream. <var>fd</var> is either the
-      integer representation of the file descriptor or <code>nil</code> when <var>stream</var> is already closed.</p>
-    </dd>
     <dt><code>(read</code> <code><var>stream</var>[&nbsp;<var>eof-value</var>])</code> ⇒ <var>object</var> <u>S:
     read</u></dt>
     <dd>
@@ -610,7 +601,14 @@
         then the number string, characters are stripped from the left to acchieve the given length.</dd>
       </dl>
     </dd>
+    <dt id="str"><code>(str <var>o</var>)</code></dt>
+    <dt>Return a string representing object <var>o</var>. Strings for string types, symbol names&nbsp;for
+    symbols,&nbsp;the decimal representation for integers, the hexadecimal reader macro representations for doubles,
+    lists and vectors are interpolated and enclosed within&nbsp;'()' and '[]' respectively. All other types are
+    returned as <samp>#&lt;<var>type-name</var>&gt;</samp>.</dt>
+    <dd>&nbsp;</dd>
   </dl>
+  <h4>&nbsp;</h4>
   <h4 id="object_ops">Object Operations</h4>
   <dl>
     <dt><code>(null <var>object</var>)</code> ⇒ <var>p</var></dt>
@@ -628,6 +626,9 @@
     <dt><code>(cons <var>car</var> <var>cdr</var>)</code> ⇒ <i>cons</i></dt>
     <dd>Returns a new cons with the first object set to the value of <var>car</var> and the second to the value of
     <var>cdr</var>.</dd>
+    <dt><code>(list-append <var>l</var>[ <var>e</var>])</code></dt>
+    <dd>Clone list <var>l</var> and append object <var>e</var> to the end. <var>e</var> defaults to <code>nil</code>.
+    If <var>l</var> is <var>nil</var>&nbsp;returns <var>e</var>.</dd>
     <dt><code>(car <var>cons</var>)</code> ⇒ <var>o</var></dt>
     <dd>Returns the first object of <var>cons</var>.</dd>
     <dt><code>(cdr <var>cons</var>)</code> ⇒ <var>o</var></dt>
@@ -806,12 +807,14 @@
       <dd>Return first element of first element of first element of list.</dd>
       <dt><code>(cdaar '(((<var>a</var> <var>b))</var>[ <var>c</var>..]))</code> ⇒ <i>b</i></dt>
       <dd>Return rest (cdr) of first element&nbsp;of first element of list.</dd>
+      <dt><code>(cadar '((<var>a</var>&nbsp;(<var>b (c[ ..])[ ..)</var>[ ..])[ ..])</code> ⇒ <i>c</i></dt>
+      <dd>Return first element of rest of&nbsp;first element of list.</dd>
       <dt><code>(setq <var>symbol</var> <var>value</var>[ <var>symbol</var> <var>value</var>..])</code> ⇒ <i>value</i>
       <u>D</u></dt>
+      <dd>Create or update named objects: If <var>symbol</var> is the name of an existing named object in the current
+      or a parent environment the named object is set to <var>value</var>, if no symbol with this name exists, a new
+      one is created in the top level environment. <code>setq</code> returns the last <var>value</var>.</dd>
       <dd>
-        <p>Create or update named objects: If <var>symbol</var> is the name of an existing named object in the current
-        or a parent environment the named object is set to <var>value</var>, if no symbol with this name exists, a new
-        one is created in the top level environment. <code>setq</code> returns the last <var>value</var>.</p>
         <p>If the last <var>value</var> is not given the symbol is bound to <code>nil</code>; this is different then
         from other Lisp implementations.</p>
       </dd>
@@ -882,8 +885,6 @@
       <dd>Apply the binary <var>func</var>tion to <var>start</var> and the first element of <var>list</var> and then
       recursively to the result of the previous invocation and the first element of the rest of <var>list</var>. If
       <var>list</var> is empty return <var>start</var>.</dd>
-      <dt><code>(flip <var>func</var>)</code> ⇒ <i>lambda</i>&nbsp;<u>f</u></dt>
-      <dd>Returns a lambda which calls binary <var>func</var> with it's two arguments reversed (flipped).</dd>
       <dt><code>(reverse <var>l</var>)</code> ⇒ <var>list</var></dt>
       <dd>Returns a list with all elements of <var>l</var> in reverse order</dd>
       <dt><code>(append [list ..][&nbsp;a])</code> ⇒ <i>list'</i></dt>
@@ -893,10 +894,6 @@
       <dd>If <var>arg</var> is a single list call lambda <var>f</var> with all its elements as parameters, else call
       <var>f</var> with all <var>arg</var>s as parameters. If list <var>l</var> is present append all its elements to
       the parameter list.</dd>
-      <dt><code>(print <var>o</var>[&nbsp;<var>fd</var>])</code> ⇒ <i>o</i></dt>
-      <dd><code>write</code> object <var>o</var> <code>:readably</code> to stream <var>fd</var> or output.</dd>
-      <dt><code>(princ <var>o</var>[&nbsp;<var>fd</var>])</code> ⇒ <i>o</i></dt>
-      <dd><code>write</code> object <var>o</var> as is to stream <var>fd</var> or output.</dd>
       <dt><code>(string-to-number <var>string</var>)</code> ⇒ <i>integer</i></dt>
       <dd>Converts <var>string</var> into a corresponding <i>integer</i> object. String is interpreted as decimal based
       integer.</dd>

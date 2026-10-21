@@ -133,7 +133,7 @@ Create an extensible object.
 `flisp_find_symbol()`  
 Check if a symbol is available in an interpreter.
 
-`flisp_find_value()`  
+`flisp_find_value()`\
 Return the value bound to a symbol.  
  
 
@@ -188,7 +188,8 @@ is returned.
 
 The signature of `flisp_interpreter()` is:
 
->             Object *flisp_interpreter(site_t size, char **argv, FILE *input, FILE *output, FILE* error, FILE* debug)
+> \
+>         `Object *flisp_interpreter(site_t «size», char **«argv», FILE *«input», FILE *«output», FILE* «error», FILE* «debug»)`
 
 *size*  
 Initial memory size to allocate for the Lisp object space in bytes. If
@@ -232,7 +233,8 @@ can be set to any other array of strings if needed.
 
 The signature of `flisp_eval_expr()` is:
 
->             Object *flisp_eval_expr(Interpreter *interp, bool readably)
+> \
+>         `Object *flisp_eval_expr(Interpreter *«interp», bool «readably»)`
 
 After evaluation of the next expression in the input stream *fLisp*
 writes the result to the default output stream. If the output stream is
@@ -306,7 +308,8 @@ for the provided functionality.
 An extensions has to create C functions,
 called <span class="dfn">primitives</span> with the signature:
 
->             Object *primitive(Interpreter *interp, Object **args, Object **env, size_t nArgs)
+> \
+>         `Object *«primitive»(Interpreter *interp, Object **args, Object **env, size_t nArgs)`
 
 *primitive* must be a distinct name in C space. This signatures is
 typedef'd to `LispEval`.
@@ -314,7 +317,8 @@ typedef'd to `LispEval`.
 To make the primitive available to an fLisp interpreter the following
 function has to be executed:
 
->             Object *flisp_register_primitive(Interpreter *interp, char *name, int min_args, int max_args, Object *args_type, LispEval func)
+> \
+>         `Object *flisp_register_primitive(Interpreter *«interp», char *«name», int «min_args», int «max_args», Object *«args_type», LispEval «func»)`
 
 *interp*  
 Interpreter in which to register the primitive.
@@ -351,7 +355,7 @@ number of arguments is handed over in *nArgs*.
 Some CPP macros are provided to simplify argument access and validation
 in primitives:
 
-`FLISP_ARG1`  
+`FLISP_ARG1`\
 `FLISP_ARG2` .. `FLISP_ARG5`  
 Evaluate to the respective argument.
 
@@ -364,17 +368,18 @@ the argument to be type checked. This is used to form a standardized
 
 Example:
 
-          /* (foo integer string) => 42 - just check if the first argument is an integer and the second a string, then return the integer 42 */
-            Object *foo(Interpreter *interp, Object **args, Object **env)
-            {
-            FLISP_ASSERT(FLISP_ARG1, type_integer, "(foo integer string) - integer");
-            FLISP_ASSERT(FLISP_ARG2, type_string, "(foo integer string) - string");
-            return newInteger(interp, 42);
-            }
-          …
-          flisp_register_primitive(interp, "foo", 2, 2, nil, foo);
-          …
-        
+\
+      `/* (foo integer string) => 42 - just check if the first argument is an integer and the second a string, then return the integer 42 */`\
+`        Object *foo(Interpreter *interp, Object **args, Object **env)`\
+`        {`\
+`        FLISP_ASSERT(FLISP_ARG1, type_integer, "(foo integer string) - integer");`\
+`        FLISP_ASSERT(FLISP_ARG2, type_string, "(foo integer string) - string");`\
+`        return newInteger(interp, 42);`\
+`        }`\
+`      `…\
+      flisp_register_primitive(interp, "foo", 2, 2, nil, foo);\
+      …\
+    
 
 The Lisp object constructors will eventually trigger garbage collection.
 This will move all objects into a new memory region. Therefore
@@ -389,28 +394,29 @@ registration. The convenience macro `GC_RETURN(«object»)` calls
 
 Example:
 
-          /* (bar) => (nil . 42) - return a cons with nil and the integer 42 */
-            #if USING_GC_RELEASE
-            Object *bar(Interpreter *interp, Object **args, Object **env)
-            {
-            GC_CHECKPOINT;
-            GC_TRACE(gcAnswer, newInteger(interp, 42));
-            GC_RETURN(newCons(interp, &nil, gcAnswer));
-            }
-          #else
-            Object *bar(Interpreter *interp, Object **args, Object **env)
-            {
-            Object *object;
-            GC_CHECKPOINT;
-            GC_TRACE(gcAnswer, newInteger(interp, 42));
-            object = newCons(interp, &nil, gcAnswer);
-            GC_RELEASE;
-            return object;
-            }
-            #endif
-          …
-          flisp_register_primitive(interp, "bar", 0, 0, nil, bar);
-          …
+\
+      `/* (bar) => (nil . 42) - return a cons with nil and the integer 42 */`\
+`        #if USING_GC_RELEASE`\
+`        Object *bar(Interpreter *interp, Object **args, Object **env)`\
+`        {`\
+`        GC_CHECKPOINT;`\
+`        GC_TRACE(gcAnswer, newInteger(interp, 42));`\
+`        GC_RETURN(newCons(interp, &nil, gcAnswer));`\
+`        }`\
+      `#else`\
+`        Object *bar(Interpreter *interp, Object **args, Object **env)`\
+`        {`\
+`        Object *object;`\
+`        GC_CHECKPOINT;`\
+`        GC_TRACE(gcAnswer, newInteger(interp, 42));`\
+`        object = newCons(interp, &nil, gcAnswer);`\
+`        GC_RELEASE;`\
+`        return object;`\
+`        }`\
+`        #endif`\
+`      `…\
+      flisp_register_primitive(interp, "bar", 0, 0, nil, bar);\
+      …
 
 [^](#toc)
 
@@ -427,13 +433,14 @@ object. To create such a “constant” use
 example usage where the symbol `foobar` is registered to have the value
 42.:
 
-            Object * foobar = &(Object) { NULL, .string = "foobar" };
-              Object * answer = &(Object) { NULL, .integer = 42 };
-              …
-              answer->type = type_integer;
-              flisp_register_constant(interp, foobar, answer);
-              …
-          
+\
+        `Object * foobar = &(Object) { NULL, .string = "foobar" };`\
+`          Object * answer = &(Object) { NULL, .integer = 42 };`\
+`          …`\
+`          answer->type = type_integer;`\
+`          flisp_register_constant(interp, foobar, answer);`\
+`          …`\
+      
 
 The type of a statically allocated object can only be set at runtime.
 `flisp_register_constant()` sets the type of the symbol to
@@ -459,7 +466,7 @@ following object types are available:
 <col style="width: 20%" />
 </colgroup>
 <thead>
-<tr class="header">
+<tr>
 <th scope="col">C symbol</th>
 <th scope="col" style="width: 129px">Lisp type symbol</th>
 <th scope="col" style="width: 102px">Type </th>
@@ -468,7 +475,7 @@ following object types are available:
 </tr>
 </thead>
 <tbody>
-<tr class="odd">
+<tr>
 <td><code>type_integer</code></td>
 <td style="width: 129px"><code>type-integer</code></td>
 <td style="width: 102px"><code>int64_t</code></td>
@@ -476,21 +483,21 @@ following object types are available:
 <td
 style="width: 364px"><code>newInteger(«interp», «integer»)</code></td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>type_double</code></td>
 <td style="width: 129px"><code>type-double</code></td>
 <td style="width: 102px"><code>double</code></td>
 <td style="width: 291px"><code>object-&gt;number</code></td>
 <td style="width: 364px"><code>newDouble(«interp», «double»)</code></td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>type_string</code></td>
 <td style="width: 129px"><code>type-string</code></td>
 <td style="width: 102px"><code>char *</code></td>
 <td style="width: 291px"><code>object-&gt;string</code></td>
 <td style="width: 364px"><code>newString(«interp», «string»)</code></td>
 </tr>
-<tr class="even">
+<tr>
 <td> </td>
 <td style="width: 129px"> </td>
 <td style="width: 102px"> </td>
@@ -498,14 +505,14 @@ style="width: 364px"><code>newInteger(«interp», «integer»)</code></td>
 <td
 style="width: 364px"><code>newStringWithLength(«interp», «string», «length»)</code></td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>type_symbol</code></td>
 <td style="width: 129px"><code>type-symbol</code></td>
 <td style="width: 102px"><code>char *</code></td>
 <td style="width: 291px"><code>object-&gt;string</code></td>
 <td style="width: 364px"><code>newSymbol(«interp», «string»)</code></td>
 </tr>
-<tr class="even">
+<tr>
 <td> </td>
 <td style="width: 129px"> </td>
 <td style="width: 102px"> </td>
@@ -513,7 +520,7 @@ style="width: 364px"><code>newStringWithLength(«interp», «string», «length�
 <td
 style="width: 364px"><code>newSymbolWithLength(«interp», «string», «length»)</code></td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>type_cons</code></td>
 <td style="width: 129px"><code>type-cons</code></td>
 <td style="width: 102px"><code>Object *</code></td>
@@ -522,7 +529,7 @@ style="width: 364px"><code>newSymbolWithLength(«interp», «string», «length�
 <td
 style="width: 364px"><code>newCons(«interp», «car», «cdr»)</code></td>
 </tr>
-<tr class="even">
+<tr>
 <td> </td>
 <td style="width: 129px"> </td>
 <td style="width: 102px"> </td>
@@ -530,14 +537,14 @@ style="width: 364px"><code>newCons(«interp», «car», «cdr»)</code></td>
 <td style="width: 364px"><em>car</em> and <em>cdr</em> are of type
 <code>Object **</code></td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>type_vector</code></td>
 <td style="width: 129px"><code>type-vector</code></td>
 <td style="width: 102px"><code>Object **</code></td>
 <td style="width: 291px"><code>object-&gt;objects[]</code></td>
 <td style="width: 364px"><code>flisp_ext_obj()</code></td>
 </tr>
-<tr class="even">
+<tr>
 <td><p><code>type_lambda</code></p></td>
 <td style="width: 129px"><p><code>type-lambda</code></p></td>
 <td style="width: 102px"><code>Object *</code></td>
@@ -545,31 +552,31 @@ style="width: 364px"><code>newCons(«interp», «car», «cdr»)</code></td>
 style="width: 291px"><p><code>object-&gt;closure.params</code></p></td>
 <td style="width: 364px"><code>newClosure()</code></td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>type_macro</code></td>
 <td style="width: 129px"><code>type-macro</code></td>
 <td style="width: 102px"> </td>
 <td style="width: 291px"><code>object-&gt;closure.body</code></td>
 <td style="width: 364px"> </td>
 </tr>
-<tr class="even">
+<tr>
 <td> </td>
 <td style="width: 129px"> </td>
 <td style="width: 102px"> </td>
 <td style="width: 291px"><code>object-&gt;closure.env</code></td>
 <td style="width: 364px"> </td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>type_primitive</code></td>
 <td style="width: 129px"><code>type-primitive</code></td>
 <td style="width: 102px"><code>Primitive *</code></td>
 <td style="width: 291px"><code>object-&gt;primitive</code></td>
 <td style="width: 364px">n.a.</td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>type_stream</code></td>
 <td style="width: 129px"><code>type-stream</code></td>
-<td style="width: 102px"><div>
+<td style="width: 102px"><div class="header">
 <code>Object *</code>
 </div></td>
 <td
@@ -577,21 +584,21 @@ style="width: 291px"><code>object-&gt;stream.path</code> (<code>type-string</co
 <td
 style="width: 364px"><mark><code>newStreamObject(«interp», FILE *«fd», char *«path»)</code></mark></td>
 </tr>
-<tr class="odd">
+<tr>
 <td> </td>
 <td style="width: 129px"> </td>
 <td style="width: 102px"><code>FILE *</code></td>
 <td style="width: 291px"><code>object-&gt;stream.fd</code></td>
 <td style="width: 364px"><code>flisp_open()</code></td>
 </tr>
-<tr class="even">
+<tr>
 <td> </td>
 <td style="width: 129px"> </td>
 <td style="width: 102px"><code>size_t</code></td>
 <td style="width: 291px"><code>object-&gt;stream.len</code></td>
 <td style="width: 364px"> </td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>type_error</code></td>
 <td style="width: 129px"><p><code>type-error</code></p></td>
 <td style="width: 102px"><code>Object *</code></td>
@@ -599,7 +606,7 @@ style="width: 364px"><mark><code>newStreamObject(«interp», FILE *«fd», char 
 <td
 style="width: 364px"><code>newError(interp, Object *type, Object *culprit, char *message)</code></td>
 </tr>
-<tr class="even">
+<tr>
 <td> </td>
 <td style="width: 129px"> </td>
 <td style="width: 102px"><code>Object *</code></td>
@@ -607,7 +614,7 @@ style="width: 364px"><code>newError(interp, Object *type, Object *culprit, char 
 <td
 style="width: 364px"><code>newError2(interp, type, culprit, char *mess1, char *mess2)</code></td>
 </tr>
-<tr class="odd">
+<tr>
 <td> </td>
 <td style="width: 129px"> </td>
 <td style="width: 102px"><code>Object *</code></td>
@@ -615,7 +622,7 @@ style="width: 364px"><code>newError2(interp, type, culprit, char *mess1, char *m
 <td
 style="width: 364px"><code>newErrorI(interp, type, culprit, char *mess1, int4_t integer, char *mess2)</code></td>
 </tr>
-<tr class="even">
+<tr>
 <td> </td>
 <td style="width: 129px"> </td>
 <td style="width: 102px"> </td>
@@ -623,14 +630,14 @@ style="width: 364px"><code>newErrorI(interp, type, culprit, char *mess1, int4_t 
 <td
 style="width: 364px"><code>newErrorFmt(interp, type, culprit, char *format, ...)</code></td>
 </tr>
-<tr class="odd">
+<tr>
 <td><code>type_interpreter</code></td>
 <td style="width: 129px"><code>type-interpreter</code></td>
 <td style="width: 102px"> </td>
 <td style="width: 291px"> </td>
 <td style="width: 364px"><code>flisp_interpreter(...)</code></td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>type_extension</code></td>
 <td style="width: 129px"><code>type-extension</code></td>
 <td style="width: 102px"><code>Object *</code></td>
@@ -638,7 +645,7 @@ style="width: 364px"><code>newErrorFmt(interp, type, culprit, char *format, ...)
 style="width: 291px"><code>object-&gt;extension.name (type-symbol)</code></td>
 <td style="width: 364px"><code>flisp_register_extension(...)</code></td>
 </tr>
-<tr class="odd">
+<tr>
 <td> </td>
 <td style="width: 129px"> </td>
 <td style="width: 102px"><code>Object *</code></td>
@@ -646,7 +653,7 @@ style="width: 291px"><code>object-&gt;extension.name (type-symbol)</code></td>
 style="width: 291px"><code>object-&gt;extension.version (type-string)</code></td>
 <td style="width: 364px"> </td>
 </tr>
-<tr class="even">
+<tr>
 <td><code>ExtensionInit</code></td>
 <td style="width: 291px"><code>object-&gt;extension.init</code></td>
 <td style="width: 364px">Function pointer
@@ -699,7 +706,7 @@ new object(s).
 
 `Object *flisp_ext_obj(Object *«interp», Object *«type», Object **«list», size_t «length», size_t «extra»)`
 
-`interp`  
+`interp`\
 The interpreter within which to create the new object.  
  
 
@@ -719,7 +726,7 @@ Number of Lisp objects to allocate.
 `size`  
 Number of extra `char`'s to allocate.
 
-  
+\
    
  
 

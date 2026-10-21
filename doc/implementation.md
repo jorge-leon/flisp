@@ -112,10 +112,10 @@ The following primitives do not err on errors as their arguments:
 
 ### Multivalue Returns
 
-A sexp evaluates to exactly one object. *fLisp* supports returning
-multiple return values with the *values* type. A
-<span class="dfn">values</span> objects contains a single element, which
-must be the first car of a list.
+A <span class="abbr">sexp</span> evaluates to exactly one object.
+*fLisp* supports returning multiple return values with the *values*
+type. A <span class="dfn">values</span> objects contains a single
+element, which must be the first car of a list.
 
 When the evaluator of a lambda, a macro or a primitive encounters an
 argument of `type-value`, the value is discarded and its values list is
@@ -222,14 +222,15 @@ list and then only accessed through the pointers inside the list.
 Thus, whenever we would have used a raw pointer to an object, we use a
 pointer to the pointer inside the list instead:
 
-            function:              pointer to pointer inside list (Object **)
-            |
-            v
-            list of root objects:  pointer to object (Object *)
-            |
-            v
-            semi space:             object in memory
-          
+\
+        function:              pointer to pointer inside list (Object \*\*)\
+        \|\
+        v\
+        list of root objects:  pointer to object (Object \*)\
+        \|\
+        v\
+        semi space:             object in memory\
+      
 
 *GC_TRACE(gcX, X)* add object *X* to the `gcTop` list and declares the
 variable *gcX* which points to the objects pointer inside the list. The

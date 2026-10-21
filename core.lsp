@@ -142,8 +142,7 @@
   (if (null l)  i
       (fold-left f (f i (car l)) (cdr l)) ))
 
-(defun flip (func)  (lambda (o1 o2) (func o2 o1)))
-(defun reverse (l)  (fold-left (flip cons) nil l))
+(defun reverse (l) (nreverse (list-append l)))
 
 (defun listp (o) (cond ((null o)) ((consp o))))
 
@@ -317,7 +316,7 @@
 	  ((errorp r) r)
 	  ((memq feature features) feature)) )))
 
-(defun interp-extensions ()  (nth 3 (interp)))
+(defun interp-extensions ()  (nth 1 (interp)))
 (defmacro error-type (error)
   (list 'if (list 'errorp error) (list 'nth 0 error)
       (list 'error wrong-type-argument
