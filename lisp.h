@@ -271,9 +271,11 @@ extern Object *newError8(Object *, Object *, Object *, char *, char *, char *, c
 
 extern Object *newStreamObject(Object *, FILE *, char *);
 
-extern void resetBuf(Object *);
-extern bool addCharToBuf(Object *, int);
-
+extern void initPad(Scratchpad *);
+extern bool addCharToPad(Scratchpad *, int);
+extern bool addStringToPad(Scratchpad *, char *);
+extern SimpleObject fmt_oom_message;
+extern Object *flisp_static_error(Object *, SimpleObject *);
 
 extern Object type_symbol_obj, type_type_obj, type_str_obj, type_string_obj;
 

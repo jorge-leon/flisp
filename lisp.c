@@ -768,7 +768,31 @@ Object *newStringWithLength(Object *interp, char *string, size_t length)
     Object *object = newObject(interp, type_string, length + 1);
     CHECK_OOM(object);
     object->length = 0;
+//    object->size = unescapeString(object->string, string, length) + 1;
+//    strncpy(object->string, string, length);
+//    object->string[length] = '\0';
+    size_t r, w;
+    char *src = string, *dst = object->string;
+    for (r = 1, w = 0; r <= length; ++r)
+        dst[w++] = src[r - 1];
+    dst[w] = '\0';
+    object->size = w+1;
+    return object;
+}
+Object *newUnescapedStringWithLength(Object *interp, char *string, size_t length)
+{
+    if (length == 0)
+        return flisp_empty_string;
+
+    /* Note: we allocate the original string, let unescapeString do
+     *   the counting and and set the size correctly afterwards. The
+     *   next GC cycle will discard the extra bytes.
+     */
+    Object *object = newObject(interp, type_string, length + 1);
+    CHECK_OOM(object);
+    object->length = 0;
     object->size = unescapeString(object->string, string, length) + 1;
+    //object->size = length;
     return object;
 }
 Object *newString(Object *interp, char *string)
@@ -1162,7 +1186,7 @@ Object *readString(Object *interp, FILE *fd, Scratchpad *pad)
             READER_EOF("while reading string literal");
         }
         if (ch == '"' && !isEscaped)
-            return newStringWithLength(interp, pad->string, pad->size);
+            return newUnescapedStringWithLength(interp, pad->string, pad->size);
 
         isEscaped = (ch == '\\' && !isEscaped);
         if (!addCharToPad(pad, ch)) READER_OOM("OOM while reading string literal");
