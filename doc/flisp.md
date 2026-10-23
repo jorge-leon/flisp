@@ -63,7 +63,7 @@ Other documentation topics on *fLisp*:
 6.  [*fLisp* Extensions](#flisp_extensions)
     1.  [String Extension](#string)
     2.  [POSIX Extension](#posix)
-    3.  [Double Extension](#double)\
+    3.  [Double Extension](#double)  
          
 7.  [Lisp Libraries](#libraries)
     1.  [fLisp Library](#flisp_lib)
@@ -182,10 +182,9 @@ introspected directly.
 #### Syntax
 
 Program text is written as a sequence of symbolic expressions -
-<span class="abbr"><span class="dfn">sexp</span></span>'s - in
-parenthesized form. A [sexp](https://en.wikipedia.org/wiki/S-expression)
-is either a single symbol or a sequence of symbols or sexp's enclosed in
-parenthesis.
+<span class="dfn">sexp</span>'s - in parenthesized form. A
+[sexp](https://en.wikipedia.org/wiki/S-expression) is either a single
+symbol or a sequence of symbols or sexp's enclosed in parenthesis.
 
 The reader converts program text into the respective internal
 representation. It manipulates the input when it encounters some special
@@ -201,8 +200,7 @@ Starts a function or macro invocation, a *list* or *cons* object (see
 Finishes a function or macro invocation, *list* or *cons* object.
 
 `'` and `:`  
-Expand the following <span class="abbr">sexp</span> to `(quote «sexp»)`
-before it is evaluated.
+Expand the following sexp to `(quote «sexp»)` before it is evaluated.
 
 `.`  
 The expression `(«a» . «b»)` evaluates to a *cons* object, holding the
@@ -225,22 +223,21 @@ next newline.
 \`  
 Quasiquote:
 
-Expand the following <span class="abbr">sexp</span> to
-`(quasiquote sexp)`, with exception of contained `unquote` and
-`unquote-splice` sequences.
+Expand the following sexp to `(quasiquote sexp)`, with exception of
+contained `unquote` and `unquote-splice` sequences.
 
 ,  
 Unquote:
 
-Expand the following <span class="abbr">sexp</span> to `(unquote sexp)`:
-an unquoted expresion within a quasiquote is substituted.
+Expand the following sexp to `(unquote sexp)`: an unquoted expresion
+within a quasiquote is substituted.
 
 ,@  
 Unquote splice:
 
-Expand the following <span class="abbr">sexp</span> to
-`(unquote-splice)`: like `unquote`, but if the expresion evaluates to a
-list its elements are inserted element by element.
+Expand the following sexp to `(unquote-splice)`: like `unquote`, but if
+the expresion evaluates to a list its elements are inserted element by
+element.
 
 Reader macros:
 
@@ -292,12 +289,10 @@ invalid UTF-8 strings.
 
 #### Evaluation
 
-The reader transforms the program input to its internal form, a
-<span class="abbr">sexp</span> consisting of symbols, numbers and
-strings.
+The reader transforms the program input to its internal form, a sexp
+consisting of symbols, numbers and strings.
 
-The evaluator processes the <span class="abbr">sexp</span> recursively
-from left to right.
+The evaluator processes the sexp recursively from left to right.
 
 Symbols are either bound to a value or unbound. Bound symbols evaluate
 to their value, unbound symbols to an error.
@@ -598,8 +593,8 @@ Returns a *lambda* function which requires at least the exact number of
 arguments given in the list of *param*s. All extra arguments are passed
 as a list in the parameter *opt*.
 
-`(macro «params» «body»)` ⇒ *macro*\
-`(macro ([«param» ..]) «body»)` <u>s</u>\
+`(macro «params» «body»)` ⇒ *macro*  
+`(macro ([«param» ..]) «body»)` <u>s</u>  
 `(macro («param»[ «param»..] . «opt») «body»)` <u>s</u>  
 These forms return a macro function. Parameter handling is the same as
 with lambda.
@@ -610,7 +605,7 @@ Returns *expr* without evaluating it.
 `(eval «expr»)` ⇒ *o*  
 Evaluates *expr* and returns the result.
 
-`(error «type» «message»[ «culprit»])` ⇒ *o*\
+`(error «type» «message»[ «culprit»])` ⇒ *o*  
    
 Creates an error object. *culprit* is the object suspected to have
 caused the error.
@@ -672,7 +667,7 @@ one zero is prepended to a single padding character.
 number string, characters are stripped from the left to acchieve the
 given length.
 
-`(str «o»)`\
+`(str «o»)`  
 Return a string representing object *o*. Strings for string types, symbol names for symbols, the decimal representation for integers, the hexadecimal reader macro representations for doubles, lists and vectors are interpolated and enclosed within '()' and '\[\]' respectively. All other types are returned as `#<«type-name»>`.  
  
 
@@ -940,14 +935,14 @@ Returns a lambda with one parameter *b*. The lambda evaluates
 `(typep «type» «object»)` ⇒ *p*  
 Returns `t` if *object* is of type *type*, `nil` otherwise.
 
-`(integerp «object»)` ⇒ *p*\
-`(doublep «object»)` ⇒ *p*\
-`(stringp «object»)` ⇒ *p*\
-`(symbolp «object»)` ⇒ *p*\
-`(lamdap «object»)` ⇒ *p*\
-`(macrop «object»)` ⇒ *p*\
-`(streamp «object»)` ⇒ *p*\
-`(errorp «object»)` ⇒ *p*\
+`(integerp «object»)` ⇒ *p*  
+`(doublep «object»)` ⇒ *p*  
+`(stringp «object»)` ⇒ *p*  
+`(symbolp «object»)` ⇒ *p*  
+`(lamdap «object»)` ⇒ *p*  
+`(macrop «object»)` ⇒ *p*  
+`(streamp «object»)` ⇒ *p*  
+`(errorp «object»)` ⇒ *p*  
 `(vectorp «object»)` ⇒ *p*  
 Return `t` if *object* is of the respective type, otherwise `nil`.
 
@@ -1196,7 +1191,7 @@ Contains UTF-8 support and basic string functions.
 A collection with shallow wrappers to posix functions for interaction
 with the operating system.
 
-*double*\
+*double*  
 Floating point arithmetic.  
  
 
@@ -1327,10 +1322,10 @@ Returns *x* divided by *y*, or `inf` if *y* is zero.
 Returns the rest (modulo) of the integer division of *x* by *y* or
 `-nan` if *y* is zero.
 
-`(d= «x» «y»)` ⇒ *p*\
-`(d< «x» «y»)` ⇒ *p*\
-`(d> «x» «y»)` ⇒ *p*\
-`(d<= «x» «y»)` ⇒ *p*\
+`(d= «x» «y»)` ⇒ *p*  
+`(d< «x» «y»)` ⇒ *p*  
+`(d> «x» «y»)` ⇒ *p*  
+`(d<= «x» «y»)` ⇒ *p*  
 `(d>= «x» «y»)` ⇒ *p*  
 These predicate functions apply the respective comparison operator
 between *x* *y*.
@@ -1389,8 +1384,8 @@ Return `nil` if *o1* and *o2* are not isomorphic.
 `(vector[ arg ..])`  
 Create a vector from all given args
 
-`(quasiquote-splice «ast»)`\
-`(quasiquote-unquote «ast»)`\
+`(quasiquote-splice «ast»)`  
+`(quasiquote-unquote «ast»)`  
 `(quasiquote «ast»)`  
 These functions/macro implement the quasiquote reader macro(s).
 
@@ -1520,8 +1515,8 @@ variable FLISPLIB.
 All environment variables recognized by `fl` are taken into account,
 however it is wise to only use `FLISP_SIZE«.»`
 
-*The original* *argv0* *command line argument, the full path to*
-`fl«, is bound to the symbol »«flisp_interpreter»«, The full path to »flisp« is bound to the symbol »«argv0»« and the rest of the command line arguments are bound as a list of string to the symbol »«argv»«.»`
+*The original **argv0** command line argument, the full path to
+*`fl«, is bound to the symbol »«flisp_interpreter»«, The full path to »flisp« is bound to the symbol »«argv0»« and the rest of the command line arguments are bound as a list of string to the symbol »«argv»«.»`
 
 `flisp` tries to load a user specific rc file from
 `~/.config/flisp/init.lsp`. Then all arguments on the command line are

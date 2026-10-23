@@ -27,13 +27,7 @@ $(cat core.lsp)
   (if args (fputs (str o) (car args))
       (fputs (str o)) ))
 
-(defun repl-princ s  (princ (concat s)))
 (defun repl-eprinc s (princ (concat s) *standard-error*))
-
-(defun repl-print-result (result)
-  (princ result)
-  (fputs "\n")
-  result )
 
 (defun repl-print-error (err)
   (errorp ; Note: w/o (errorp) progn quits on errors
@@ -41,19 +35,18 @@ $(cat core.lsp)
   (fputs "\n" *standard-error*) )
 
 (defun repl ()
-  (when (fttyp) (fputs "> ")(fflush))
+  (when (fttyp) (fputs "\n> ")(fflush))
   (let ((e (read)))
     (if (errorp e)
 	(if (same (car (elements e 0 1)) end-of-file) e
 	    (when (fttyp) (fputs "\n"))
-	    (repl-print-error e)
-	    (repl) )
-
-	(let ((r (eval e)))
-	  (if (errorp r)  (repl-print-error r)
-	      (repl-print-result r) )
-	  (repl) ))))
-
+	    (repl-print-error e) )
+	(if (stringp e) (fputs e)
+	    (let ((r (eval e)))
+	      (if (errorp r) (repl-print-error r)
+		  (fputs (str r)) ))))
+    (repl) ))
+  
 (defun repl-rcfile ()
   (let* ((rcfile (concat (getenv "HOME") "/" ".config/flisp/init.lsp"))
 	 (r (load rcfile)) )
