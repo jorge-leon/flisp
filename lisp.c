@@ -792,7 +792,6 @@ Object *newUnescapedStringWithLength(Object *interp, char *string, size_t length
     CHECK_OOM(object);
     object->length = 0;
     object->size = unescapeString(object->string, string, length) + 1;
-    //object->size = length;
     return object;
 }
 Object *newString(Object *interp, char *string)
