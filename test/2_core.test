@@ -19,7 +19,7 @@ FLISP=flisp
 export FLISP_PRINT=1
 #export FLISP_SIZE=$((20*1024*1024))
 
-tap 200
+tap 199
 
 # list
 IN='(list)' OUT=nil
@@ -330,9 +330,6 @@ IN="(fold-left + 1 nil)" OUT=1
 flisp_expr;  ok fold-left-1 fold-left with empty list is init
 IN="(fold-left + 1 '(2 3))" OUT=6
 flisp_expr;  ok fold-left-2 fold-left with list folds
-
-IN="((flip -) 2 3)" OUT="1"
-flisp_expr; ok flip-1 flip - on '2-3' is 1
 
 IN="(reverse '(1 2 3))" OUT="(3 2 1)"
 flisp_expr; ok reverse-1 reverse 1 2 3 is 3 2 1

@@ -12,7 +12,7 @@ export PREPARE="(interp-gc-always t)"
 
 #export FLISP_SIZE=$((20*1024*1024))
 
-tap 221
+tap 224
 
 # reader
 IN='(' OUT='#<error:read-incomplete: unexpected end of stream while reading list: nil>'
@@ -58,6 +58,12 @@ flisp_expr; ok reader-7-1 read ascii string is string
 
 IN='"änßwér"' OUT='änßwér'
 flisp_expr; ok reader-7-2 read unicode string is string
+
+IN='"\\\\"' OUT='\'
+flisp_expr; ok reader 7-8 read string double backslash is backslash
+
+IN='"\\t"' OUT="$(printf '\t')"
+flisp_expr; ok reader 7-9 read string backslash tab is tab
 
 IN="()" OUT='nil'
 flisp_expr; ok reader-8 read empty list
@@ -664,6 +670,10 @@ flisp_expr; ok string-append-3 string append of unicode is string
 
 IN='(string-append "" "answer")' OUT='answer'
 flisp_expr; ok string-append-3  append emtpy answer is anser
+
+IN='(string-append "\\" "\\")' OUT='\\' # Note: flisp_expr eats one level of backslashes
+[ "$(printf %s%s "$PREPARE" "$IN" | $FLISP 2>&1 | tail -1)" = "$OUT" ]
+ok string-append-4  append two backslashes is double backslash
 
 IN='(string-compare "a" "a")' OUT="0" flisp_expr; ok string-compare-1 same strings compare 0
 IN='(string-compare "a" "b")' OUT="-1" flisp_expr; ok string-compare-2 a less then b

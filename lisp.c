@@ -527,7 +527,7 @@ Object *flisp_store_object(Object *interp, Object *object, Object *list, size_t 
 {
     Object *o = list, *i;
     bool check = !gcCollectableObject(interp, object);
-    
+
     for (; index < object->length && o != nil; o = CDR(o)) {
         i = (TYPE(o) == type_cons) ? CAR(o) : o;
         if (check && gcCollectableObject(interp, i))
@@ -713,85 +713,16 @@ Object *newEnv(Object *interp, Object *params, Object *vals)
     return environment;
 }
 
-/** unescapeString() - copy a string, converting escaped symbols
- *
- * @param dst    destination
- * @param src    escaped string to copy
- * @param len    length of the string
- *
- */
-size_t unescapeString(char *dst, char *src, size_t len)
-{
-    size_t r, w;
-    for (r = 1, w = 0; r <= len; ++r) {
-        if (src[r - 1] == '\\' && r < len) {
-            switch (src[r]) {
-            case '\\':
-                dst[w++] = '\\';
-                r++;
-                break;
-            case '"':
-                dst[w++] = '"';
-                r++;
-                break;
-            case 't':
-                dst[w++] = '\t';
-                r++;
-                break;
-            case 'r':
-                dst[w++] = '\r';
-                r++;
-                break;
-            case 'n':
-                dst[w++] = '\n';
-                r++;
-                break;
-            default:
-                dst[w++] = '\\';
-                break;
-            }
-        } else
-            dst[w++] = src[r - 1];
-    }
-    dst[w] = '\0';
-    return w;
-}
 Object *newStringWithLength(Object *interp, char *string, size_t length)
 {
     if (length == 0)
         return flisp_empty_string;
 
-    /* Note: we allocate the original string, let unescapeString do
-     *   the counting and and set the size correctly afterwards. The
-     *   next GC cycle will discard the extra bytes.
-     */
     Object *object = newObject(interp, type_string, length + 1);
     CHECK_OOM(object);
     object->length = 0;
-//    object->size = unescapeString(object->string, string, length) + 1;
-//    strncpy(object->string, string, length);
-//    object->string[length] = '\0';
-    size_t r, w;
-    char *src = string, *dst = object->string;
-    for (r = 1, w = 0; r <= length; ++r)
-        dst[w++] = src[r - 1];
-    dst[w] = '\0';
-    object->size = w+1;
-    return object;
-}
-Object *newUnescapedStringWithLength(Object *interp, char *string, size_t length)
-{
-    if (length == 0)
-        return flisp_empty_string;
-
-    /* Note: we allocate the original string, let unescapeString do
-     *   the counting and and set the size correctly afterwards. The
-     *   next GC cycle will discard the extra bytes.
-     */
-    Object *object = newObject(interp, type_string, length + 1);
-    CHECK_OOM(object);
-    object->length = 0;
-    object->size = unescapeString(object->string, string, length) + 1;
+    strncpy(object->string, string, length);
+    object->string[length] = '\0';
     return object;
 }
 Object *newString(Object *interp, char *string)
@@ -1163,7 +1094,7 @@ Object *readDouble(Object *interp, Scratchpad *pad)
     // Note: purposely not dealing with NaN
     return newDouble(interp, d);
 }
-
+#if 0
 /** readString - read string object from input file
  * @param interp  fLisp interpreter
  * @param fd      open readable file descriptor
@@ -1191,6 +1122,46 @@ Object *readString(Object *interp, FILE *fd, Scratchpad *pad)
         if (!addCharToPad(pad, ch)) READER_OOM("OOM while reading string literal");
     }
 }
+#else
+/** readString - read string object from input file
+ * @param interp  fLisp interpreter
+ * @param fd      open readable file descriptor
+ * @returns: string object
+ * @errors: read-incomplete, io_error
+ * @trows: out-of-memory
+ */
+Object *readString(Object *interp, FILE *fd, Scratchpad *pad)
+{
+    int ch;
+
+    initPad(pad);
+
+    for (;;) {
+        ch = fgetc(fd);
+        if (ch == EOF) {
+            if (ferror(fd)) READER_IO("while reading string literal");
+            READER_EOF("while reading string literal");
+        }
+        if (ch == '"')
+            return newStringWithLength(interp, pad->string, pad->size);
+
+        if (ch == '\\') {
+            ch = fgetc(fd);
+            if (ch == EOF) {
+                if (ferror(fd)) READER_IO("while reading escaped string literal");
+                READER_EOF("while reading escaped string literal");
+            }
+            switch (ch) {
+            case 't': ch = '\t'; break;
+            case 'n': ch = '\n'; break;
+            case 'r': ch = '\r'; break;
+            }
+        }
+        if (!addCharToPad(pad, ch)) READER_OOM("OOM while reading string literal");
+    }
+}
+#endif
+
 Object *readSymbol(Object *interp, FILE *fd, Scratchpad *pad)
 {
     if (EOF == readWhile(interp, fd, isSymbolChar, 10)) {

@@ -141,13 +141,13 @@ flisp_expr () {
     local T_RC
     T_OUT="$(echo -n "$PREPARE $IN" | $FLISP 2>&1)"
     T_RC=$?
-    F_OUT="$(echo "$T_OUT" | range $1 $2)"
+    F_OUT="$(echo -n "$T_OUT" | range $1 $2)"
     [ "$F_OUT" = "$OUT" ]
 }
 flisp_err () {
     echo replace flisp_err with flisp_expr >&2; exit 1
     local T_RC
-    T_OUT=$(echo -n "$PREPARE $IN" | $FLISP 2>&1)
+    T_OUT="$(echo -n "$PREPARE $IN" | $FLISP 2>&1)"
     T_RC=$?
     F_OUT=$(echo "$T_OUT" | range ${1:-1} ${2:-1})
     echo -n "$F_OUT" | {
