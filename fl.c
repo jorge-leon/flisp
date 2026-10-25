@@ -22,7 +22,6 @@
 #include <errno.h>
 
 #include "lisp.h"
-#include "fmt.h"
 #include "double.h"
 #include "posix.h"
 #include "string.h"

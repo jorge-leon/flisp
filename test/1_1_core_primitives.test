@@ -12,7 +12,7 @@ export PREPARE="(interp-gc-always t)"
 
 #export FLISP_SIZE=$((20*1024*1024))
 
-tap 224
+tap 218
 
 # reader
 IN='(' OUT='#<error:read-incomplete: unexpected end of stream while reading list: nil>'
@@ -684,13 +684,3 @@ IN='(interp-gc-always nil)' OUT=nil flisp_expr; ok interp-gc-always-1 nil is nil
 IN='(interp-gc-always t)'   OUT=t   flisp_expr; ok interp-gc-always-2 t is t
 IN='(interp-gc-always (1))'  OUT='#<error:invalid-value: (interp-gc-always[ p]) - p: #<error:wrong-type-argument: is not a function: 1>>'
 flisp_expr; ok interp-gc-always-3 error is error
-
-IN='(interp-trace-read nil)' OUT=nil flisp_expr; ok interp-trace-read-1 nil is nil
-IN='(interp-trace-read t)'   OUT=t   flisp_expr; ok interp-trace-read-2 t is t
-IN='(interp-trace-read (1))'  OUT='#<error:invalid-value: (interp-trace-read[ p]) - p: #<error:wrong-type-argument: is not a function: 1>>'
-flisp_expr; ok interp-trace-read-3 error is error
-
-IN='(interp-trace-primitives nil)' OUT=nil flisp_expr; ok interp-trace-primitives-1 nil is nil
-IN='(interp-trace-primitives t)'   OUT=t   flisp_expr; ok interp-trace-primitives-2 t is t
-IN='(interp-trace-primitives (1))'  OUT='#<error:invalid-value: (interp-trace-primitives[ p]) - p: #<error:wrong-type-argument: is not a function: 1>>'
-flisp_expr; ok interp-trace-primitives-3 error is error

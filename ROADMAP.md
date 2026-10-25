@@ -48,15 +48,19 @@
 
 ## fLisp 0.18
 - object: move write out of core, replace with fmt.
-  - instead of writer slot have a fmt slot in the type object.
+  + instead of writer slot have a fmt slot in the type object.
   + readably formatting is removed from core.
+  + trace and print flags and primitives are removed from core.
   + fl: read, eval, fmt, puts()
-  - rationale: embedded operation most likely doesn't want to print neither fmt.
+  + rationale: embedded operation most likely doesn't want to print neither fmt.
 - object: new and fmt slot contain either:
   + nil -> fallback operation
   + primitive -> execute
   - cons -> eval *new: this allows to override
 - CAR() CDR() TYPE() Macro: use it consistently
++ Fixed string handling design flaw from tiny Lisp: each newly created string
+  object would unescape the given string, e.g. also in (string-append).
+  Unescaping is the lone duty of the Lisp reader, where it is put now.
 + Remove global variables (except argv, argv0) - they are covered by (interp-[input|output|debug).
 + Add optional flag to gc call to shrink memory to minimum.
 + Make cloneList() available to Lisp as (list-append) and use e.g. in (append).

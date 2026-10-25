@@ -471,7 +471,7 @@
   one of the existing error types instead of creating new ones.</p>
   <p><i>fLisp</i>&nbsp;presents error messages to the user in the following format:</p>
   <blockquote>
-    <code>error:<var>type</var>:&nbsp;<var>message:&nbsp;</var>'<var>object</var>'</code>
+    <code>#&lt;error:<var>type</var>:&nbsp;<var>message</var>:&nbsp;<var>object</var>&gt;</code>
   </blockquote>
   <p>where <var>type</var> is the error type,&nbsp;<var>object</var> is the serialization of the object causing the
   error. <var>message</var> is the error message.</p>
@@ -573,7 +573,7 @@
       </dl>
     </dd>
     <dt><code>(close <var>stream</var>)</code> ⇒ <var>integer</var> <u>S</u></dt>
-    <dd>Close <var>stream</var> object. Returns the value of the systems <code>close()</code> function as integer.</dd>
+    <dd>Close <var>stream</var> object. Returns <code>nil</code> on success, otherwise an error.</dd>
     <dt><code>(read</code> <code><var>stream</var>[&nbsp;<var>eof-value</var>])</code> ⇒ <var>object</var> <u>S:
     read</u></dt>
     <dd>
@@ -596,19 +596,25 @@
         <dt><var>padding</var></dt>
         <dd>The first character of this string is used for left padding of the output string. Default is a space</dd>
         <dt><var>length</var></dt>
-        <dd>Length of the string to output. If not given no padding occurs, if zero, one zero is prepended to a single
-        padding character. <code>(ifmt 17 16 nil "x" 0)</code> ⇒ <code>0x11</code>. If <var>length</var> is shorter
-        then the number string, characters are stripped from the left to acchieve the given length.</dd>
+        <dd>
+          <p>Length of the string to output:</p>
+          <ul>
+            <li>If not given or <code>-1</code> no padding occurs.</li>
+            <li>If <code>-2</code> a <code>#</code> character is placed before the first pad character.</li>
+            <li>If zero, one zero is prepended to a single padding character. <code>(ifmt 17 16 nil "x" 0)</code> ⇒
+            <code>0x11</code>.</li>
+            <li>If <var>length</var> is shorter then the number string, characters are stripped from the left to
+            acchieve the given length.</li>
+          </ul>
+        </dd>
       </dl>
     </dd>
     <dt id="str"><code>(str <var>o</var>)</code></dt>
-    <dt>Return a string representing object <var>o</var>. Strings for string types, symbol names&nbsp;for
-    symbols,&nbsp;the decimal representation for integers, the hexadecimal reader macro representations for doubles,
-    lists and vectors are interpolated and enclosed within&nbsp;'()' and '[]' respectively. All other types are
-    returned as <samp>#&lt;<var>type-name</var>&gt;</samp>.</dt>
-    <dd>&nbsp;</dd>
+    <dd>Return a string representing object <var>o</var>. Strings for string types, symbol names for symbols, the
+    decimal representation for integers, the hexadecimal reader macro representations for doubles, lists and vectors
+    are interpolated and enclosed within '()' and '[]' respectively and errors as their error presentation. All other
+    types are returned as <samp>#&lt;<var>type-name</var>&gt;</samp>.</dd>
   </dl>
-  <h4>&nbsp;</h4>
   <h4 id="object_ops">Object Operations</h4>
   <dl>
     <dt><code>(null <var>object</var>)</code> ⇒ <var>p</var></dt>

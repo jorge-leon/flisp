@@ -520,7 +520,7 @@ types instead of creating new ones.
 
 *fLisp* presents error messages to the user in the following format:
 
-> `error:«type»: «message: »'«object»'`
+> `#<error:«type»: «message»: «object»>`
 
 where *type* is the error type, *object* is the serialization of the
 object causing the error. *message* is the error message.
@@ -635,8 +635,7 @@ For writing *path* is ignored, *mode* must be set to: `>`. The name of
 the opened file is set to `>STRING`.
 
 `(close «stream»)` ⇒ *integer* <u>S</u>  
-Close *stream* object. Returns the value of the systems `close()`
-function as integer.
+Close *stream* object. Returns `nil` on success, otherwise an error.
 
 `(read` *stream*`[ «eof-value»])` ⇒ *object* <u>S: read</u>  
 Reads the next complete Lisp expression from *stream*. The read in
@@ -661,17 +660,22 @@ The first character of this string is used for left padding of the
 output string. Default is a space
 
 *length*  
-Length of the string to output. If not given no padding occurs, if zero,
-one zero is prepended to a single padding character.
-`(ifmt 17 16 nil "x" 0)` ⇒ `0x11`. If *length* is shorter then the
-number string, characters are stripped from the left to acchieve the
-given length.
+Length of the string to output:
+
+- If not given or `-1` no padding occurs.
+- If `-2` a `#` character is placed before the first pad character.
+- If zero, one zero is prepended to a single padding character.
+  `(ifmt 17 16 nil "x" 0)` ⇒ `0x11`.
+- If *length* is shorter then the number string, characters are stripped
+  from the left to acchieve the given length.
 
 `(str «o»)`  
-Return a string representing object *o*. Strings for string types, symbol names for symbols, the decimal representation for integers, the hexadecimal reader macro representations for doubles, lists and vectors are interpolated and enclosed within '()' and '\[\]' respectively. All other types are returned as `#<«type-name»>`.  
- 
-
-####  
+Return a string representing object *o*. Strings for string types,
+symbol names for symbols, the decimal representation for integers, the
+hexadecimal reader macro representations for doubles, lists and vectors
+are interpolated and enclosed within '()' and '\[\]' respectively and
+errors as their error presentation. All other types are returned as
+`#<«type-name»>`.
 
 #### Object Operations
 

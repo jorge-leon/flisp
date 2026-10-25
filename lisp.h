@@ -119,9 +119,6 @@ typedef struct InterpreterExt {
     Object *gcTop;
     Memory *memory;
     int64_t countdown;
-    bool print : 1;
-    bool trace_read : 1;
-    bool trace_primitives : 1;
     bool gc_always : 1;
 } InterpreterExt;
 
@@ -324,7 +321,8 @@ extern bool flisp_is_error(Object **, Object *);
 #define FLISP_ARG5 (*args)->cdr->cdr->cdr->cdr->car
 
 #define FLISP_ASSERT(PARAM, TYPE, SIGNATURE)                            \
-    if (PARAM->type != TYPE)                                            \
+    if (FLISP_IS_OOM(PARAM)) return PARAM;                              \
+    if ((PARAM)->type != TYPE)                                          \
         return newError8(interp, wrong_type_argument, PARAM,            \
                          SIGNATURE,                                     \
                          " expected ",                                  \

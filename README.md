@@ -46,6 +46,7 @@ Size by version:
 	0.18α1   97792  116856   4752/3227/10           745/178/5
 	0.18α1   97264  116888   4732/3204/10           721/178/5 (str)
 	0.18α1   98032  116888   4697/3171/10           721/178/5 values fix, append, apply
+	0.18α1  101216  121608   4636/3130/10           711/177/5 newString() fix
 
 The statically compiled `fl` measures 1.1M.
 
