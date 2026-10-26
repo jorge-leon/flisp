@@ -204,7 +204,7 @@ extern Object *flisp_register_extension(Object *, Object *, ExtensionInit);
 
 extern Object *flisp_register_constant(Object *, Object *, Object *);
 extern Object *flisp_register_primitive(Object *, char *, int, int, Object *, LispEval);
-extern Object *flisp_register_type(Object *, char *, Object *, Object *, Object *, Object *);
+extern Object *flisp_register_type(Object *, Object *, Object *, Object *);
 
 
 // PROGRAMMING INTERFACE ////////////////////////////////////////////////
@@ -283,14 +283,15 @@ extern Object type_symbol_obj, type_type_obj, type_str_obj, type_string_obj;
     Object *NAME = (Object *)&NAME##_obj
 
 /* Types */
-#define FLISP_DEFINE_TYPE(NAME)                                         \
+#define FLISP_DEFINE_TYPE(NAME, LENGTH)                                 \
     Object type_##NAME##_obj = {                                        \
         .type   = &type_type_obj,                                       \
-        .size   = sizeof(Object*[3]),                                   \
-        .length = 3,                                                    \
-        .t.name = (Object*)&(SimpleObject){ .type = &type_symbol_obj, .size = 0, .str = "type-" #NAME }, \
-        .t.new  = (Object*)&nil_obj,                                    \
-        .t.fmt  = (Object*)&nil_obj,                                    \
+        .size   = sizeof(Object*[4]),                                   \
+        .length = 4,                                                    \
+        .t.name =   (Object*)&(SimpleObject){ .type = &type_symbol_obj, .size = 0, .str = "type-" #NAME }, \
+        .t.length = (Object*)&nil_obj,                                  \
+        .t.new  =   (Object*)&nil_obj,                                  \
+        .t.fmt  =   (Object*)&nil_obj,                                  \
     };                                                                  \
     Object *type_##NAME = &type_##NAME##_obj
 
