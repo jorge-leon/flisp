@@ -1,0 +1,81 @@
+<html>
+<head>
+	<title></title>
+</head>
+<body style="cursor: auto;">
+<h4>Type fields</h4>
+
+<table border="1" cellpadding="1" cellspacing="1" style="width: 500px;">
+	<tbody>
+		<tr>
+			<td><var>name</var></td>
+			<td><var>length</var></td>
+			<td><var>new</var></td>
+			<td><var>fmt</var></td>
+		</tr>
+	</tbody>
+</table>
+
+<dl>
+	<dt><dfn><var>name</var></dfn></dt>
+	<dd>Type name, a symbol.</dd>
+	<dt><dfn><var>length</var></dfn></dt>
+	<dd>See below.</dd>
+	<dt><dfn><var>new</var></dfn></dt>
+	<dd>See below.</dd>
+	<dt><var><dfn>fmt</dfn></var></dt>
+	<dd>If <code>nil</code>, use <code>(str <var>object</var>)</code> to convert an <var>object</var>&nbsp;of this type into its string representation. Otherwise use <code>(<var>fmt</var> <var>object</var>[ ..])</code>.</dd>
+</dl>
+
+<h4>Object Initialization</h4>
+
+<p>Objects are created with the <font face="monospace">form&nbsp;</font><code>(new <var>type</var>[ <var>arg</var>&nbsp;..])</code>. The <var>length</var> element of the type has the following effect:</p>
+
+<dl>
+	<dt><var>length</var> = 0</dt>
+	<dd>The length of the new object is the length of the argument list. If no arguments are given a zero length object of <var>type</var> is created.</dd>
+	<dt><var>length</var>&nbsp;&gt; 0</dt>
+	<dd>The length of the new object is of the given <var>length</var>.</dd>
+	<dt><var>length</var>&nbsp;&lt; 0</dt>
+	<dd>The argument list is asserted to be a multiple of -<var>length</var>, an error is returned if not.&nbsp;The length of the new object is set to the length of the argument list.</dd>
+</dl>
+
+<p>The difference between a length field of <code>0</code> and of <code>-1</code> is, that the latter requires the object to have at least one element.</p>
+
+<p>If the <var>new</var> element of type is <code>nil</code>&nbsp;the elements are set to the given arguments, the first element is set to the first argument and so forth. If more then <var>length</var> arguments are given the extra arguments are silently ignored, if less then <var>length</var> arguments are given, the remaining elements&nbsp;are set to <code>nil</code>.</p>
+
+<p>If the <var>new</var> element of the type is not <code>nil</code>, it must be a primitive or lambda, otherwise an error is returned. An <var>object</var> is created with a length according to the above rules, then&nbsp;<code>(<var>new</var> <var>object</var>[ <var>arg</var>&nbsp;..])</code> is evaluated.</p>
+
+<p>Better alternative:</p>
+
+<p><code>(<var>new</var> <var>type</var>[ arg ..]) </code>is evaluated. It must return a list. Then <code>new</code> is evaluated with the list as arguments as if the <var>new</var> element was set to <code>nil</code>.</p>
+
+<p>Objects are created with the <code>new</code> primitive. If the <var>new</var> field of the type is <code>nil</code>, <code>(new <var>type</var>[ <var>arg</var>&nbsp;..])</code> creates an object of <var>type</var> depending on the&nbsp;<var>length</var> element follows:</p>
+
+<dl>
+	<dt><var>length</var> = 0</dt>
+	<dd>The length of the new object is the length of the argument list, the elements are&nbsp;initialized it with the given arguments. If no arguments are given a zero sized object of <var>type</var> is created.</dd>
+	<dt><var>length</var>&nbsp;&gt; 0</dt>
+	<dd>The length of the new object is of the given <var>length</var>, the elements are initialized with the list of arguments. If more then <var>length</var> arguments are given the extra arguments are silently ignored. If less then <var>length</var> arguments are given, the remaining elements&nbsp;are set to <code>nil</code>.</dd>
+	<dt><var>length</var>&nbsp;&lt; 0</dt>
+	<dd>The argument list is asserted to be a multiple of -<var>length</var>, an error is returned if not.&nbsp;The length of the new object is set to the length of the argument list and the elements are initialized with the given arguments.</dd>
+</dl>
+
+<p>The difference between a length field of <code>0</code> and of <code>-1</code> is, that the latter requires the object to have at least one element.</p>
+
+<p>If the <var>new</var> field of the type is not <code>nil</code>, it must be a primitive or lambda.&nbsp;<code>(new <var>type</var>[ <var>arg</var>&nbsp;..])</code> creates an object of <var>type</var> depending on the&nbsp;<var>length</var> element follows:</p>
+
+<dl>
+	<dt><var>length</var> = 0</dt>
+	<dd><code>(<var>new</var>[ <var>arg</var>&nbsp;..])</code> is evaluated. If it evaluates to a&nbsp;list <code>([<var>arg</var> ..])</code> then&nbsp;<code>(new <var>type</var>[ <var>arg</var> ..)</code> is evaluated as described above, otherwise an error is returned.</dd>
+	<dt><var>length</var> &gt; 0</dt>
+	<dd>An <var>object</var> of the given <var>length</var>&nbsp;with all elements set to <code>nil</code> is created, then <code>(<var>new</var> <var>object</var>[ <var>arg</var> ..])</code> is evaluated.</dd>
+	<dt>length &lt; 0</dt>
+	<dd>The argument list is asserted to be a multiple of -<var>length</var>, an error is returned if not. A new <var>object</var> with the length of the argument list and all elements set to <code>nil</code> is created. Then&nbsp;<code>(<var>new</var> <var>object</var>[ <var>arg</var> ..]) </code>is evaluated.</dd>
+</dl>
+
+<h4>&nbsp;Zero <var>length</var> Objects</h4>
+
+<p>Different objects with length = 0 and the same type are compared as <code>same</code>.</p>
+</body>
+</html>

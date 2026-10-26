@@ -53,8 +53,8 @@ Object *flisp_double_init(Object *interp, Object *extension)
     GC_TRACE(gcExt, extension);
     do {
 
-        FLISP_WHILE_OK(flisp_register_type(interp, "type-double",      type_double, (Object*)&flisp_init_invalid, nil)); //(Object*)&write_double));
-       
+        FLISP_WHILE_OK(flisp_register_type(interp, "type-double", type_double, flisp_integer_zero, (Object*)&flisp_init_invalid, nil)); //(Object*)&write_double));
+
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "integer", 1,  1, type_double,  integerFromDouble));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "double",  1,  1, type_integer, doubleFromInteger));
         FLISP_UNLESS_ERR(flisp_register_primitive(interp, "d+",      2,  2, type_double, doubleAdd));

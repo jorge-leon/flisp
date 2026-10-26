@@ -70,6 +70,7 @@ typedef struct SimpleObject {
 
 typedef struct TypeExt {
     Object *name;       /* symbol or str object */
+    Object *length;     /* length default */
     Object *new;        /* primitive or function to create the object */
     Object *fmt;        /* primitive or function, (format stream object) */
 } TypeExt;
@@ -203,7 +204,7 @@ extern Object *flisp_register_extension(Object *, Object *, ExtensionInit);
 
 extern Object *flisp_register_constant(Object *, Object *, Object *);
 extern Object *flisp_register_primitive(Object *, char *, int, int, Object *, LispEval);
-extern Object *flisp_register_type(Object *, char *, Object *, Object *, Object *);
+extern Object *flisp_register_type(Object *, char *, Object *, Object *, Object *, Object *);
 
 
 // PROGRAMMING INTERFACE ////////////////////////////////////////////////
@@ -319,6 +320,7 @@ extern bool flisp_is_error(Object **, Object *);
 #define FLISP_ARG3 (*args)->cdr->cdr->car
 #define FLISP_ARG4 (*args)->cdr->cdr->cdr->car
 #define FLISP_ARG5 (*args)->cdr->cdr->cdr->cdr->car
+#define FLISP_ARG6 (*args)->cdr->cdr->cdr->cdr->cdr->car
 
 #define FLISP_ASSERT(PARAM, TYPE, SIGNATURE)                            \
     if (FLISP_IS_OOM(PARAM)) return PARAM;                              \
