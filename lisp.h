@@ -250,8 +250,13 @@ extern Object *file_exists;
 extern Object *read_only;
 extern Object *is_directory;
 /* utility */
-extern Object *flisp_empty_string;
 extern Object *flisp_integer_zero;
+extern Object *flisp_integer_one;
+extern Object *flisp_integer_two;
+extern Object *flisp_integer_three;
+extern Object *flisp_integer_four;
+
+extern Object *flisp_empty_string;
 extern Object *flisp_empty_vector;
 
 extern Object *flisp_new(Object *, Object *, Object **, size_t, size_t);
@@ -289,7 +294,7 @@ extern Object type_symbol_obj, type_type_obj, type_str_obj, type_string_obj;
         .size   = sizeof(Object*[4]),                                   \
         .length = 4,                                                    \
         .t.name =   (Object*)&(SimpleObject){ .type = &type_symbol_obj, .size = 0, .str = "type-" #NAME }, \
-        .t.length = (Object*)&nil_obj,                                  \
+        .t.length = (Object*)&LENGTH,                                   \
         .t.new  =   (Object*)&nil_obj,                                  \
         .t.fmt  =   (Object*)&nil_obj,                                  \
     };                                                                  \

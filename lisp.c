@@ -67,7 +67,7 @@ FLISP_DEFINE_TYPE(type, flisp_integer_four);
 FLISP_DEFINE_TYPE(string, flisp_integer_zero);
 FLISP_DEFINE_TYPE(symbol, flisp_integer_zero);
 FLISP_DEFINE_TYPE(cons, flisp_integer_two);
-FLISP_DEFINE_TYPE(vector, nil);
+FLISP_DEFINE_TYPE(vector, flisp_integer_zero);
 FLISP_DEFINE_TYPE(lambda, flisp_integer_three);
 FLISP_DEFINE_TYPE(macro, flisp_integer_three);
 FLISP_DEFINE_TYPE(error, flisp_integer_three);
@@ -1813,81 +1813,50 @@ Object *primitiveEval(Object *interp, Object **args, Object **env, size_t nArgs)
  *
  */
 
-/* (init-invalid type length[ ..]) */
+/* (init-invalid[ ..]) */
 Object *typeInitInvalid(Object *interp, Object **args, Object **env, size_t nArgs)
 {
-    return newError(interp, wrong_type_argument, FLISP_ARG1, "(init-invalid type length[ ..]) - type cannot be initialized");
+    return newError(interp, wrong_type_argument, nil, "(init-invalid[ ..]) - type cannot be initialized");
 }
-Primitive t_ii_p = { .name = "init-invalid", .nMinArgs = 2, .nMaxArgs = -1, .argsType = type_any, .eval = typeInitInvalid };
+Primitive t_ii_p = { .name = "init-invalid", .nMinArgs = 0, .nMaxArgs = -1, .argsType = type_any, .eval = typeInitInvalid };
 SimpleObject flisp_init_invalid = { .type = &type_primitive_obj, .size = 0, .primitive = &t_ii_p };
 
-/* (init-type type-type 4 name length[ init[ fmt]]) */
+/* (init-type name length[ init[ fmt]]) */
 Object *typeInitType(Object *interp, Object **args, Object **env, size_t nArgs)
 {
-    FLISP_ASSERT(FLISP_ARG3, type_symbol, "(init-type type-type 4 name length[ init[ fmt]]) - name");
+    FLISP_ASSERT(FLISP_ARG1, type_symbol, "(init-type name length[ init[ fmt]]) - name");
     /* Note: we want to strip type- when fmt'ing an object so it looks
      * nice. So we must extra check if it's there. That could be
      * taken away completely: type- would be just a convention
      */
-    if (strncmp("type-", flisp_symbol_string(FLISP_ARG3), sizeof("type-")-1))
-        return newError(interp, invalid_value, FLISP_ARG3, "(init-type type-type 4 name[ length[ init[ fmt]]])) - name must start with \"type-\"");
+    if (strncmp("type-", flisp_symbol_string(FLISP_ARG1), sizeof("type-")-1))
+        return newError(interp, invalid_value, FLISP_ARG1, "(init-type name length[ init[ fmt]]])) - name must start with \"type-\"");
 
-    /* Note: init and fmt must be nil, primitive or closure
-       but: DRY
-     */
-    FLISP_ASSERT(FLISP_ARG4, type_integer, "(init-type type-type 4 name length[ init[fmt]]) - length");
-
-    if (nArgs > 4
-        && !(
-            FLISP_ARG5 == nil
-            || TYPE(FLISP_ARG5) == type_primitive
-            || (TYPE(FLISP_ARG5) == type_lambda)
-            || (TYPE(FLISP_ARG5) == type_macro)
-            )
-        )
-        return newError(interp, invalid_value, FLISP_ARG5,
-                        "(init-type type-type 4 name length[ init[ fmt]]) - init neither nil, type_primitive nor closure");
-    if (nArgs > 5
-        && !(
-            FLISP_ARG6 == nil
-            || TYPE(FLISP_ARG6) == type_primitive
-            || (TYPE(FLISP_ARG6) == type_lambda)
-            || (TYPE(FLISP_ARG6) == type_macro)
-            )
-        )
-        return newError(interp, invalid_value, FLISP_ARG6,
-                        "(init-type type-type 4 name length [init[ fmt]]) - fmt neither nil, type_primitive nor closure");
-
-    //return flisp_new(interp, type_type, &(*args)->cdr->cdr, 3, 0);
-    return flisp_new(interp, type_type, &CDR(CDR(*args)), 4, 0);
+    return *args;
 }
-Primitive t_it_p = { .name = "init-type", .nMinArgs = 3, .nMaxArgs = 6, .argsType = type_any, .eval = typeInitType };
+Primitive t_it_p = { .name = "init-type", .nMinArgs = 2, .nMaxArgs = 4, .argsType = type_any, .eval = typeInitType };
 SimpleObject type_init_type = { .type = &type_primitive_obj, .size = 0, .primitive = &t_it_p };
 
-/* (init-cons type length car cdr) */
+/* (init-cons[ car[ cdr]) */
 Object *typeInitCons(Object *interp, Object **args, Object **env, size_t nArgs)
 {
-    if (FLISP_ARG2->value != 2)
-        return newError(interp, invalid_value, FLISP_ARG2, "(init-cons type length[ ..]) - length expected: 2");
-    return newCons(interp, nArgs < 3 ? &nil : &FLISP_ARG3, nArgs < 4 ? &nil : &FLISP_ARG4);
+    return newCons(interp, nArgs > 0 ? &FLISP_ARG1 : &nil, nArgs > 1 ? &FLISP_ARG2 : &nil);
 }
-Primitive t_ic_p = { .name = "init-cons", .nMinArgs = 2, .nMaxArgs = 4, .argsType = type_any, .eval = typeInitCons };
+Primitive t_ic_p = { .name = "init-cons", .nMinArgs = 0, .nMaxArgs = 2, .argsType = type_any, .eval = typeInitCons };
 SimpleObject type_init_cons = { .type = &type_primitive_obj, .size = 0, .primitive = &t_ic_p };
 
-/* (init-error type length error-type message[ culprit]) */
+/* (init-error error-type message[ culprit]) */
 Object *typeInitError(Object *interp, Object **args, Object **env, size_t nArgs)
 {
-    FLISP_ASSERT(FLISP_ARG3, type_symbol, "(init-error type length error-type message[ culprit]) - error-type");
-    if (TYPE(FLISP_ARG4) != type_string && TYPE(FLISP_ARG4) != type_str)
-        return newError2(interp, wrong_type_argument, FLISP_ARG4,
-                         "(init-error type length error-type message[ culprit]) - message expected type-string or type-str got ",
+    FLISP_ASSERT(FLISP_ARG1, type_symbol, "(init-error error-type message[ culprit]) - error-type");
+    if (TYPE(FLISP_ARG2) != type_string && TYPE(FLISP_ARG2) != type_str)
+        return newError2(interp, wrong_type_argument, FLISP_ARG2,
+                         "(init-error error-type message[ culprit]) - message expected type-string or type-str got ",
                          flisp_symbol_string(TYPE(FLISP_ARG4)->t.name));
-    if (FLISP_ARG2->value != 3)
-        return newError(interp, invalid_value, FLISP_ARG2, "(init-error type length[ ..]) - length expected: 3");
 
-    return newError(interp, FLISP_ARG3, nArgs == 4 ? nil : FLISP_ARG5, FLISP_ARG4->string);
+    return *args;
 }
-Primitive t_ie_p = { .name = "init-error", .nMinArgs = 4, .nMaxArgs = 5, .argsType = type_any, .eval = typeInitError };
+Primitive t_ie_p = { .name = "init-error", .nMinArgs = 2, .nMaxArgs = 3, .argsType = type_any, .eval = typeInitError };
 SimpleObject type_init_error = { .type = &type_primitive_obj, .size = 0, .primitive = &t_ie_p };
 
 
@@ -2136,6 +2105,7 @@ Object *primitiveObjectLength(Object *interp, Object **args, Object **env, size_
     CHECK_OOM(FLISP_ARG1);
     return newInteger(interp, FLISP_ARG1->size ? FLISP_ARG1->length : 0);
 }
+#if 0
 /** (new type length[ arg ..]) => extended_object */
 Object *primitiveNew(Object *interp, Object **args, Object **env, size_t nArgs)
 {
@@ -2177,6 +2147,36 @@ Object *primitiveNew(Object *interp, Object **args, Object **env, size_t nArgs)
     }
     return newError(interp, invalid_value, FLISP_ARG1, "(new type length[ arg ..]) - type no initializer for objects of this type");
 }
+#else
+/** (new type[ arg ..]) => extended_object */
+Object *primitiveNew(Object *interp, Object **args, Object **env, size_t nArgs)
+{
+    FLISP_ASSERT(FLISP_ARG1, type_type, "(new type[ arg ..]) - type");
+
+    Object *type = FLISP_ARG1;
+    Object *init = type->t.new;
+    int64_t type_length = type->t.length->value;
+    size_t length;
+
+    if (init == nil) {
+        if (type_length > 0 ) length = type_length;
+        else if (type_length == 0 || (nArgs-1)%(-type_length) == 0) length = nArgs-1;
+        else return newErrorI(interp, wrong_number_of_arguments, nil, "(new type[ arg ..]) - args must be a multiple of ", -type_length, "");
+        return flisp_new(interp, type, &CDR(*args), length, 0);
+    }
+    GC_CHECKPOINT;
+    GC_TRACE(gcType, FLISP_ARG1);
+    GC_TRACE(gcEnv, *env);
+    GC_CHECK_OOM(init = newCons(interp, &init, &CDR(*args)));
+    GC_CHECK_ERR(init = evalExpr(interp, &init, gcEnv));
+    GC_RELEASE;
+    nArgs = flisp_list_length(init);
+    if (type_length >0) length = type_length;
+    else if (type_length == 0 || nArgs%(-type_length) == 0) length = nArgs;
+    else return newErrorI(interp, wrong_number_of_arguments, nil, "(new type[ arg ..]) - args must be a multiple of ", -type_length, "");
+    return flisp_new(interp, *gcType, &init, length, 0);
+}
+#endif
 /** (store index obj [..]) */
 Object *primitiveStore(Object *interp, Object **args, Object **env, size_t nArgs)
 {
