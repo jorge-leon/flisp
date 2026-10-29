@@ -198,13 +198,14 @@ extern SimpleObject flisp_init_invalid;
 
 #define FLISP_IS_EOF(OBJECT) (FLISP_IS_ERR(OBJECT) && (OBJECT)->error.type == end_of_file)
 /* Note: for speed reasons we could use a single static error object and compare pointers */
-#define FLISP_IS_OOM(OBJECT) (FLISP_IS_ERR(OBJECT) && (OBJECT)->error.type == gc_error)
+#define FLISP_IS_OOM(OBJECT) ((FLISP_IS_ERR(OBJECT) && (OBJECT)->error.type == gc_error) || (OBJECT)->type == type_moved)
+//#define FLISP_IS_OOM(OBJECT) (FLISP_IS_ERR(OBJECT) && (OBJECT)->error.type == gc_error)
 
 extern Object *flisp_register_extension(Object *, Object *, ExtensionInit);
 
 extern Object *flisp_register_constant(Object *, Object *, Object *);
 extern Object *flisp_register_primitive(Object *, char *, int, int, Object *, LispEval);
-extern Object *flisp_register_type(Object *, Object *, Object *, Object *);
+extern Object *flisp_register_type(Object *, Object *, Object *);
 
 
 // PROGRAMMING INTERFACE ////////////////////////////////////////////////
@@ -231,6 +232,9 @@ extern Object *type_stream;
 extern Object *type_extension; /* opaque object */
 extern Object *type_str; /* C string / ASCII or UTF-8 */
 extern Object *type_ptr; /* C pointer */
+/* intern */
+extern Object *type_moved;
+
 
 #define type_any (Object*)&nil_obj
 
@@ -280,13 +284,16 @@ extern bool addStringToPad(Scratchpad *, char *);
 extern SimpleObject fmt_oom_message;
 extern Object *flisp_static_error(Object *, SimpleObject *);
 
-extern Object type_symbol_obj, type_type_obj, type_str_obj, type_string_obj;
+extern Object type_symbol_obj, type_type_obj, type_str_obj, type_string_obj, type_integer_obj, type_vector_obj;
 
 /* Constants */
 #define FLISP_DEFINE_CONSTANT(NAME,STRING)                                    \
     SimpleObject NAME##_obj = { .type = &type_symbol_obj, .size = 0, .str = STRING }; \
     Object *NAME = (Object *)&NAME##_obj
 
+/* Note: for some reason, setting the LENGTH does not work out. We
+   overcome this with flisp_register_type for the moment.
+*/
 /* Types */
 #define FLISP_DEFINE_TYPE(NAME, LENGTH)                                 \
     Object type_##NAME##_obj = {                                        \
