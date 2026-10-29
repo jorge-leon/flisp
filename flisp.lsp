@@ -48,7 +48,7 @@
 	   (equal (car o1) (car o2))
 	   (equal (cdr o1) (cdr o2)))))
 
-(defun vector args (new type-vector 0 . args))
+(defun vector args (new type-vector . args))
 
 ;; https://github.com/kanaka/mal/blob/master/process/guide.md#step-7-quoting
 (defun quasiquote-splice (ast)

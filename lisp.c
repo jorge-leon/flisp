@@ -680,6 +680,8 @@ Object *newEnv(Object *interp, Object *params, Object *vals)
 
         if (*gcVal == nil) break;
 
+        GC_CHECK_OOM(CAR(*gcVal));
+
         if (TYPE(CAR(*gcVal)) == type_values) {
             if (CDR(*gcVal) == nil) {
                 /* Special case, if values is at end of parameter list */
@@ -1825,13 +1827,7 @@ SimpleObject flisp_init_invalid = { .type = &type_primitive_obj, .size = 0, .pri
 Object *typeInitType(Object *interp, Object **args, Object **env, size_t nArgs)
 {
     FLISP_ASSERT(FLISP_ARG1, type_symbol, "(init-type name length[ init[ fmt]]) - name");
-    /* Note: we want to strip type- when fmt'ing an object so it looks
-     * nice. So we must extra check if it's there. That could be
-     * taken away completely: type- would be just a convention
-     */
-    if (strncmp("type-", flisp_symbol_string(FLISP_ARG1), sizeof("type-")-1))
-        return newError(interp, invalid_value, FLISP_ARG1, "(init-type name length[ init[ fmt]]])) - name must start with \"type-\"");
-
+    FLISP_ASSERT(FLISP_ARG2, type_integer, "(init-type name length[ init[ fmt]]) - length");
     return *args;
 }
 Primitive t_it_p = { .name = "init-type", .nMinArgs = 2, .nMaxArgs = 4, .argsType = type_any, .eval = typeInitType };
@@ -1935,7 +1931,7 @@ err:
 Object *str_prefix_object(Object *object, void *delimiter)
 {
     if (!addStringToPad(scratchpad, ((str_delimiter*)delimiter)->prefix)) goto err;
-    if (!addStringToPad(scratchpad, flisp_symbol_string(TYPE(object)->t.name)+strlen("type-"))) goto err;
+    if (!addStringToPad(scratchpad, flisp_symbol_string(TYPE(object)->t.name))) goto err;
     if (!addStringToPad(scratchpad, ":")) goto err;
     return nil;
 err:
@@ -2105,49 +2101,6 @@ Object *primitiveObjectLength(Object *interp, Object **args, Object **env, size_
     CHECK_OOM(FLISP_ARG1);
     return newInteger(interp, FLISP_ARG1->size ? FLISP_ARG1->length : 0);
 }
-#if 0
-/** (new type length[ arg ..]) => extended_object */
-Object *primitiveNew(Object *interp, Object **args, Object **env, size_t nArgs)
-{
-    FLISP_ASSERT(FLISP_ARG1, type_type, "(new type length[ arg ..]) - type");
-    FLISP_ASSERT(FLISP_ARG2, type_integer, "(new type length[ arg ..]) - length");
-
-    if (FLISP_ARG2->value < 0)
-        return newError(interp, range_error, FLISP_ARG2,  "(new type length[ arg ..]) - length must be positive)");
-
-    Object *type = FLISP_ARG1;
-    Object *init = type->t.new;
-
-    if (init == nil)
-        return flisp_new(interp, type, &CDR(CDR(*args)), (FLISP_ARG2->value) ? (FLISP_ARG2->value) : nArgs-2, 0);
-
-    if (TYPE(init) == type_primitive) {
-        Primitive *new = type->t.new->primitive;
-        /* Note: this is ripped out of the evaluator for the specific use
-         * case of init-cons. It is bad because:
-         * - We should not repeat ourself.
-         * - Min arg checking and n-tuple checking is not implemented here.
-         * - Instead of FLISP_ARG1 we want the name string of the init
-         *   primitive. Or we could rethink the approach so that the error
-         *   seems to come from (object ...).
-         */
-        if (nArgs > new->nMaxArgs && new->nMaxArgs >= 0)
-            return newErrorI(interp, wrong_number_of_arguments, FLISP_ARG1,
-                             "expects at most ", new->nMaxArgs, " arguments");
-
-        return new->eval(interp, args, &interp->self.global, nArgs);
-    }
-    // (<initializer> arg ...)
-    if (TYPE(init) == type_lambda) {
-        GC_CHECKPOINT;
-        GC_TRACE(gcArgs, *args);
-        GC_TRACE(gcInit, init);
-        GC_RETURN(newCons(interp, gcInit, gcArgs));
-        //GC_RETURN(newClosure(interp, type_lambda, gcCons, &interp->self.global));
-    }
-    return newError(interp, invalid_value, FLISP_ARG1, "(new type length[ arg ..]) - type no initializer for objects of this type");
-}
-#else
 /** (new type[ arg ..]) => extended_object */
 Object *primitiveNew(Object *interp, Object **args, Object **env, size_t nArgs)
 {
@@ -2168,15 +2121,15 @@ Object *primitiveNew(Object *interp, Object **args, Object **env, size_t nArgs)
     GC_TRACE(gcType, FLISP_ARG1);
     GC_TRACE(gcEnv, *env);
     GC_CHECK_OOM(init = newCons(interp, &init, &CDR(*args)));
-    GC_CHECK_ERR(init = evalExpr(interp, &init, gcEnv));
+    GC_CHECK_ERR(init = evalExpr(interp, &init, gcEnv)); /* Note: we get double evaluation of the arguments here, how to avoid? */
     GC_RELEASE;
     nArgs = flisp_list_length(init);
-    if (type_length >0) length = type_length;
+    if (type_length > 0) length = type_length;
     else if (type_length == 0 || nArgs%(-type_length) == 0) length = nArgs;
     else return newErrorI(interp, wrong_number_of_arguments, nil, "(new type[ arg ..]) - args must be a multiple of ", -type_length, "");
     return flisp_new(interp, *gcType, &init, length, 0);
 }
-#endif
+
 /** (store index obj [..]) */
 Object *primitiveStore(Object *interp, Object **args, Object **env, size_t nArgs)
 {
@@ -2962,7 +2915,6 @@ Object *flisp_interpreter(size_t size, char **argv, FILE *input)
 
     TYPE(interp) = type_interpreter;
     interp->size = sizeof(InterpreterExt);
-    /* Note: 4 is the number of Lisp objects stored in InterpreterExt */
     interp->length = offsetof(InterpreterExt, gcTop)/sizeof(Object *);
 
     FLISP_INTERP.memory = memory;
