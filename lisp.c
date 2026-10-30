@@ -56,11 +56,12 @@ FLISP_DEFINE_CONSTANT(extension_core, "core");
 FLISP_DEFINE_CONSTANT(extension_core_version, FL_VERSION);
 
 /* Constant Objects */
-Object *flisp_integer_zero  = (Object*)&(SimpleObject) { .type = &type_integer_obj, .size =  0, .value = 0 };
-Object *flisp_integer_two   = (Object*)&(SimpleObject) { .type = &type_integer_obj, .size =  0, .value = 2 };
-Object *flisp_integer_three = (Object*)&(SimpleObject) { .type = &type_integer_obj, .size =  0, .value = 3 };
-Object *flisp_integer_four  = (Object*)&(SimpleObject) { .type = &type_integer_obj, .size =  0, .value = 4 };
+SimpleObject integer_zero_obj = { .type = &type_integer_obj, .size =  0, .value = 0 };
+SimpleObject integer_two_obj = { .type = &type_integer_obj, .size =  0, .value = 2 };
+SimpleObject integer_three_obj = { .type = &type_integer_obj, .size =  0, .value = 3 };
+SimpleObject integer_four_obj = { .type = &type_integer_obj, .size =  0, .value = 4 };
 
+Object *flisp_integer_zero  = (Object*)&integer_zero_obj;
 Object *flisp_empty_str     = (Object*)&(SimpleObject) { .type = &type_str_obj,     .size =  0, .length = 0, .str = "\0" };
 Object *flisp_empty_string  =                &(Object) { .type = &type_string_obj,  .size =  1, .length = 0, .string = "\0" };
 Object *flisp_empty_vector  = (Object*)&(SimpleObject) { .type = &type_vector_obj,  .size =  0, .length = 0  };
@@ -68,28 +69,28 @@ Object *flisp_empty_vector  = (Object*)&(SimpleObject) { .type = &type_vector_ob
 /* Types */
 
 /* Simple */
-FLISP_DEFINE_TYPE(integer, flisp_integer_zero);
-FLISP_DEFINE_TYPE(primitive, flisp_integer_zero);
-FLISP_DEFINE_TYPE(str, flisp_integer_zero);
-FLISP_DEFINE_TYPE(ptr, flisp_integer_zero);
+FLISP_DEFINE_TYPE(integer, integer_zero_obj);
+FLISP_DEFINE_TYPE(primitive, integer_zero_obj);
+FLISP_DEFINE_TYPE(str, integer_zero_obj);
+FLISP_DEFINE_TYPE(ptr, integer_zero_obj);
 
 /* Extended */
-FLISP_DEFINE_TYPE(type, flisp_integer_four);
-FLISP_DEFINE_TYPE(string, flisp_integer_zero);
-FLISP_DEFINE_TYPE(symbol, flisp_integer_zero);
-FLISP_DEFINE_TYPE(cons, flisp_integer_two);
-FLISP_DEFINE_TYPE(vector, flisp_integer_zero);
-FLISP_DEFINE_TYPE(lambda, flisp_integer_three);
-FLISP_DEFINE_TYPE(macro, flisp_integer_three);
-FLISP_DEFINE_TYPE(error, flisp_integer_three);
-FLISP_DEFINE_TYPE(stream, flisp_integer_four);
+FLISP_DEFINE_TYPE(type, integer_four_obj);
+FLISP_DEFINE_TYPE(string, integer_zero_obj);
+FLISP_DEFINE_TYPE(symbol, integer_zero_obj);
+FLISP_DEFINE_TYPE(cons, integer_two_obj);
+FLISP_DEFINE_TYPE(vector, integer_zero_obj);
+FLISP_DEFINE_TYPE(lambda, integer_three_obj);
+FLISP_DEFINE_TYPE(macro, integer_three_obj);
+FLISP_DEFINE_TYPE(error, integer_three_obj);
+FLISP_DEFINE_TYPE(stream, integer_four_obj);
 
 /* Internal */
-FLISP_DEFINE_TYPE(env, flisp_integer_three);
-FLISP_DEFINE_TYPE(interpreter, flisp_integer_four);
-FLISP_DEFINE_TYPE(extension, flisp_integer_two);
-FLISP_DEFINE_TYPE(values, flisp_integer_zero);
-FLISP_DEFINE_TYPE(moved, flisp_integer_zero);
+FLISP_DEFINE_TYPE(env, integer_three_obj);
+FLISP_DEFINE_TYPE(interpreter, integer_four_obj);
+FLISP_DEFINE_TYPE(extension, integer_two_obj);
+FLISP_DEFINE_TYPE(values, integer_zero_obj);
+FLISP_DEFINE_TYPE(moved, integer_zero_obj);
 
 #define FLISP_DEFINE_STR(NAME,STR) \
     SimpleObject NAME = { .type = &type_str_obj, .size = 0, .str = #STR }
@@ -291,6 +292,10 @@ typedef struct gcStats { size_t moved, constant, skipped; } gcStats;
 Object *gcMoveObject(Object *interp, Object *object, gcStats *stats)
 {
 
+    Object *e;
+    fputs("gcMoveObject: ", stderr);
+    fputs(flisp_str(object, &e), stderr);
+    fputs("\n", stderr);
     /* Skip object if it is not within from-space, i.e. on the stack or a constant */
     if (!gcCollectableObject(interp, object)) {
         stats->constant++;
@@ -336,12 +341,15 @@ void gc(Object *interp, bool shrink)
 
     FLISP_INTERP.memory->toOffset = 0;
 
+    fputs("gc: gcTop\n", stderr);
     for (object = FLISP_INTERP.gcTop; object != nil; object = CDR(object))
         CAR(object) = gcMoveObject(interp, CAR(object), &stats);
 
+    fputs("gc: interp\n", stderr);
     for (i = 0; i < interp->length; i++)
         interp->objects[i] = gcMoveObject(interp, interp->objects[i], &stats);
     // iterate over objects in to-space and move all objects they reference
+    fputs("gc: toSpace\n", stderr);
     for (object = FLISP_INTERP.memory->toSpace;
          object < (Object *) ((char *)FLISP_INTERP.memory->toSpace + FLISP_INTERP.memory->toOffset);
          object = (Object *) ((char *)object + sizeof(SimpleObject) + object->size)) {

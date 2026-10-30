@@ -301,7 +301,7 @@ extern Object type_symbol_obj, type_type_obj, type_str_obj, type_string_obj, typ
         .size   = sizeof(Object*[4]),                                   \
         .length = 4,                                                    \
         .t.name =   (Object*)&(SimpleObject){ .type = &type_symbol_obj, .size = 0, .str = "type-" #NAME }, \
-        .t.length = (Object*)&LENGTH,                                   \
+        .t.length = (Object*)&LENGTH,                                          \
         .t.new  =   (Object*)&nil_obj,                                  \
         .t.fmt  =   (Object*)&nil_obj,                                  \
     };                                                                  \
