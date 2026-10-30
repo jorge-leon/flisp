@@ -12,7 +12,7 @@ export PREPARE="(interp-gc-always t)"
 
 #export FLISP_SIZE=$((20*1024*1024))
 
-tap 218
+tap 219
 
 # reader
 IN='(' OUT='#<type-error:read-incomplete: unexpected end of stream while reading list: nil>'
@@ -123,11 +123,14 @@ flisp_expr; ok bind-2-1 dottet list before p errs
 IN='(bind t s . 1)' OUT='#<type-error:invalid-value: (bind p s[ o] ..) - o, arguments are not a proper list: (t s . 1)>'
 flisp_expr; ok bind-2-2 dotted list before value errs
 
+IN='(bind t 1 2)' OUT='#<type-error:wrong-type-argument: (bind p s[ o] ..) - some s not of type symbol: 1>'
+flisp_expr; ok bind-2-3 binding not to symbol errs
+
 IN='(bind t s 1 . t)' OUT='#<type-error:invalid-value: (bind p s[ o] ..) - s, arguments are not a proper list: (t s 1 . t)>'
-flisp_expr; ok bind-2-3 dotted list before symbol errs
+flisp_expr; ok bind-2-4 dotted list before symbol errs
 
 IN='(bind t invalid-value)' OUT='#<type-error:wrong-type-argument: (bind p s[ o[ s[ ..]]]) - s is a constant and cannot be redefined: invalid-value>'
-flisp_expr; ok bind-2-4  binding constant errs
+flisp_expr; ok bind-2-5  binding constant errs
 
 IN="(bind nil var 'val)" OUT=val
 flisp_expr; ok bind-3 assignment returns value

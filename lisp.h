@@ -145,7 +145,7 @@ struct Object {
     };
     union {
         Object *objects[1];                      // Vector
-        struct { Object *car;    Object *cdr; }; // Cons
+        //struct { Object *car;    Object *cdr; }; // Cons
         char string[sizeof(InterpreterExt)];     // String, Symbol
         Object *values;
         TypeExt t;
@@ -318,9 +318,9 @@ extern Object *gcReturn(Object *, Object *, Object *);
 #define GC_RETURN(expr)  return gcReturn(interp, gcTop, expr)
 
 #define GC_TRACE(name, init)                                            \
-    Object GC_UNIQUE(gcTrace) = { .type = type_cons, .car = init, .cdr = interp->self.gcTop }; \
+    Object GC_UNIQUE(gcTrace) = { .type = type_cons, .cons.car = init, .cons.cdr = interp->self.gcTop }; \
     interp->self.gcTop = &GC_UNIQUE(gcTrace);                           \
-    Object **name = &GC_UNIQUE(gcTrace).car;
+    Object **name = &GC_UNIQUE(gcTrace).cons.car;
 
 /*  do while dispatcher */
 extern bool flisp_not_same(Object **, Object *);
@@ -328,12 +328,15 @@ extern bool flisp_is_error(Object **, Object *);
 #define FLISP_WHILE_OK(F) if (flisp_not_same(&e, F)) break
 #define FLISP_UNLESS_ERR(F) if (flisp_is_error(&e, F)) break
 
-#define FLISP_ARG1 (*args)->car
-#define FLISP_ARG2 (*args)->cdr->car
-#define FLISP_ARG3 (*args)->cdr->cdr->car
-#define FLISP_ARG4 (*args)->cdr->cdr->cdr->car
-#define FLISP_ARG5 (*args)->cdr->cdr->cdr->cdr->car
-#define FLISP_ARG6 (*args)->cdr->cdr->cdr->cdr->cdr->car
+#define CAR(OBJECT)  (OBJECT)->cons.car
+#define CDR(OBJECT)  (OBJECT)->cons.cdr
+
+#define FLISP_ARG1 CAR(*args)
+#define FLISP_ARG2 CAR(CDR(*args))
+#define FLISP_ARG3 CAR(CDR(CDR(*args)))
+#define FLISP_ARG4 CAR(CDR(CDR(CDR(*args))))
+#define FLISP_ARG5 CAR(CDR(CDR(CDR(CDR(*args)))))
+#define FLISP_ARG6 CAR(CDR(CDR(CDR(CDR(CDR(*args))))))
 
 #define FLISP_ASSERT(PARAM, TYPE, SIGNATURE)                            \
     if (FLISP_IS_OOM(PARAM)) return PARAM;                              \

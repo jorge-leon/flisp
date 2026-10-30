@@ -88,8 +88,8 @@ FLISP_DEFINE_TYPE(stream, flisp_integer_four);
 FLISP_DEFINE_TYPE(env, flisp_integer_three);
 FLISP_DEFINE_TYPE(interpreter, flisp_integer_four);
 FLISP_DEFINE_TYPE(extension, flisp_integer_two);
-FLISP_DEFINE_TYPE(values, nil);
-FLISP_DEFINE_TYPE(moved, nil);
+FLISP_DEFINE_TYPE(values, flisp_integer_zero);
+FLISP_DEFINE_TYPE(moved, flisp_integer_zero);
 
 #define FLISP_DEFINE_STR(NAME,STR) \
     SimpleObject NAME = { .type = &type_str_obj, .size = 0, .str = #STR }
@@ -212,8 +212,6 @@ char *fmtInteger(int64_t integer, int64_t base, char *map, char pad_char, size_t
     return (char *)-2;
 }
 
-#define CAR(OBJECT)  (OBJECT)->cons.car
-#define CDR(OBJECT)  (OBJECT)->cons.cdr
 #define TYPE(OBJECT) (OBJECT)->type
 
 
@@ -706,7 +704,7 @@ Object *newEnv(Object *interp, Object *params, Object *vals)
                     else
                         CDR(*gcPrev) = *gcVal = cloneList(interp, CAR(*gcVal)->values, CDR(*gcVal));
                 }
-                CHECK_OOM(*gcVal);
+                GC_CHECK_OOM(*gcVal);
             }
             continue;
         }
@@ -1485,7 +1483,8 @@ Object *evalBind(Object *interp, Object **args, Object **env)
     for (;(*gcArg) != nil; *gcArg = CDR(*gcArg)) {
         if (TYPE(*gcArg) != type_cons)
             GC_RETURN(newError(interp, invalid_value, *args, "(bind p s[ o] ..) - s, arguments are not a proper list"));
-        FLISP_ASSERT(CAR(*gcArg), type_symbol, "(bind p s[ o] ..) - s");
+        if (TYPE(CAR(*gcArg)) != type_symbol)
+            GC_RETURN(newError(interp,  wrong_type_argument, CAR(*gcArg), "(bind p s[ o] ..) - some s not of type symbol"));
         if (!gcCollectableObject(interp, CAR(*gcArg)))
             GC_RETURN(newError(interp, wrong_type_argument, CAR(*gcArg),
                                "(bind p s[ o[ s[ ..]]]) - s is a constant and cannot be redefined"));
@@ -2113,24 +2112,23 @@ Object *primitiveNew(Object *interp, Object **args, Object **env, size_t nArgs)
     Object *init = type->t.new;
     int64_t type_length = type->t.length->value;
     size_t length;
+    Object *o;
 
-    if (init == nil) {
-        if (type_length > 0 ) length = type_length;
-        else if (type_length == 0 || (nArgs-1)%(-type_length) == 0) length = nArgs-1;
-        else return newErrorI(interp, wrong_number_of_arguments, nil, "(new type[ arg ..]) - args must be a multiple of ", -type_length, "");
+    if (type_length > 0 ) length = type_length;
+    if (type_length == 0) length = nArgs-1;
+    if (init == nil)
         return flisp_new(interp, type, &CDR(*args), length, 0);
-    }
+
     GC_CHECKPOINT;
     GC_TRACE(gcType, FLISP_ARG1);
     GC_TRACE(gcEnv, *env);
-    GC_CHECK_OOM(init = newCons(interp, &init, &CDR(*args)));
-    GC_CHECK_ERR(init = evalExpr(interp, &init, gcEnv)); /* Note: we get double evaluation of the arguments here, how to avoid? */
+    GC_CHECK_OOM(o = newCons(interp, &init, &CDR(*args)));
+    o = evalExpr(interp, &o, gcEnv); /* Note: we get double evaluation of the arguments here, how to avoid? special form? */
     GC_RELEASE;
-    nArgs = flisp_list_length(init);
+    FLISP_CHECK_ERR(o);
     if (type_length > 0) length = type_length;
-    else if (type_length == 0 || nArgs%(-type_length) == 0) length = nArgs;
-    else return newErrorI(interp, wrong_number_of_arguments, nil, "(new type[ arg ..]) - args must be a multiple of ", -type_length, "");
-    return flisp_new(interp, *gcType, &init, length, 0);
+    if (type_length == 0) length = flisp_list_length(o);
+    return flisp_new(interp, *gcType, &o, length, 0);
 }
 
 /** (store index obj [..]) */
@@ -2695,7 +2693,6 @@ Object *primitiveInterpCountdown(Object *interp, Object **args, Object **env, si
 
 Object *flisp_register_type(Object *interp, Object *type, Object *init)
 {
-    type->t.length = flisp_integer_four;
     type->t.new = init;
     type->t.fmt = nil;
     GC_CHECKPOINT;
